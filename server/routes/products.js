@@ -1,123 +1,94 @@
 const express = require('express');
-const router = express.Router();
-const Product = require('../models/Product');
 const multer = require('multer');
-const path = require('path');
+const Product = require('../models/Product');
 
-// Set up multer for image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'public/images/products');
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage: storage });
-
-// Get all products (with optional category filter)
-router.get('/', async (req, res) => {
-  try {
-    const { category } = req.query; // Optional query parameter for filtering by category
-
-    let query = {};
-    if (category) {
-      query.category = category; // Filter products by category
-    }
-
-    const products = await Product.find(query);
-    res.json(products);
-  } catch (err) {
-    console.error('Error fetching products:', err.message);
-    res.status(500).json({ message: 'Server error while fetching products' });
-  }
-});
+const router = express.Router();
+const upload = multer({ dest: 'uploads/' });
 
 // Add a new product
 router.post('/', upload.single('image'), async (req, res) => {
   try {
-    const { name, price, description, category } = req.body;
-
-    if (!name || !price || !category) {
-      return res.status(400).json({ message: 'Name, price, and category are required' });
-    }
+    const { name, price, oldPrice, discount, description, category } = req.body;
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
     const product = new Product({
       name,
       price,
+      oldPrice,
+      discount,
       description,
       category,
-      image: req.file ? `/images/products/${req.file.filename}` : '' // Save image path
+      image: imagePath,
     });
 
-    const newProduct = await product.save();
-    res.status(201).json(newProduct);
-  } catch (err) {
-    console.error('Error adding product:', err.message);
-    res.status(400).json({ message: 'Failed to add product', error: err.message });
+    await product.save();
+    res.status(201).json(product);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
   }
 });
 
-// Get a single product by ID
-router.get('/:id', async (req, res) => {
+// Get all products
+router.get('/', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    res.json(product);
-  } catch (err) {
-    console.error('Error fetching product:', err.message);
-    res.status(500).json({ message: 'Server error while fetching product' });
+    const products = await Product.find().lean();
+    res.json(products);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
   }
 });
 
-// Update a product by ID
-router.put('/:id', upload.single('image'), async (req, res) => {
+// Get products by category
+router.get('/:category', async (req, res) => {
   try {
-    const { name, price, description, category } = req.body;
-
-    let product = await Product.findById(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    // Update fields
-    product.name = name || product.name;
-    product.price = price || product.price;
-    product.description = description || product.description;
-    product.category = category || product.category;
-
-    // Update image if a new one is uploaded
-    if (req.file) {
-      product.image = `/images/products/${req.file.filename}`;
-    }
-
-    const updatedProduct = await product.save();
-    res.json(updatedProduct);
-  } catch (err) {
-    console.error('Error updating product:', err.message);
-    res.status(400).json({ message: 'Failed to update product', error: err.message });
+    const category = req.params.category;
+    const products = await Product.find({ category }).lean();
+    res.json(products);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
   }
 });
 
-// Delete a product by ID
+// Delete a product
 router.delete('/:id', async (req, res) => {
   try {
-    const product = await Product.findByIdAndRemove(req.params.id);
+    const { id } = req.params;
+    await Product.findByIdAndDelete(id);
+    res.status(200).json({ message: 'Product deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
+  }
+});
 
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
+// Update a product
+router.put('/:id', upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, price, oldPrice, discount, description, category } = req.body;
+    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
-    res.json({ message: 'Product deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting product:', err.message);
-    res.status(500).json({ message: 'Server error while deleting product' });
+    const product = await Product.findByIdAndUpdate(
+      id,
+      {
+        name,
+        price,
+        oldPrice,
+        discount,
+        description,
+        category,
+        image: imagePath || req.body.image,
+      },
+      { new: true }
+    );
+
+    res.status(200).json(product);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Server error');
   }
 });
 

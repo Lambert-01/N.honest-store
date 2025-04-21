@@ -1,236 +1,145 @@
-(function($) {
+document.addEventListener('DOMContentLoaded', async () => {
+  const productTableBody = document.getElementById('products-table-body');
+  // Fetch all products initially
+  await refreshProducts();
 
-  "use strict";
+  // Initialize Swiper for the category carousel
+  const categorySwiper = new Swiper('.category-carousel', {
+    slidesPerView: 4,
+    spaceBetween: 16,
+    navigation: {
+      nextEl: '.category-carousel-next',
+      prevEl: '.category-carousel-prev',
+    },
+    breakpoints: {
+      320: { slidesPerView: 1 },
+      768: { slidesPerView: 2 },
+      992: { slidesPerView: 3 },
+      1200: { slidesPerView: 4 },
+    },
+  });
 
-  var initPreloader = function() {
-    $(document).ready(function($) {
-      var Body = $('body');
-      Body.addClass('preloader-site');
-    });
-    $(window).on('load', function() {
-      $('.preloader-wrapper').fadeOut();
-      $('body').removeClass('preloader-site');
-    });
-  };
-
-  // Initialize Chocolat lightbox
-  var initChocolat = function() {
-    Chocolat(document.querySelectorAll('.image-link'), {
-      imageSize: 'contain',
-      loop: true,
-    });
-  };
-
-  // Initialize Swiper sliders
-  var initSwiper = function() {
-    // Main Banner Slider
-    var swiper = new Swiper(".main-swiper", {
-      speed: 500,
-      pagination: {
-        el: ".swiper-pagination",
-        clickable: true,
-      },
-    });
-
-    // Category Carousel
-    var category_swiper = new Swiper(".category-carousel", {
-      slidesPerView: 4,
-      spaceBetween: 16,
-      speed: 500,
-      navigation: {
-        nextEl: ".category-carousel-next",
-        prevEl: ".category-carousel-prev",
-      },
-      breakpoints: {
-        320: { slidesPerView: 1 },
-        768: { slidesPerView: 2 },
-        992: { slidesPerView: 3 },
-        1200: { slidesPerView: 4 },
-      },
-    });
-
-    // Products Carousel
-    $(".products-carousel").each(function() {
-      var $el_id = $(this).attr('id');
-
-      var products_swiper = new Swiper("#" + $el_id + " .swiper", {
-        slidesPerView: 5,
-        spaceBetween: 30,
-        speed: 500,
-        navigation: {
-          nextEl: "#" + $el_id + " .products-carousel-next",
-          prevEl: "#" + $el_id + " .products-carousel-prev",
-        },
-        breakpoints: {
-          0: { slidesPerView: 1 },
-          768: { slidesPerView: 3 },
-          991: { slidesPerView: 4 },
-          1500: { slidesPerView: 5 },
-        },
-      });
-    });
-
-    // Product Single Page Slider
-    var thumb_slider = new Swiper(".product-thumbnail-slider", {
-      slidesPerView: 5,
-      spaceBetween: 20,
-      direction: "vertical",
-      breakpoints: {
-        0: { direction: "horizontal" },
-        992: { direction: "vertical" },
-      },
-    });
-
-    var large_slider = new Swiper(".product-large-slider", {
-      slidesPerView: 1,
-      spaceBetween: 0,
-      effect: 'fade',
-      thumbs: {
-        swiper: thumb_slider,
-      },
-      pagination: {
-        el: ".swiper-pagination",
-        clickable: true,
-      },
-    });
-  };
-
-  // Input Spinner for Quantity
-  var initProductQty = function() {
-    $('.product-qty').each(function() {
-      var $el_product = $(this);
-      var quantity = 0;
-
-      $el_product.find('.quantity-right-plus').click(function(e) {
-        e.preventDefault();
-        quantity = parseInt($el_product.find('#quantity').val());
-        $el_product.find('#quantity').val(quantity + 1);
-      });
-
-      $el_product.find('.quantity-left-minus').click(function(e) {
-        e.preventDefault();
-        quantity = parseInt($el_product.find('#quantity').val());
-        if (quantity > 0) {
-          $el_product.find('#quantity').val(quantity - 1);
-        }
-      });
-    });
-  };
-
-  // Initialize Jarallax Parallax
-  var initJarallax = function() {
-    jarallax(document.querySelectorAll(".jarallax"));
-
-    jarallax(document.querySelectorAll(".jarallax-keep-img"), {
-      keepImg: true,
-    });
-  };
-
-  // Fetch Products Dynamically
-  var fetchProducts = async function(category = '') {
-    const productGrid = document.getElementById('product-grid');
-
-    try {
-      const url = category ? `/api/products?category=${category}` : '/api/products';
-      const response = await fetch(url);
-      const products = await response.json();
-
-      productGrid.innerHTML = '';
-
-      products.forEach(product => {
-        const productCard = `
-          <div class="col">
-            <div class="product-item">
-              <figure>
-                <a href="index.html" title="${product.name}">
-                  <img src="${product.image}" alt="${product.name}" class="tab-image">
-                </a>
-              </figure>
-              <div class="d-flex flex-column text-center">
-                <h3 class="fs-6 fw-normal">${product.name}</h3>
-                <div>
-                  <span class="rating">
-                    ${createRatingStars(product.rating)}
-                  </span>
-                  <span>(${product.reviews})</span>
-                </div>
-                <div class="d-flex justify-content-center align-items-center gap-2">
-                  <del>$${product.oldPrice}</del>
-                  <span class="text-dark fw-semibold">$${product.price}</span>
-                  <span class="badge border border-dark-subtle rounded-0 fw-normal px-1 fs-7 lh-1 text-body-tertiary">${product.discount}% OFF</span>
-                </div>
-                <div class="button-area p-3 pt-0">
-                  <div class="row g-1 mt-2">
-                    <div class="col-3">
-                      <input type="number" name="quantity" class="form-control border-dark-subtle input-number quantity" value="1">
-                    </div>
-                    <div class="col-7">
-                      <a href="#" class="btn btn-primary rounded-1 p-2 fs-7 btn-cart" onclick="addToCart('${product.name}', ${product.price})">
-                        <svg width="18" height="18"><use xlink:href="#cart"></use></svg> Add to Cart
-                      </a>
-                    </div>
-                    <div class="col-2">
-                      <a href="#" class="btn btn-outline-dark rounded-1 p-2 fs-6">
-                        <svg width="18" height="18"><use xlink:href="#heart"></use></svg>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-        productGrid.innerHTML += productCard;
-      });
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    }
-  };
-
-  // Create Rating Stars
-  var createRatingStars = function(rating) {
-    const fullStars = Math.floor(rating);
-    const halfStar = rating % 1 !== 0;
-    const stars = [];
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push('<svg width="18" height="18" class="text-warning"><use xlink:href="#star-full"></use></svg>');
-    }
-
-    if (halfStar) {
-      stars.push('<svg width="18" height="18" class="text-warning"><use xlink:href="#star-half"></use></svg>');
-    }
-
-    for (let i = stars.length; i < 5; i++) {
-      stars.push('<svg width="18" height="18" class="text-warning"><use xlink:href="#star-empty"></use></svg>');
-    }
-
-    return stars.join('');
-  };
-
-  // Add Product to Cart
-  window.addToCart = function(name, price) {
-    alert(`${name} added to cart for $${price}`);
-  };
-
-  // Document Ready
-  $(document).ready(function() {
-    initPreloader();
-    initSwiper();
-    initProductQty();
-    initJarallax();
-    initChocolat();
-
-    // Fetch all products initially
-    fetchProducts('');
-
-    // Add click event listeners to category cards
-    document.querySelectorAll('.category-carousel .card').forEach(card => {
-      card.addEventListener('click', async (e) => {
-        const category = e.currentTarget.querySelector('.card-title').innerText.toLowerCase();
-        await fetchProducts(category);
-      });
+  // Add click event listeners to category cards
+  document.querySelectorAll('.category-carousel .card').forEach((card) => {
+    card.addEventListener('click', async (e) => {
+      const category = e.currentTarget.querySelector('.card-title').innerText.toLowerCase();
+      await fetchProductsByCategory(category);
     });
   });
 
-})(jQuery);
+  // Add product form submission
+  document.getElementById('add-product-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('name', document.getElementById('name').value);
+    formData.append('price', document.getElementById('price').value);
+    formData.append('oldPrice', document.getElementById('oldPrice').value);
+    formData.append('discount', document.getElementById('discount').value);
+    formData.append('description', document.getElementById('description').value);
+    formData.append('category', document.getElementById('category').value);
+    formData.append('image', document.getElementById('image').files[0]);
+
+    try {
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        showAlert('Product added successfully!');
+        document.getElementById('add-product-form').reset();
+        await refreshProducts();
+      } else {
+        const errorData = await response.json();
+        showAlert(errorData.message || 'Failed to add product.', 'error');
+      }
+    } catch (error) {
+      console.error('Error adding product:', error);
+      showAlert('An unexpected error occurred.', 'error');
+    }
+  });
+
+  // Refresh products
+  document.getElementById('refresh-products').addEventListener('click', refreshProducts);
+
+  // Fetch products
+  async function fetchProductsByCategory(category) {
+    try {
+      const url = category ? `/api/products/${category}` : '/api/products';
+      const response = await fetch(url);
+      const products = await response.json();
+      productTableBody.innerHTML = '';
+      products.forEach((product, index) => {
+        const row = `
+          <tr>
+            <td>${product._id}</td>
+            <td>${product.name}</td>
+            <td>${product.price} RWF</td>
+            <td>${product.oldPrice || ''}</td>
+            <td>${product.discount || ''}</td>
+            <td>${product.description || ''}</td>
+            <td>${product.category}</td>
+            <td><img src="${product.image}" alt="${product.name}" class="img-fluid" style="max-height: 50px;"></td>
+            <td>
+              <button class="btn btn-primary" onclick="editProduct('${product._id}')">Edit</button>
+              <button class="btn btn-danger" onclick="deleteProduct('${product._id}')">Delete</button>
+            </td>
+          </tr>
+        `;
+        productTableBody.innerHTML += row;
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      showAlert('Failed to fetch products.', 'error');
+    }
+  }
+
+  // Edit product
+  async function editProduct(id) {
+    try {
+      const response = await fetch(`/api/products/${id}`);
+      const product = await response.json();
+      document.getElementById('name').value = product.name;
+      document.getElementById('price').value = product.price;
+      document.getElementById('oldPrice').value = product.oldPrice || '';
+      document.getElementById('discount').value = product.discount || '';
+      document.getElementById('description').value = product.description || '';
+      document.getElementById('category').value = product.category;
+      document.getElementById('image').value = ''; // Clear the file input
+      const currentImage = document.getElementById('current-image');
+      if (currentImage) {
+        currentImage.src = product.image; // Set the src of the current image preview
+        currentImage.style.display = 'block'; // Show the image preview
+      }
+      showAlert('Product details loaded for editing.');
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      showAlert('Failed to load product details.', 'error');
+    }
+  }
+
+  // Delete product
+  async function deleteProduct(id) {
+    if (confirm('Are you sure you want to delete this product?')) {
+      try {
+        const response = await fetch(`/api/products/${id}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          showAlert('Product deleted successfully!');
+          await refreshProducts();
+        } else {
+          showAlert('Failed to delete product.', 'error');
+        }
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        showAlert('An unexpected error occurred.', 'error');
+      }
+    }
+  }
+
+  // Show alert
+  function showAlert(message, type = 'success') {
+    alert(`${type === 'success' ? 'Success:' : 'Error:'} ${message}`);
+  }
+});
