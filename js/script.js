@@ -1,3 +1,4 @@
+
 // Global Variables
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentPage = 1;
@@ -7,7 +8,8 @@ let currentCategory = '';
 let currentSort = '';
 let currentSearchTerm = '';
 
-// DOM Content Loaded
+
+// DOM Content Loaded  
 document.addEventListener('DOMContentLoaded', async () => {
   // Initialize cart count
   updateCartCount();
@@ -21,7 +23,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadProducts();
   // Initialize checkout process
   setupCheckoutProcess();
+  // Initialize cart from localStorage
+  cart = JSON.parse(localStorage.getItem('cart')) || [];
+  updateCartCount();
+  updateCartDisplay(); // Ensure the cart display is updated on load
+  // Other initializations...
 });
+
 
 // Initialize Category Carousel
 function initCategoryCarousel() {
@@ -238,14 +246,13 @@ function createProductCard(product) {
         </p>
         <div class="d-flex justify-content-between align-items-center mt-auto">
           <h6 class="fw-bold mb-0">RWF ${price}</h6>
-          <button class="btn btn-primary add-to-cart ${product.stock <= 0 ? 'disabled' : ''}" 
-            data-product-id="${product._id}" 
-            data-product-name="${product.name}" 
-            data-product-price="${product.price}" 
-            data-product-img="${product.image || 'images/product-placeholder.jpg'}"
-            ${product.stock <= 0 ? 'disabled' : ''}>
-            <i class="fas fa-cart-plus me-1"></i> Add
-          </button>
+          <button class="btn btn-primary add-to-cart" 
+        data-product-id="${product._id}" 
+        data-product-name="${product.name}" 
+        data-product-price="${product.price}" 
+        data-product-img="${product.image || 'images/product-placeholder.jpg'}">
+        <i class="fas fa-cart-plus me-1"></i> Add
+        </button>
         </div>
       </div>
     </div>
@@ -406,17 +413,20 @@ function updateCartDisplay() {
   const cartItemsContainer = document.getElementById('cart-items-container');
   const cartSummary = document.getElementById('cart-summary');
   const emptyCartMessage = document.getElementById('empty-cart-message');
+
   if (cart.length === 0) {
     cartItemsContainer.innerHTML = '';
     emptyCartMessage.style.display = 'block';
     cartSummary.style.display = 'none';
     return;
   }
-  emptyCartMessage.style.display = 'none';
+
+ 
   cartSummary.style.display = 'block';
   let cartHTML = '';
   let subtotal = 0;
-  cart.forEach((item, index) => {
+
+  cart.forEach((item) => {
     const itemTotal = item.price * item.quantity;
     subtotal += itemTotal;
     cartHTML += `
@@ -440,7 +450,7 @@ function updateCartDisplay() {
             </div>
             <div class="text-end">
               <span class="fw-bold d-block">RWF ${itemTotal.toFixed(0)}</span>
-              <small class="text-muted">RWF ${item.price.toFixed(0)} each</small>
+             
             </div>
           </div>
         </div>
@@ -450,9 +460,13 @@ function updateCartDisplay() {
       </div>
     `;
   });
+
   cartItemsContainer.innerHTML = cartHTML;
   updateCartSummary(subtotal);
 }
+  
+
+
 
 function updateCartSummary(subtotal) {
   const tax = subtotal * 0.1; // 10% tax
@@ -460,14 +474,16 @@ function updateCartSummary(subtotal) {
   document.getElementById('cart-subtotal').textContent = `RWF ${subtotal.toFixed(2)}`;
   document.getElementById('cart-tax').textContent = `RWF ${tax.toFixed(2)}`;
   document.getElementById('cart-total').textContent = `RWF ${total.toFixed(2)}`;
+  
+  
   // Update modal summary if exists
   const modalSubtotal = document.getElementById('modal-subtotal');
   const modalTax = document.getElementById('modal-tax');
   const modalTotal = document.getElementById('modal-total');
   if (modalSubtotal && modalTax && modalTotal) {
-    modalSubtotal.textContent = `$${subtotal.toFixed(2)}`;
-    modalTax.textContent = `$${tax.toFixed(2)}`;
-    modalTotal.textContent = `$${total.toFixed(2)}`;
+    modalSubtotal.textContent = `RWF ${subtotal.toFixed(2)}`;
+    modalTax.textContent = `RWF ${tax.toFixed(2)}`;
+    modalTotal.textContent = `RWF ${total.toFixed(2)}`;
   }
 }
 
@@ -586,80 +602,53 @@ async function processMobileMoneyPayment() {
   document.getElementById('step-processing').classList.add('active');
   document.getElementById('step-processing').style.display = 'block';
 
+ try {
+  // Send payment request to backend
+  const response = await fetch('/api/payments/create-payment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      clientId: 'user123', // Replace with actual user ID or generate dynamically
+      amount: parseFloat(document.getElementById('modal-total').textContent.replace('RWF ', '')),
+      phoneNumber: `+250${phoneNumber}`,
+      email: 'user@example.com', // Replace with actual user email
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const paymentData = await response.json();
+  
+  
+
+  // Update order details
+  document.getElementById('order-reference').textContent = paymentData.referenceId;
+  document.getElementById('order-total').textContent = document.getElementById('modal-total').textContent;
+  document.getElementById('order-address').textContent = document.getElementById('address').value;
+
   try {
-    // Simulate API call with timeout
-    const response = await fetch('/api/payments/mobile-money', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        phoneNumber: `+250${phoneNumber}`,
-        amount: parseFloat(document.getElementById('modal-total').textContent.replace('RWF ', '')),
-        reference: `ORD-${Date.now()}`
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-
-    const paymentData = await response.json();
-    
-    // On success
-    document.getElementById('step-processing').classList.remove('active');
-    document.getElementById('step-processing').style.display = 'none';
-    document.getElementById('step-complete').classList.add('active');
-    document.getElementById('step-complete').style.display = 'block';
-
-    // Update order details
-    document.getElementById('order-reference').textContent = paymentData.reference;
-    document.getElementById('order-total').textContent = document.getElementById('modal-total').textContent;
-    document.getElementById('order-address').textContent = document.getElementById('address').value;
-
     // Save order to database
-    await saveOrderToDatabase(paymentData.reference);
-
+    await saveOrderToDatabase(paymentData.referenceId);
   } catch (error) {
     console.error('Payment error:', error);
+
+    // Show error message to the user
     showToast(error.message || 'Payment failed. Please try again.', 'error');
-    
-    // Go back to payment step
+
+    // Go back to the payment step
     document.getElementById('step-processing').classList.remove('active');
     document.getElementById('step-processing').style.display = 'none';
     document.getElementById('step-confirm').classList.add('active');
     document.getElementById('step-confirm').style.display = 'block';
   }
+} catch (error) {
+  console.error('Error during payment processing:', error);
+  showToast('Payment failed. Please try again.', 'error');
 }
-
-function validateCardPayment() {
-  const cardNumber = document.getElementById('cardNumber').value.replace(/\s+/g, '');
-  const cardExpiry = document.getElementById('cardExpiry').value;
-  const cardCvv = document.getElementById('cardCvv').value;
-  const cardName = document.getElementById('cardName').value;
-
-  // Basic validation
-  if (!/^\d{13,16}$/.test(cardNumber)) {
-    showToast('Please enter a valid card number', 'error');
-    return false;
-  }
-
-  if (!/^\d{2}\/\d{2}$/.test(cardExpiry)) {
-    showToast('Please enter expiry date in MM/YY format', 'error');
-    return false;
-  }
-
-  if (!/^\d{3,4}$/.test(cardCvv)) {
-    showToast('Please enter a valid CVV', 'error');
-    return false;
-  }
-
-  if (cardName.trim().length < 3) {
-    showToast('Please enter cardholder name', 'error');
-    return false;
-  }
-
-  return true;
 }
 
 async function processCardPayment() {
@@ -709,18 +698,6 @@ async function processCardPayment() {
 }
 
 // Simulate API calls (replace with real API calls in production)
-function simulateMobileMoneyPayment(phoneNumber) {
-  return new Promise((resolve, reject) => {
-    // Simulate network delay
-    setTimeout(() => {
-      // For demo purposes, we'll assume payment is always successful
-      // In real app, you would call your payment gateway API here
-      console.log(`Simulating Mobile Money payment to +250${phoneNumber}`);
-      resolve({ success: true });
-    }, 2000);
-  });
-}
-
 function simulateCardPayment(cardNumber, cardExpiry, cardCvv, cardName) {
   return new Promise((resolve, reject) => {
     // Simulate network delay

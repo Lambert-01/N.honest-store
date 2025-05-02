@@ -1,92 +1,71 @@
-// Add at the top with other requires
-const cors = require('cors');
-
-
+require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
-const path = require('path');
-const fs = require('fs');
 const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
 const connectDB = require('./db');
-const productRoutes = require('./routes/products');
+const categoriesRoutes = require('./routes/categories');
+
+// Initialize Express app
 const app = express();
-const orderRoutes = require('./routes/orders');
-
-// Add after middleware setup
-app.use(cors());
-app.use('/api/orders', orderRoutes);
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('Created uploads directory:', uploadsDir);
-}
-
-// Log all requests
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url} - ${new Date().toISOString()}`);
-  next();
-});
 
 // Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors({
+    origin: true, // Allow all origins in development
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '..')));
-
-// Explicitly serve uploads directory
-app.use('/uploads', express.static(uploadsDir));
+// Serve uploads statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Connect to MongoDB
-connectDB().then(() => {
-  console.log('MongoDB connection established successfully');
-}).catch(err => {
-  console.error('MongoDB connection failed:', err.message);
-  process.exit(1); // Exit if DB connection fails
-});
+// === STATIC FILE HANDLING WITH CARE ===
+// Do NOT use express.static for the entire root folder
+// Instead, we manually serve index.html and admin.html
+// And let other assets be handled later for clarity
 
-// API Routes
-app.use('/api/products', productRoutes);
-
-// Serve frontend pages
+// Main site route
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../index.html'));
+    res.sendFile(path.join(__dirname, '../index.html'));
 });
 
+// Admin panel route
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../admin.html'));
+    res.sendFile(path.join(__dirname, '../admin.html'));
 });
 
-// Route to check server status
-app.get('/api/status', (req, res) => {
-  res.json({ 
-    status: 'online',
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    timestamp: new Date().toISOString()
-  });
+// Optional: All API routes go before static asset fallback
+app.use('/api/products', require('./routes/products'));
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/orders', require('./routes/orders'));
+
+// Optional: Fallback for static assets (CSS, JS, images, icons.svg)
+app.use((req, res, next) => {
+    const filePath = path.join(__dirname, '../', req.path);
+    // Only serve known static files explicitly
+    if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.svg') || req.path.endsWith('.png')) {
+        return res.sendFile(filePath, { headers: { 'Cache-Control': 'no-cache' } });
+    }
+    next();
 });
 
-// 404 handler
+// Final fallback: Don't send index.html for unknown paths
 app.use((req, res) => {
-  console.log(`404: ${req.method} ${req.url}`);
-  res.status(404).send('404 - Page not found');
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ message: 'API route not found' });
+    }
+
+    // Prevent serving index.html unless explicitly requested through '/'
+    res.status(404).send('Page not found');
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).send(`Server error: ${err.message}`);
-});
+// DB Connection & Server Start
+connectDB();
 
-// Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Admin panel: http://localhost:${PORT}/admin`);
-  console.log(`Homepage: http://localhost:${PORT}/`);
+    console.log(`✅ Server running on http://localhost:${PORT}`);
 });
-
-// Export app for testing
-module.exports = app;
