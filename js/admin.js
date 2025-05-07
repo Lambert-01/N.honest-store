@@ -303,19 +303,14 @@ function getAuthHeaders() {
 function handleLogout() {
     console.log('Handling logout - clearing localStorage');
     
-    // Save state before logout
-    const wasLoggedIn = !!localStorage.getItem('token');
-    
     // Clear authentication data
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('sessionActive');
+    localStorage.removeItem('lastPageLeave');
     
-    // Only redirect if we were logged in and this is not a page refresh
-    if (wasLoggedIn && document.visibilityState !== 'hidden') {
-        console.log('Redirecting to login page due to logout');
-        window.location.href = '/login.html';
-    }
+    console.log('Redirecting to login page due to logout');
+    window.location.href = '/login.html';
 }
 
 // Global Chart instances
@@ -2712,6 +2707,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup network status monitor
     initNetworkStatusMonitor();
     
+    // Add logout button event listeners
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Logout button clicked');
+            handleLogout();
+        });
+    }
+    
+    const navLogoutBtn = document.getElementById('nav-logout-btn');
+    if (navLogoutBtn) {
+        navLogoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Navigation logout button clicked');
+            handleLogout();
+        });
+    }
+    
     // Hide loader when everything is initialized
     const loader = document.getElementById('loader');
     if (loader) {
@@ -2732,4 +2746,4 @@ function setupImagePreviewHandlers() {
             }
         });
     });
-}npm 
+}
