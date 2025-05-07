@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    // Use environment variable for MongoDB URI with local fallback
+    const connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/n_honest_supermarket';
+    
     // Increased timeout and retry options
     const options = {
       useNewUrlParser: true,
@@ -10,7 +13,7 @@ const connectDB = async () => {
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
     };
 
-    await mongoose.connect('mongodb://localhost:27017/n_honest_supermarket', options);
+    await mongoose.connect(connectionString, options);
     
     // Test that the connection is working
     await mongoose.connection.db.admin().ping();

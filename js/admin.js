@@ -2732,4 +2732,4 @@ function setupImagePreviewHandlers() {
             }
         });
     });
-}
+}npm 
