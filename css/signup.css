@@ -1,0 +1,106 @@
+/**
+ * N.Honest Admin Signup Styles
+ */
+
+body {
+    background-color: #f8f9fa;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.signup-container {
+    max-width: 400px;
+    width: 90%;
+    padding: 2rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.signup-container:hover {
+    transform: translateY(-5px);
+}
+
+.logo {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.logo img {
+    max-width: 150px;
+    height: auto;
+}
+
+.form-control {
+    border-radius: 5px;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e0e0e0;
+    transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn-primary {
+    padding: 0.75rem;
+    font-weight: 500;
+    border-radius: 5px;
+    background: linear-gradient(45deg, #0d6efd, #0a58ca);
+    border: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-outline-secondary {
+    padding: 0.75rem;
+    font-weight: 500;
+    border-radius: 5px;
+    transition: background-color 0.2s ease;
+}
+
+.alert {
+    display: none;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    padding: 0.75rem 1rem;
+}
+
+/* Password strength indicator */
+.password-strength {
+    margin-top: 0.25rem;
+    height: 5px;
+    background-color: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.password-strength-meter {
+    height: 100%;
+    width: 0;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.password-strength-meter.weak {
+    width: 33%;
+    background-color: #dc3545;
+}
+
+.password-strength-meter.medium {
+    width: 66%;
+    background-color: #ffc107;
+}
+
+.password-strength-meter.strong {
+    width: 100%;
+    background-color: #28a745;
+} 

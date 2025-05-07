@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'super_admin'],
+        enum: ['admin', 'staff'],
         default: 'admin'
     },
     isActive: {
@@ -30,11 +30,9 @@ const userSchema = new mongoose.Schema({
     },
     lastLogin: {
         type: Date
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
     }
+}, {
+    timestamps: true
 });
 
 // Hash password before saving
@@ -55,4 +53,5 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = mongoose.model('User', userSchema); 
+const User = mongoose.model('User', userSchema);
+module.exports = User; 

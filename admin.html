@@ -7,219 +7,81 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <!-- Add custom styles for product table -->
   <style>
-    :root {
-      --main-bg-color: #f8f9fa;
-      --sidebar-bg-color: #343a40;
-      --primary-color: #0d6efd;
-      --secondary-color: #6c757d;
-      --success-color: #198754;
-      --danger-color: #dc3545;
-      --warning-color: #ffc107;
-      --info-color: #0dcaf0;
+    /* Product table styles */
+    .product-thumbnail {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #eee;
     }
     
-    body {
-      background-color: var(--main-bg-color);
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow-x: hidden;
-    }
-    
-    #sidebar-wrapper {
-      min-height: 100vh;
-      background-color: var(--sidebar-bg-color);
-      color: white;
-      transition: margin-left 0.3s ease;
-      box-shadow: 3px 0 15px rgba(0, 0, 0, 0.1);
-    }
-    
-    #sidebar-wrapper .sidebar-heading {
-      padding: 1.5rem;
-      font-size: 1.5rem;
-      font-weight: bold;
-      letter-spacing: 1px;
-      color: white;
-      background-color: rgba(0, 0, 0, 0.2);
-    }
-    
-    #sidebar-wrapper .list-group-item {
-      border: none;
-      border-radius: 0;
-      color: #ddd;
-      font-weight: 500;
-      padding: 15px 30px;
-      transition: all 0.3s;
-    }
-    
-    #sidebar-wrapper .list-group-item:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-      color: white;
-    }
-    
-    #sidebar-wrapper .list-group-item.active {
-      background-color: var(--primary-color);
-      color: white;
-    }
-    
-    #sidebar-wrapper .list-group-item i {
-      margin-right: 10px;
-    }
-    
-    #page-content-wrapper {
-      width: 100%;
-      min-height: 100vh;
-    }
-    
-    .navbar {
-      background-color: white !important;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
-    }
-    
-    .navbar .dropdown-menu {
-      right: 0;
-      left: auto;
-    }
-    
-    .card {
-      border: none;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
-      margin-bottom: 25px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-    }
-    
-    .card-header {
-      background-color: white;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-      border-top-left-radius: 10px !important;
-      border-top-right-radius: 10px !important;
-      padding: 15px 20px;
-    }
-    
-    .dashboard-card {
-      border-left: 5px solid var(--primary-color);
-      padding: 20px;
-      position: relative;
-      overflow: hidden;
-      z-index: 1;
-    }
-    
-    .dashboard-card .icon {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 3rem;
-      opacity: 0.15;
-      z-index: -1;
-    }
-    
-    .dashboard-card.revenue {
-      border-left-color: var(--success-color);
-    }
-    
-    .dashboard-card.orders {
-      border-left-color: var(--info-color);
-    }
-    
-    .dashboard-card.customers {
-      border-left-color: var(--warning-color);
-    }
-    
-    .dashboard-card.products {
-      border-left-color: var(--danger-color);
-    }
-    
-    .btn-custom {
-      padding: 8px 20px;
-      border-radius: 5px;
-      font-weight: 500;
-      transition: all 0.3s;
-    }
-    
-    .table {
-      border-collapse: separate;
-      border-spacing: 0;
+    .table-hover tbody tr:hover {
+      background-color: rgba(13, 110, 253, 0.05);
     }
     
     .table th {
-      background-color: #f8f9fa;
       font-weight: 600;
-      border: none;
+      border-top: none;
+      background-color: #f8f9fa;
+      white-space: nowrap;
     }
     
     .table td {
       vertical-align: middle;
-      border-color: #f0f0f0;
     }
     
     .badge {
-      padding: 7px 12px;
       font-weight: 500;
+      padding: 0.35em 0.65em;
     }
     
-    .product-image {
-      width: 50px;
-      height: 50px;
-      object-fit: cover;
-      border-radius: 5px;
+    .badge.bg-info {
+      background-color: #0dcaf0 !important;
     }
     
-    .tab-content {
-      padding: 20px 0;
+    .badge.bg-success {
+      background-color: #198754 !important;
     }
     
-    #loader {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(255, 255, 255, 0.7);
+    .badge.bg-warning {
+      background-color: #ffc107 !important;
+      color: #212529;
+    }
+    
+    .btn-group .btn {
+      border-radius: 4px;
+      margin: 0 2px;
+    }
+    
+    .product-image-container {
       display: flex;
       justify-content: center;
       align-items: center;
-      z-index: 9999;
-    }
-    
-    .spinner-border {
-      width: 3rem;
-      height: 3rem;
-    }
-    
-    .notification-badge {
-      position: absolute;
-      top: 0;
-      right: 0;
-      padding: 0.25rem 0.6rem;
-      font-size: 0.75rem;
-      line-height: 1;
-      border-radius: 50%;
-      background-color: var(--danger-color);
-      color: white;
-    }
-    
-    @media (max-width: 768px) {
-      #sidebar-wrapper {
-        margin-left: -250px;
-      }
-      
-      #sidebar-wrapper.active {
-        margin-left: 0;
-      }
-      
-      #page-content-wrapper {
-        min-width: 100vw;
-      }
+      height: 62px;
     }
   </style>
 </head>
 <body>
+  <!-- Authentication Check -->
+  <script>
+    // Simple authentication check
+    function checkAuth() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/login.html';
+        return false;
+      }
+      return true;
+    }
+    // Run auth check immediately
+    checkAuth();
+  </script>
+
   <div id="alert-container"></div>
   <!-- Loader -->
   <div id="loader">
@@ -231,68 +93,74 @@
   <div class="d-flex" id="wrapper">
     <!-- Sidebar -->
     <div class="bg-dark border-right" id="sidebar-wrapper">
-      <div class="sidebar-heading text-center py-4 fs-4 fw-bold text-uppercase">
-        <i class="fas fa-store me-2"></i>N.Honest Admin
+      <div class="sidebar-heading d-flex align-items-center justify-content-center">
+        <i class="fas fa-store me-2"></i>
+        <span>N.HONEST<br><small class="fs-6 fw-light">ADMIN</small></span>
       </div>
       <div class="list-group list-group-flush my-3">
-        <a href="#dashboard-section" data-section="dashboard-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link active">
-          <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        <a href="#dashboard-section" data-section="dashboard-section" class="list-group-item list-group-item-action second-text fw-bold section-link active">
+          <i class="fas fa-tachometer-alt"></i>Dashboard
         </a>
-          <a href="#products-section" data-section="products-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link">
-            <i class="fas fa-box-open me-2"></i>Products
-          </a>
-        <a href="#categories-section" data-section="categories-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link">
-          <i class="fas fa-tags me-2"></i>Categories
+        <a href="#products-section" data-section="products-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-box-open"></i>Products
         </a>
-          <a href="#orders-section" data-section="orders-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link">
-            <i class="fas fa-shopping-cart me-2"></i>Orders
-          </a>
-          <a href="#customers-section" data-section="customers-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link">
-            <i class="fas fa-users me-2"></i>Customers
-          </a>
-          <a href="#inventory-section" data-section="inventory-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link">
-            <i class="fas fa-boxes me-2"></i>Inventory
-          </a>
-          <a href="#reports-section" data-section="reports-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link">
-            <i class="fas fa-chart-bar me-2"></i>Reports
-          </a>
-          <a href="#settings-section" data-section="settings-section" class="list-group-item list-group-item-action bg-transparent second-text fw-bold section-link">
-            <i class="fas fa-cog me-2"></i>Settings
-          </a>
-        <a href="#" class="list-group-item list-group-item-action bg-transparent text-danger fw-bold" id="logout-btn">
-          <i class="fas fa-power-off me-2"></i>Logout
+        <a href="#categories-section" data-section="categories-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-tags"></i>Categories
+        </a>
+        <a href="#orders-section" data-section="orders-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-shopping-cart"></i>Orders
+        </a>
+        <a href="#customers-section" data-section="customers-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-users"></i>Customers
+        </a>
+        <a href="#inventory-section" data-section="inventory-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-boxes"></i>Inventory
+        </a>
+        <a href="#reports-section" data-section="reports-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-chart-bar"></i>Reports
+        </a>
+        <a href="#settings-section" data-section="settings-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-cog"></i>Settings
+        </a>
+        <a href="#" class="list-group-item list-group-item-action text-danger fw-bold mt-auto" id="logout-btn">
+          <i class="fas fa-power-off"></i>Logout
         </a>
       </div>
     </div>
 
     <!-- Page Content -->
     <div id="page-content-wrapper">
-      <nav class="navbar navbar-expand-lg navbar-light bg-transparent py-3 px-4">
+      <nav class="navbar navbar-expand-lg navbar-light bg-white py-2 px-4">
         <div class="d-flex align-items-center">
-          <i class="fas fa-bars primary-text fs-4 me-3" id="menu-toggle"></i>
-          <h2 class="fs-3 m-0" id="section-title">Dashboard</h2>
+          <button class="btn btn-sm btn-light rounded-circle me-3" id="menu-toggle">
+            <i class="fas fa-bars text-primary"></i>
+          </button>
+          <h2 class="fs-4 m-0 fw-bold" id="section-title">Dashboard</h2>
         </div>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
             <li class="nav-item dropdown me-3">
-              <a class="nav-link position-relative" href="#" role="button">
-                <i class="fas fa-bell fs-5"></i>
+              <a class="nav-link position-relative p-2" href="#" role="button">
+                <i class="fas fa-bell fs-5 text-muted"></i>
                 <span class="notification-badge">3</span>
               </a>
             </li>
             <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle second-text fw-bold" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src="images/placeholder.png" alt="Admin" class="rounded-circle me-2" style="width: 32px; height: 32px;">
-                Admin User
+              <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <img src="images/placeholder.png" alt="Admin" class="rounded-circle me-2" style="width: 36px; height: 36px; object-fit: cover; border: 2px solid #f8f9fa;">
+                <div>
+                  <span class="fw-bold text-dark">------</span>
+                  <small class="d-block text-muted">Administrator</small>
+                </div>
               </a>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
-                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="navbarDropdown">
+                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2 text-primary"></i>Profile</a></li>
+                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2 text-secondary"></i>Settings</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#"><i class="fas fa-power-off me-2"></i>Logout</a></li>
+                <li><a class="dropdown-item" href="#" id="nav-logout-btn"><i class="fas fa-power-off me-2 text-danger"></i>Logout</a></li>
               </ul>
             </li>
           </ul>
@@ -367,7 +235,7 @@
                 <h5 class="mb-0">Sales Overview</h5>
                 <div class="dropdown">
                   <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="salesPeriodDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    Last 7 Days
+                    Select Period
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="salesPeriodDropdown">
                     <li><a class="dropdown-item" href="#">Today</a></li>
@@ -502,79 +370,82 @@
 
       <!-- Products Section -->
       <div class="container-fluid px-4 section-content" id="products-section">
-        <div class="row my-4">
-          <div class="col-lg-12">
-            <div class="card border-0 shadow-sm">
-              <div class="card-header bg-gradient-primary text-white py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                  <h5 class="mb-0"><i class="fas fa-box-open me-2"></i>Product Management</h5>
-                  <div class="d-flex gap-2">
-                    <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#importProductsModal">
-                      <i class="fas fa-file-import me-1"></i>Import
-                    </button>
-                    <button class="btn btn-light btn-sm" id="export-products">
-                      <i class="fas fa-file-export me-1"></i>Export
-                    </button>
-                    <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                      <i class="fas fa-plus-circle me-1"></i>Add Product
-                    </button>
-                  </div>
+        <!-- Products Section Header -->
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <h1 class="h3">Products</h1>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <div class="btn-group" role="group">
+              <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="fas fa-plus me-1"></i> Add Product
+              </button>
+              <button class="btn btn-primary" id="refresh-products">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+              </button>
+              <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importProductsModal">
+                <i class="fas fa-file-import me-1"></i> Import
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="card mb-4 border-0 shadow-sm">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fas fa-search"></i></span>
+                  <input type="text" class="form-control" id="product-search" placeholder="Search products...">
                 </div>
               </div>
-              <div class="card-body">
-                <!-- Search and Filter Bar -->
-                <div class="row mb-4">
-                  <div class="col-md-8">
-                    <div class="input-group">
-                      <span class="input-group-text bg-light">
-                        <i class="fas fa-search"></i>
-                      </span>
-                      <input type="text" class="form-control" id="product-search" placeholder="Search products by name, SKU, or category...">
-                    </div>
-                  </div>
-                  <div class="col-md-4">
-                    <div class="d-flex gap-2">
-                      <select class="form-select" id="category-filter">
-                        <option value="">All Categories</option>
-                        <option value="grocery">Grocery & Staples</option>
-                        <option value="fresh">Fresh Produce</option>
-                        <option value="beverages">Beverages</option>
-                        <option value="personal">Personal Care & Beauty</option>
-                        <option value="home">Home & Kitchen</option>
-                        <option value="kids">Kids, Babies & Pets</option>
-                        <option value="snacks">Snacks & Breakfast</option>
-                        <option value="clothing">Clothing & Accessories</option>
-                        <option value="health">Health & Wellness</option>
-                        <option value="tobacco">Tobacco & Misc</option>
-                      </select>
-                      <button class="btn btn-outline-primary" id="refresh-products">
-                        <i class="fas fa-sync-alt"></i>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Products Table -->
-                <div class="table-responsive">
-                  <table class="table table-hover align-middle">
-                    <thead class="table-light">
-                      <tr>
-                        <th>Image</th>
-                        <th>Product Details</th>
-                        <th>Category</th>
-                        <th>Price & Stock</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="products-table-body">
-                      <!-- Products will be dynamically loaded here -->
-                    </tbody>
-                  </table>
+              <div class="col-md-4">
+                <select class="form-select" id="category-filter">
+                  <option value="">All Categories</option>
+                </select>
+              </div>
+              <div class="col-md-4 text-end">
+                <div class="btn-group" role="group">
+                  <button id="bulk-actions" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    Bulk Actions
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" id="bulk-activate"><i class="fas fa-check-circle me-2"></i>Activate Selected</a></li>
+                    <li><a class="dropdown-item" href="#" id="bulk-deactivate"><i class="fas fa-times-circle me-2"></i>Deactivate Selected</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" id="bulk-delete"><i class="fas fa-trash me-2"></i>Delete Selected</a></li>
+                  </ul>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 40px;">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="select-all-products">
+                  </div>
+                </th>
+                <th style="width: 70px;">Image</th>
+                <th>Product Details</th>
+                <th>Category</th>
+                <th style="width: 120px;">Price</th>
+                <th style="width: 90px;">Stock</th>
+                <th style="width: 90px;">Variants</th>
+                <th style="width: 90px;">Status</th>
+                <th style="width: 120px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="products-table-body">
+              <!-- Products will be dynamically loaded here -->
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -587,122 +458,125 @@
               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-              <form id="productForm" class="needs-validation" novalidate enctype="multipart/form-data">
-                <input type="hidden" name="username" autocomplete="username" style="display:none">
+              <form id="product-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                <input type="hidden" name="status" value="active">
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
-                            <select class="form-select" id="category" name="category" required>
-                                <option value="">Select Category</option>
-                            </select>
-                            <div class="invalid-feedback">Please select a category</div>
-                        </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
+                      <select class="form-select" id="category" name="category" required>
+                        <option value="">Select Category</option>
+                      </select>
+                      <div class="invalid-feedback">Please select a category</div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="productName" class="form-label">Product Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="productName" name="name" required>
-                            <div class="invalid-feedback">Please enter a product name</div>
-                        </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="name" class="form-label">Product Name <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="name" name="name" required>
+                      <div class="invalid-feedback">Please enter a product name</div>
                     </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="sku" class="form-label">SKU/Barcode <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="sku" name="sku" required>
-                            <div class="invalid-feedback">Please enter a SKU or barcode</div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="price" class="form-label">Price <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text">RWF</span>
-                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" required>
-                                <div class="invalid-feedback">Please enter a valid price</div>
-                            </div>
-                        </div>
-                    </div>
+                  </div>
                 </div>
 
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="costPrice" class="form-label">Cost Price <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text">RWF</span>
-                                <input type="number" class="form-control" id="costPrice" name="costPrice" step="0.01" min="0" required>
-                                <div class="invalid-feedback">Please enter a valid cost price</div>
-                            </div>
-                        </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="sku" class="form-label">SKU/Barcode <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="sku" name="sku" required>
+                      <div class="invalid-feedback">Please enter a SKU or barcode</div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="stock" class="form-label">Stock <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" id="stock" name="stock" min="0" required>
-                            <div class="invalid-feedback">Please enter the stock quantity</div>
-                        </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="price" class="form-label">Price <span class="text-danger">*</span></label>
+                      <div class="input-group">
+                        <span class="input-group-text">RWF</span>
+                        <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" required>
+                        <div class="invalid-feedback">Please enter a valid price</div>
+                      </div>
                     </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="costPrice" class="form-label">Cost Price <span class="text-danger">*</span></label>
+                      <div class="input-group">
+                        <span class="input-group-text">RWF</span>
+                        <input type="number" class="form-control" id="costPrice" name="costPrice" step="0.01" min="0" required>
+                        <div class="invalid-feedback">Please enter a valid cost price</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="stock" class="form-label">Stock <span class="text-danger">*</span></label>
+                      <input type="number" class="form-control" id="stock" name="stock" min="0" required>
+                      <div class="invalid-feedback">Please enter the stock quantity</div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="mb-3">
-                    <label for="description" class="form-label">Description</label>
-                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                  <label for="description" class="form-label">Description</label>
+                  <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                 </div>
 
                 <div class="mb-3">
-                    <label for="productImage" class="form-label">Product Image</label>
-                    <input type="file" class="form-control" id="productImage" name="featuredImage" accept="image/*">
+                  <label for="featuredImage" class="form-label">Product Image</label>
+                  <input type="file" class="form-control" id="featuredImage" name="featuredImage" accept="image/*" data-preview="product-preview-image">
+                  <div class="featured-image-preview mt-2 d-none text-center">
+                    <img id="product-preview-image" src="#" alt="Product Preview" class="img-thumbnail" style="max-height: 150px">
+                  </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Product Variants</label>
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label for="variant-type" class="form-label">Variant Type</label>
-                                    <input type="text" class="form-control" id="variant-type" placeholder="e.g., Size, Color">
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="variant-value" class="form-label">Variant Value</label>
-                                    <input type="text" class="form-control" id="variant-value" placeholder="e.g., Small, Red">
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="variant-sku" class="form-label">Variant SKU</label>
-                                    <input type="text" class="form-control" id="variant-sku" placeholder="e.g., PROD-S-RED">
-                                </div>
-                            </div>
-                            <div class="mt-3">
-                                <button type="button" class="btn btn-primary" onclick="window.addVariant()">
-                                    <i class="fas fa-plus"></i> Add Variant
-                                </button>
-                            </div>
+                  <label class="form-label">Product Variants</label>
+                  <div class="card mb-3">
+                    <div class="card-body">
+                      <div class="row g-3">
+                        <div class="col-md-4">
+                          <label for="variant-type" class="form-label">Variant Type</label>
+                          <input type="text" class="form-control" id="variant-type" placeholder="e.g., Size, Color">
                         </div>
+                        <div class="col-md-4">
+                          <label for="variant-value" class="form-label">Variant Value</label>
+                          <input type="text" class="form-control" id="variant-value" placeholder="e.g., Small, Red">
+                        </div>
+                        <div class="col-md-4">
+                          <label for="variant-sku" class="form-label">Variant SKU</label>
+                          <input type="text" class="form-control" id="variant-sku" placeholder="e.g., PROD-S-RED">
+                        </div>
+                      </div>
+                      <div class="mt-3">
+                        <button type="button" class="btn btn-primary" onclick="window.addVariant()">
+                          <i class="fas fa-plus"></i> Add Variant
+                        </button>
+                      </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Value</th>
-                                    <th>SKU</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="variants-list">
-                                <!-- Variants will be listed here -->
-                            </tbody>
-                        </table>
-                    </div>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Type</th>
+                          <th>Value</th>
+                          <th>SKU</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="variants-list">
+                        <!-- Variants will be listed here -->
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 <div class="text-end">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Product</button>
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Add Product</button>
                 </div>
               </form>
             </div>
@@ -740,267 +614,205 @@
         </div>
       </div>
 
-      <style>
-      .bg-gradient-primary {
-        background: linear-gradient(45deg, #0d6efd, #0a58ca);
-      }
-
-      .card {
-        border-radius: 0.5rem;
-        transition: all 0.3s ease;
-      }
-
-      .card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-      }
-
-      .form-control, .form-select {
-        border-radius: 0.375rem;
-        border: 1px solid #dee2e6;
-        padding: 0.5rem 0.75rem;
-      }
-
-      .form-control:focus, .form-select:focus {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-      }
-
-      .btn {
-        border-radius: 0.375rem;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
-      }
-
-      .table th {
-        font-weight: 600;
-        background-color: #f8f9fa;
-      }
-
-      .modal-content {
-        border-radius: 0.5rem;
-        border: none;
-      }
-
-      .modal-header {
-        border-top-left-radius: 0.5rem;
-        border-top-right-radius: 0.5rem;
-      }
-
-      .input-group-text {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-      }
-
-      .variant-item {
-        background-color: #f8f9fa;
-        border-radius: 0.375rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
-      }
-
-      .variant-item:last-child {
-        margin-bottom: 0;
-      }
-      </style>
-
       <!-- Categories Section -->
-<div class="container-fluid px-4 section-content" id="categories-section">
-  <div class="row my-4">
-    <div class="col-lg-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-gradient-primary text-white py-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Category Management</h5>
-            <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-              <i class="fas fa-plus-circle me-1"></i>Add New Category
-            </button>
+      <div class="container-fluid px-4 section-content" id="categories-section">
+        <div class="row my-4">
+          <div class="col-lg-12">
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-gradient-primary text-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Category Management</h5>
+                  <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <i class="fas fa-plus-circle me-1"></i>Add New Category
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <!-- Alert Container -->
+                <div id="alert-container"></div>
+                
+                <!-- Search and Filter Bar -->
+                <div class="row mb-4">
+                  <div class="col-md-8">
+                    <div class="input-group">
+                      <span class="input-group-text bg-light">
+                        <i class="fas fa-search"></i>
+                      </span>
+                      <input type="text" class="form-control" id="category-search" placeholder="Search categories...">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="d-flex gap-2">
+                      <select class="form-select" id="category-status-filter">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                      <button class="btn btn-outline-primary" id="refresh-categories">
+                        <i class="fas fa-sync-alt"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Categories Table -->
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Products</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="categories-table-body">
+                      <!-- Categories will be dynamically loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="card-body">
-          <!-- Alert Container -->
-          <div id="alert-container"></div>
-          
-          <!-- Search and Filter Bar -->
-          <div class="row mb-4">
-            <div class="col-md-8">
-              <div class="input-group">
-                <span class="input-group-text bg-light">
-                  <i class="fas fa-search"></i>
-                </span>
-                <input type="text" class="form-control" id="category-search" placeholder="Search categories...">
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="d-flex gap-2">
-                <select class="form-select" id="category-status-filter">
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-                <button class="btn btn-outline-primary" id="refresh-categories">
-                  <i class="fas fa-sync-alt"></i>
-                </button>
-              </div>
-            </div>
-          </div>
+      </div>
 
-          <!-- Categories Table -->
-          <div class="table-responsive">
-            <table class="table table-hover align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Image</th>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Products</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="categories-table-body">
-                <!-- Categories will be dynamically loaded here -->
-              </tbody>
-            </table>
+      <!-- Add Category Modal -->
+      <div class="modal fade" id="addCategoryModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+              <h5 class="modal-title"><i class="fas fa-tags me-2"></i>Add New Category</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="category-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                <div class="card shadow-sm mb-4">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Category Information</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required>
+                        <div class="invalid-feedback">Please enter a category name.</div>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Category Image</label>
+                        <div class="input-group mb-3">
+                          <input type="file" class="form-control" name="image" id="category-image" accept="image/*" data-preview="preview-image">
+                          <label class="input-group-text" for="category-image">Upload</label>
+                        </div>
+                        <div class="image-preview mt-2 text-center d-none">
+                          <img id="preview-image" src="#" alt="Preview" class="img-thumbnail" style="max-height: 150px">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status">
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card shadow-sm">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Actions</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex gap-2 justify-content-end">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Save Category
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
-<!-- Add Category Modal -->
-<div class="modal fade" id="addCategoryModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-gradient-primary text-white">
-        <h5 class="modal-title"><i class="fas fa-tags me-2"></i>Add New Category</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="category-form" class="needs-validation" novalidate enctype="multipart/form-data">
-          <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
-              <h6 class="mb-0">Category Information</h6>
+      <!-- Edit Category Modal -->
+      <div class="modal fade" id="editCategoryModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+              <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Category</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="card-body">
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label">Category Name <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" name="name" required>
-                  <div class="invalid-feedback">Please enter a category name.</div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Description</label>
-                  <textarea class="form-control" name="description" rows="3"></textarea>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Category Image</label>
-                  <div class="input-group mb-3">
-                    <input type="file" class="form-control" name="image" id="category-image" accept="image/*">
-                    <label class="input-group-text" for="category-image">Upload</label>
+            <div class="modal-body">
+              <form id="edit-category-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                <input type="hidden" name="categoryId" id="edit-category-id">
+                <div class="card shadow-sm mb-4">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Category Information</h6>
                   </div>
-                  <div class="image-preview mt-2 text-center d-none">
-                    <img id="preview-image" src="#" alt="Preview" class="img-thumbnail" style="max-height: 150px">
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" id="edit-category-name" required>
+                        <div class="invalid-feedback">Please enter a category name.</div>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" id="edit-category-description" rows="3"></textarea>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Current Image</label>
+                        <div class="current-image-container text-center mb-3">
+                          <img id="current-category-image" src="#" alt="Category Image" class="img-thumbnail" style="max-height: 150px">
+                        </div>
+                        <label class="form-label">Update Image</label>
+                        <div class="input-group mb-3">
+                          <input type="file" class="form-control" name="image" id="edit-category-image" accept="image/*">
+                          <label class="input-group-text" for="edit-category-image">Upload</label>
+                        </div>
+                        <div class="edit-image-preview mt-2 text-center d-none">
+                          <img id="edit-preview-image" src="#" alt="Preview" class="img-thumbnail" style="max-height: 150px">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status" id="edit-category-status">
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Status</label>
-                  <select class="form-select" name="status">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                <div class="card shadow-sm">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Actions</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex gap-2 justify-content-end">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Update Category
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </form>
             </div>
           </div>
-          <div class="card shadow-sm">
-            <div class="card-header bg-light">
-              <h6 class="mb-0">Actions</h6>
-            </div>
-            <div class="card-body">
-              <div class="d-flex gap-2 justify-content-end">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                  <i class="fas fa-save me-1"></i>Save Category
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
 
-<!-- Edit Category Modal -->
-<div class="modal fade" id="editCategoryModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-gradient-primary text-white">
-        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Category</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="edit-category-form" class="needs-validation" novalidate enctype="multipart/form-data">
-          <input type="hidden" name="categoryId" id="edit-category-id">
-          <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
-              <h6 class="mb-0">Category Information</h6>
-            </div>
-            <div class="card-body">
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label">Category Name <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" name="name" id="edit-category-name" required>
-                  <div class="invalid-feedback">Please enter a category name.</div>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Description</label>
-                  <textarea class="form-control" name="description" id="edit-category-description" rows="3"></textarea>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Current Image</label>
-                  <div class="current-image-container text-center mb-3">
-                    <img id="current-category-image" src="#" alt="Category Image" class="img-thumbnail" style="max-height: 150px">
-                  </div>
-                  <label class="form-label">Update Image</label>
-                  <div class="input-group mb-3">
-                    <input type="file" class="form-control" name="image" id="edit-category-image" accept="image/*">
-                    <label class="input-group-text" for="edit-category-image">Upload</label>
-                  </div>
-                  <div class="edit-image-preview mt-2 text-center d-none">
-                    <img id="edit-preview-image" src="#" alt="Preview" class="img-thumbnail" style="max-height: 150px">
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Status</label>
-                  <select class="form-select" name="status" id="edit-category-status">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="card shadow-sm">
-            <div class="card-header bg-light">
-              <h6 class="mb-0">Actions</h6>
-            </div>
-            <div class="card-body">
-              <div class="d-flex gap-2 justify-content-end">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                  <i class="fas fa-save me-1"></i>Update Category
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
+      
       <div class="container-fluid px-4 section-content" id="orders-section">
         <div class="row my-4">
           <div class="col-lg-12">
@@ -1048,6 +860,60 @@
                     </thead>
                     <tbody id="orders-table-body">
                       <!-- Orders will be dynamically loaded here -->
+                      <tr>
+                        <td>#ORD------</td>
+                        <td>------</td>
+                        <td>--/--/----</td>
+                        <td>------ RWF</td>
+                        <td><span class="badge bg-success">Paid</span></td>
+                        <td><span class="badge bg-warning">Processing</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>#ORD------</td>
+                        <td>------</td>
+                        <td>--/--/----</td>
+                        <td>------ RWF</td>
+                        <td><span class="badge bg-success">Paid</span></td>
+                        <td><span class="badge bg-info">Shipped</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>#ORD------</td>
+                        <td>------</td>
+                        <td>--/--/----</td>
+                        <td>------ RWF</td>
+                        <td><span class="badge bg-success">Paid</span></td>
+                        <td><span class="badge bg-success">Delivered</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -1114,6 +980,63 @@
                     </thead>
                     <tbody id="customers-table-body">
                       <!-- Customers will be dynamically loaded here -->
+                      <tr>
+                        <td>#C------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                        <td>--/--/----</td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>#C------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                        <td>--/--/----</td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>#C------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                        <td>--/--/----</td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -1190,6 +1113,60 @@
                     </thead>
                     <tbody id="inventory-table-body">
                       <!-- Inventory items will be dynamically loaded here -->
+                      <tr>
+                        <td><div class="text-muted small">No image</div></td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td><span class="badge bg-danger">Low Stock</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><div class="text-muted small">No image</div></td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td><span class="badge bg-warning">Running Low</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><div class="text-muted small">No image</div></td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td><span class="badge bg-success">In Stock</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -1229,7 +1206,7 @@
                 <h5 class="mb-0">Sales Report</h5>
                 <div class="dropdown">
                   <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="salesReportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    Last 30 Days
+                    Select Period
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="salesReportDropdown">
                     <li><a class="dropdown-item" href="#">Today</a></li>
@@ -1253,7 +1230,7 @@
                 <h5 class="mb-0">Revenue by Category</h5>
                 <div class="dropdown">
                   <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="revenueCategoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    Last 30 Days
+                    Select Period
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="revenueCategoryDropdown">
                     <li><a class="dropdown-item" href="#">Last 7 Days</a></li>
@@ -1276,7 +1253,7 @@
                 <h5 class="mb-0">Top Selling Products</h5>
                 <div class="dropdown">
                   <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="topProductsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                    Last 30 Days
+                    Select Period
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="topProductsDropdown">
                     <li><a class="dropdown-item" href="#">Last 7 Days</a></li>
@@ -1298,6 +1275,21 @@
                     </thead>
                     <tbody id="top-products-table">
                       <!-- Top products will be dynamically loaded here -->
+                      <tr>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                      </tr>
+                      <tr>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                      </tr>
+                      <tr>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -1316,15 +1308,15 @@
                 <div class="row text-center">
                   <div class="col-4">
                     <h6 class="mb-0">Total Value</h6>
-                    <h5 class="mt-2 mb-0">4,500,000 RWF</h5>
+                    <h5 class="mt-2 mb-0">------ RWF</h5>
                   </div>
                   <div class="col-4">
                     <h6 class="mb-0">Low Stock Value</h6>
-                    <h5 class="mt-2 mb-0">750,000 RWF</h5>
+                    <h5 class="mt-2 mb-0">------ RWF</h5>
                   </div>
                   <div class="col-4">
                     <h6 class="mb-0">Out of Stock Items</h6>
-                    <h5 class="mt-2 mb-0">12</h5>
+                    <h5 class="mt-2 mb-0">--</h5>
                   </div>
                 </div>
               </div>
@@ -1371,13 +1363,13 @@
                         <div class="col-md-6">
                           <div class="mb-3">
                             <label for="store-email" class="form-label">Store Email</label>
-                            <input type="email" class="form-control" id="store-email" value="info@nhonest.com">
+                            <input type="email" class="form-control" id="store-email" value="------">
                           </div>
                         </div>
                         <div class="col-md-6">
                           <div class="mb-3">
                             <label for="store-phone" class="form-label">Store Phone</label>
-                            <input type="tel" class="form-control" id="store-phone" value="+250 788 123 456">
+                            <input type="tel" class="form-control" id="store-phone" value="------">
                           </div>
                         </div>
                         <div class="col-md-6">
@@ -1393,7 +1385,7 @@
                         <div class="col-md-12">
                           <div class="mb-3">
                             <label for="store-address" class="form-label">Store Address</label>
-                            <textarea class="form-control" id="store-address" rows="2">Kigali, Rwanda</textarea>
+                            <textarea class="form-control" id="store-address" rows="2">------</textarea>
                           </div>
                         </div>
                         <div class="col-md-6">
@@ -1429,25 +1421,25 @@
                             <div class="col-md-6">
                               <div class="mb-3">
                                 <label for="first-name" class="form-label">First Name</label>
-                                <input type="text" class="form-control" id="first-name" value="Admin">
+                                <input type="text" class="form-control" id="first-name" value="------">
                               </div>
                             </div>
                             <div class="col-md-6">
                               <div class="mb-3">
                                 <label for="last-name" class="form-label">Last Name</label>
-                                <input type="text" class="form-control" id="last-name" value="User">
+                                <input type="text" class="form-control" id="last-name" value="------">
                               </div>
                             </div>
                             <div class="col-md-6">
                               <div class="mb-3">
                                 <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" value="admin@nhonest.com">
+                                <input type="email" class="form-control" id="email" value="------">
                               </div>
                             </div>
                             <div class="col-md-6">
                               <div class="mb-3">
                                 <label for="phone" class="form-label">Phone</label>
-                                <input type="tel" class="form-control" id="phone" value="+250 788 123 456">
+                                <input type="tel" class="form-control" id="phone" value="------">
                               </div>
                             </div>
                             <div class="col-md-6">
@@ -1459,7 +1451,7 @@
                             <div class="col-md-6">
                               <div class="mb-3">
                                 <label for="joined-date" class="form-label">Joined Date</label>
-                                <input type="text" class="form-control" id="joined-date" value="Jan 15, 2025" readonly>
+                                <input type="text" class="form-control" id="joined-date" value="--/--/----" readonly>
                               </div>
                             </div>
                           </div>
@@ -1620,449 +1612,42 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-  
-<script>
-  // Hide loader when page is fully loaded
-  window.addEventListener('load', function() {
-    document.getElementById('loader').style.display = 'none';
-  });
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.0/dist/browser-image-compression.js"></script>
 
-  // Toggle sidebar
-  document.getElementById('menu-toggle').addEventListener('click', function() {
-    document.getElementById('wrapper').classList.toggle('toggled');
-    document.getElementById('sidebar-wrapper').classList.toggle('active');
-  });
-
-  // Handle section navigation
-  const sectionLinks = document.querySelectorAll('.section-link');
-  const sectionContent = document.querySelectorAll('.section-content');
-  const sectionTitle = document.getElementById('section-title');
-
-  sectionLinks.forEach(link => {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();
-      
-      // Remove active class from all links and add to clicked link
-      sectionLinks.forEach(l => l.classList.remove('active'));
-      this.classList.add('active');
-      
-      // Hide all sections and show the selected one
-      sectionContent.forEach(section => section.classList.remove('active'));
-      const targetSection = this.getAttribute('data-section');
-      document.getElementById(targetSection).classList.add('active');
-      
-      // Update section title
-      sectionTitle.textContent = this.textContent.trim();
-    });
-  });
-
-  // Logout confirmation
-  document.getElementById('logout-btn').addEventListener('click', function(e) {
-    e.preventDefault();
-    if (confirm('Are you sure you want to logout?')) {
-      alert('Logout successful');
-      // Redirect to login page in real application
-    }
-  });
-
-  // Initialize charts
-  const initCharts = () => {
-    // Sales Chart
-    const salesCtx = document.getElementById('salesChart').getContext('2d');
-    const salesChart = new Chart(salesCtx, {
-      type: 'line',
-      data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{
-          label: 'Sales',
-          data: [65000, 59000, 80000, 81000, 56000, 85000, 90000],
-          borderColor: '#0d6efd',
-          backgroundColor: 'rgba(13, 110, 253, 0.1)',
-          tension: 0.3,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return value.toLocaleString() + ' RWF';
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Category Chart
-    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    const categoryChart = new Chart(categoryCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Fruits', 'Vegetables', 'Dairy', 'Bakery', 'Beverages'],
-        datasets: [{
-          data: [25, 20, 18, 15, 22],
-          backgroundColor: [
-            '#0d6efd',
-            '#20c997',
-            '#ffc107',
-            '#dc3545',
-            '#6f42c1'
-          ]
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom'
-          }
-        }
-      }
-    });
-
-    // Initialize other charts for reports section
-    if (document.getElementById('salesReportChart')) {
-      const salesReportCtx = document.getElementById('salesReportChart').getContext('2d');
-      const salesReportChart = new Chart(salesReportCtx, {
-        type: 'bar',
-        data: {
-          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-          datasets: [{
-            label: 'Sales',
-            data: [650000, 590000, 800000, 810000],
-            backgroundColor: '#0d6efd'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: function(value) {
-                  return value.toLocaleString() + ' RWF';
-                }
-              }
-            }
-          }
-        }
-      });
-
-      const revenueCategoryCtx = document.getElementById('revenueCategoryChart').getContext('2d');
-      const revenueCategoryChart = new Chart(revenueCategoryCtx, {
-        type: 'polarArea',
-        data: {
-          labels: ['Fruits', 'Vegetables', 'Dairy', 'Bakery', 'Beverages'],
-          datasets: [{
-            data: [350000, 290000, 450000, 300000, 380000],
-            backgroundColor: [
-              'rgba(13, 110, 253, 0.7)',
-              'rgba(32, 201, 151, 0.7)',
-              'rgba(255, 193, 7, 0.7)',
-              'rgba(220, 53, 69, 0.7)',
-              'rgba(111, 66, 193, 0.7)'
-            ]
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false
-        }
-      });
-
-      const inventoryValueCtx = document.getElementById('inventoryValueChart').getContext('2d');
-      const inventoryValueChart = new Chart(inventoryValueCtx, {
-        type: 'pie',
-        data: {
-          labels: ['Fruits', 'Vegetables', 'Dairy', 'Bakery', 'Beverages', 'Others'],
-          datasets: [{
-            data: [850000, 750000, 950000, 650000, 780000, 520000],
-            backgroundColor: [
-              '#0d6efd',
-              '#20c997',
-              '#ffc107',
-              '#dc3545',
-              '#6f42c1',
-              '#fd7e14'
-            ]
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom'
-            }
-          }
-        }
-      });
-    }
-  };
-
-  // Function to update variants table
-  function updateVariantsTable() {
-    const tbody = document.getElementById('variants-list');
-    if (!tbody) return;
-
-    tbody.innerHTML = '';
-
-    if (window.variants && window.variants.length > 0) {
-      window.variants.forEach(variant => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${variant.type}</td>
-          <td>${variant.value}</td>
-          <td>${variant.sku}</td>
-          <td>
-            <button type="button" class="btn btn-sm btn-danger" onclick="window.removeVariant(${variant.id})">
-              <i class="fas fa-trash"></i>
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } else {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="4" class="text-center">No variants added</td>
-        </tr>
-      `;
-    }
-  }
-
-  // Initialize form handlers
-  const initForms = () => {
-    // Handle product image preview
-    const imageInput = document.getElementById('image');
-    const imagePreview = document.getElementById('image-preview');
-
-    if (imageInput) {
-      imageInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-          const reader = new FileReader();
-          reader.onload = function(e) {
-            imagePreview.src = e.target.result;
-            imagePreview.style.display = 'block';
-          };
-          reader.readAsDataURL(this.files[0]);
-        }
-      });
-    }
-
-    // Handle restore file input
-    const restoreFileInput = document.getElementById('restore-file');
-    const restoreButton = document.getElementById('restore-db-btn');
-    
-    if (restoreFileInput && restoreButton) {
-      restoreFileInput.addEventListener('change', function() {
-        restoreButton.disabled = !this.files || this.files.length === 0;
-      });
-    }
-
-    // Handle import file input
-    const importFileInput = document.getElementById('import-file');
-    const importButton = document.getElementById('import-products-btn');
-    
-    if (importFileInput && importButton) {
-      importFileInput.addEventListener('change', function() {
-        importButton.disabled = !this.files || this.files.length === 0;
-      });
-    }
-
-    // Handle form submissions
-    const productForm = document.getElementById('productForm');
-    if (productForm) {
-      productForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        try {
-          // Disable submit button to prevent double submission
-          const submitButton = this.querySelector('button[type="submit"]');
-          submitButton.disabled = true;
-          submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding Product...';
-
-          // Create FormData object
-          const formData = new FormData(this);
-          
-          // Add variants if they exist
-          if (window.variants && window.variants.length > 0) {
-            formData.append('variants', JSON.stringify(window.variants));
-          }
-
-          // Send POST request to server
-          const response = await fetch('/api/products', {
-            method: 'POST',
-            body: formData
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.message || 'Failed to add product');
-          }
-
-          // Show success message
-          Swal.fire({
-            title: 'Success!',
-            text: 'Product added successfully',
-            icon: 'success',
-            confirmButtonText: 'OK'
-          });
-
-          // Reset form and close modal
-          this.reset();
-          window.variants = [];
-          updateVariantsTable();
-          
-          // Close the modal
-          const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
-          if (modal) {
-            modal.hide();
-          }
-
-          // Reload products table
-          if (window.productManager) {
-            await productManager.loadProducts();
-          }
-
-        } catch (error) {
-          console.error('Error adding product:', error);
-          Swal.fire({
-            title: 'Error!',
-            text: error.message || 'Failed to add product',
-            icon: 'error',
-            confirmButtonText: 'OK'
-          });
-        } finally {
-          // Re-enable submit button
-          const submitButton = this.querySelector('button[type="submit"]');
-          submitButton.disabled = false;
-          submitButton.innerHTML = 'Add Product';
-        }
-      });
-    }
-
-    // Handle category form submission
-    const categoryForm = document.getElementById('categoryForm');
-    if (categoryForm) {
-      categoryForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        try {
-          const formData = new FormData(this);
-          const response = await fetch('/api/categories', {
-            method: 'POST',
-            body: formData
-          });
-
-          const result = await response.json();
-
-          if (!response.ok) {
-            throw new Error(result.message || 'Failed to add category');
-          }
-
-          // Show success message
-          Swal.fire({
-            title: 'Success!',
-            text: 'Category added successfully',
-            icon: 'success',
-            confirmButtonText: 'OK'
-          });
-
-          // Reset form and close modal
-          this.reset();
-          const modal = bootstrap.Modal.getInstance(document.getElementById('addCategoryModal'));
-          if (modal) {
-            modal.hide();
-          }
-
-          // Reload categories
-          if (window.categoryManager) {
-            await categoryManager.loadCategories();
-          }
-
-        } catch (error) {
-          console.error('Error adding category:', error);
-          Swal.fire({
-            title: 'Error!',
-            text: error.message || 'Failed to add category',
-            icon: 'error',
-            confirmButtonText: 'OK'
-          });
-        }
-      });
-    }
-  };
-
-  // Initialize when DOM is loaded
-  document.addEventListener('DOMContentLoaded', function() {
-    initCharts();
-    initForms();
-  });
-</script>
-
-<!-- jQuery (optional, if you use it) -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-<!-- Bootstrap Bundle (JS + Popper.js) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-
-<!-- Your Admin Logic -->
+<!-- Admin Panel Logic -->
 <script src="js/admin.js"></script>
 
-<!-- Update the scripts section at the bottom -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+<!-- Debug helper for forms -->
 <script>
-// Add this to your existing JavaScript
+// Debug script to log form submissions
 document.addEventListener('DOMContentLoaded', function() {
-  // Handle category type selection
-  const categoryTypeInputs = document.querySelectorAll('input[name="categoryType"]');
-  const mainCategoryForm = document.getElementById('main-category-form');
-  const subCategoryForm = document.getElementById('sub-category-form');
+    console.log('Form debugging activated');
 
-  categoryTypeInputs.forEach(input => {
-    input.addEventListener('change', function() {
-      if (this.value === 'main') {
-        mainCategoryForm.style.display = 'block';
-        subCategoryForm.style.display = 'none';
-      } else {
-        mainCategoryForm.style.display = 'none';
-        subCategoryForm.style.display = 'block';
-      }
+    // Add form submission debug logging for all forms
+    document.querySelectorAll('form').forEach(form => {
+        const formId = form.id || 'unnamed-form';
+        console.log(`Registered form: ${formId}`);
+        
+        // Add debug event listener
+        form.addEventListener('submit', function(e) {
+            console.log(`Form submitted: ${formId}`);
+            
+            // Category form debugging
+            if (formId === 'category-form') {
+                const formData = new FormData(this);
+                console.log('Category form data:');
+                for (const [key, value] of formData.entries()) {
+                    if (value instanceof File) {
+                        console.log(`- ${key}: File "${value.name}" (${value.size} bytes, ${value.type})`);
+                    } else {
+                        console.log(`- ${key}: ${value}`);
+                    }
+                }
+            }
+        });
     });
-  });
-
-  // Handle form submissions
-  const forms = document.querySelectorAll('form');
-  forms.forEach(form => {
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      // Add your form submission logic here
-      alert('Category saved successfully!');
-    });
-  });
 });
 </script>
-
 </body>
 </html>

@@ -2,14 +2,74 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const Category = require('../models/Categories');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+
+// Set base URL with port 5000 explicitly
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+
+// Configure Multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, '../../uploads/products');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+            console.log(`Created upload directory: ${uploadDir}`);
+        }
+        console.log(`Using upload directory for ${file.originalname}: ${uploadDir}`);
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        // Generate unique filename with timestamp and original extension
+        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+        console.log(`Generated filename for ${file.originalname}: ${uniqueName}`);
+        cb(null, uniqueName);
+    }
+});
+
+// Filter to allow only image files
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    console.log(`Checking file: ${file.originalname}, mimetype: ${file.mimetype}`);
+    
+    if (extname && mimetype) {
+        console.log(`Accepted file: ${file.originalname}`);
+        return cb(null, true);
+    } else {
+        console.log(`Rejected file: ${file.originalname}`);
+        cb(new Error('Only image files are allowed!'), false);
+    }
+};
+
+// Configure multer upload
+const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 2 * 1024 * 1024 // 2MB limit
+    }
+});
 
 // Category Routes
 router.get('/categories', async (req, res) => {
     try {
-        const categories = await Category.find()
-            .populate('parent', 'name')
-            .populate('products', 'name');
-        res.json(categories);
+        // Removed .populate() calls to non-existent fields
+        const categories = await Category.find();
+        
+        // Transform categories to have full URLs
+        const transformedCategories = categories.map(category => {
+            const categoryObj = category.toObject();
+            if (categoryObj.image && !categoryObj.image.startsWith('http')) {
+                categoryObj.image = `${BASE_URL}${categoryObj.image}`;
+            }
+            return categoryObj;
+        });
+        
+        res.json(transformedCategories);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -24,13 +84,93 @@ router.get('/categories/main', async (req, res) => {
     }
 });
 
+// Check if category name exists
+router.get('/categories/check', async (req, res) => {
+    try {
+        const { name } = req.query;
+        
+        if (!name) {
+            return res.status(400).json({ message: 'Name parameter is required' });
+        }
+        
+        const category = await Category.findOne({ name: name });
+        res.json({ exists: !!category });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Categories JSON API endpoint (for when images aren't being uploaded)
 router.post('/categories', async (req, res) => {
     try {
-        const category = new Category(req.body);
+        console.log('=== WARNING: USING FALLBACK CATEGORY ROUTE IN API.JS ===');
+        console.log('This route is being used instead of the dedicated /api/categories route.');
+        console.log('For image uploads, use the dedicated /api/categories endpoint instead.');
+        console.log('API categories JSON post request body:', req.body);
+        
+        // Check if we're dealing with JSON or form data
+        const contentType = req.headers['content-type'] || '';
+        console.log('Content-Type:', contentType);
+        
+        // THIS IS A FALLBACK ROUTE - The dedicated /api/categories route should be used,
+        // especially for image uploads. This route is kept for backward compatibility.
+        
+        // Validate required fields
+        if (!req.body.name || req.body.name.trim() === '') {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Category name is required - please provide a name for the category',
+            });
+        }
+        
+        // Check if category with same name already exists
+        const existingCategory = await Category.findOne({ 
+            name: { $regex: new RegExp(`^${req.body.name.trim()}$`, 'i') } 
+        });
+        
+        if (existingCategory) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Category with this name already exists',
+            });
+        }
+        
+        // Create the category
+        const category = new Category({
+            name: req.body.name.trim(),
+            description: req.body.description ? req.body.description.trim() : '',
+            status: req.body.status || 'active',
+            // No image for JSON requests
+        });
+        
+        console.log('Creating category with data:', {
+            name: category.name,
+            description: category.description,
+            status: category.status
+        });
+        
         const savedCategory = await category.save();
-        res.status(201).json(savedCategory);
+        console.log('Category saved with ID:', savedCategory._id);
+        
+        res.status(201).json({
+            success: true,
+            message: 'Category created successfully',
+            category: savedCategory
+        });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Error creating category:', error);
+        
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ 
+                success: false,
+                message: error.message,
+            });
+        }
+        
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error: ' + error.message,
+        });
     }
 });
 
@@ -46,7 +186,7 @@ router.delete('/categories/:id', async (req, res) => {
             return res.status(400).json({ message: 'Cannot delete category with products' });
         }
 
-        await category.remove();
+        await Category.findByIdAndDelete(category._id);
         res.json({ message: 'Category deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -56,31 +196,196 @@ router.delete('/categories/:id', async (req, res) => {
 // Product Routes
 router.get('/products', async (req, res) => {
     try {
+        // Get products and populate category
         const products = await Product.find()
-            .populate('category', 'name')
-            .populate('subcategory', 'name');
-        res.json(products);
+            .populate('category', 'name');
+            
+        // Transform products to have full URLs with port 5000
+        const transformedProducts = products.map(product => {
+            const productObj = product.toObject();
+            
+            // Fix image URLs
+            if (productObj.featuredImage) {
+                // Replace any URLs with localhost:3000 to localhost:5000
+                if (productObj.featuredImage.includes('localhost:3000')) {
+                    productObj.featuredImage = productObj.featuredImage.replace('localhost:3000', 'localhost:5000');
+                } 
+                // Add base URL if it's a relative path
+                else if (!productObj.featuredImage.startsWith('http')) {
+                    productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
+                }
+            }
+            
+            // Fix images array URLs
+            if (productObj.images && productObj.images.length > 0) {
+                productObj.images = productObj.images.map(img => {
+                    if (img.includes('localhost:3000')) {
+                        return img.replace('localhost:3000', 'localhost:5000');
+                    } else if (!img.startsWith('http')) {
+                        return `${BASE_URL}${img}`;
+                    }
+                    return img;
+                });
+            }
+            
+            return productObj;
+        });
+        
+        res.json(transformedProducts);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-router.post('/products', async (req, res) => {
+// Check if product SKU exists
+router.get('/products/check-sku', async (req, res) => {
     try {
-        const product = new Product(req.body);
-        const savedProduct = await product.save();
-
-        // Update category's products array
-        if (product.category) {
-            await Category.findByIdAndUpdate(
-                product.category,
-                { $push: { products: savedProduct._id } }
-            );
+        const { sku } = req.query;
+        
+        if (!sku) {
+            return res.status(400).json({ message: 'SKU parameter is required' });
         }
-
-        res.status(201).json(savedProduct);
+        
+        const product = await Product.findOne({ sku: sku });
+        res.json({ exists: !!product });
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        res.status(500).json({ message: error.message });
+    }
+});
+
+router.post('/products', upload.single('featuredImage'), async (req, res) => {
+    try {
+        console.log('=== PRODUCT CREATION START ===');
+        console.log('Request headers:', req.headers);
+        console.log('Content-Type:', req.headers['content-type']);
+        console.log('Request body:', req.body);
+        console.log('Request file:', req.file);
+        
+        // Log detailed information about each field
+        console.log('Form data details:');
+        for (const key in req.body) {
+            console.log(`${key}: ${req.body[key]} (${typeof req.body[key]})`);
+        }
+        
+        // Validate required fields
+        const requiredFields = ['name', 'sku', 'price', 'costPrice', 'category'];
+        const missingFields = {};
+        
+        requiredFields.forEach(field => {
+            if (!req.body[field] || (typeof req.body[field] === 'string' && req.body[field].trim() === '')) {
+                missingFields[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+                console.log(`Missing required field: ${field}`);
+            }
+        });
+        
+        if (Object.keys(missingFields).length > 0) {
+            console.log('Validation failed - missing fields:', missingFields);
+            return res.status(400).json({
+                message: `Product validation failed: ${Object.keys(missingFields).join(', ')}`,
+                errors: missingFields
+            });
+        }
+        
+        // Check if product with same SKU already exists
+        const existingSku = await Product.findOne({ sku: req.body.sku });
+        if (existingSku) {
+            console.log('SKU already exists:', req.body.sku);
+            return res.status(400).json({
+                message: 'Product with this SKU already exists',
+                errors: {
+                    sku: 'Product with this SKU already exists'
+                }
+            });
+        }
+        
+        // Create product object with explicit type conversion
+        const product = new Product({
+            name: String(req.body.name),
+            sku: String(req.body.sku),
+            description: req.body.description ? String(req.body.description) : '',
+            category: req.body.category,
+            price: parseFloat(req.body.price),
+            costPrice: parseFloat(req.body.costPrice),
+            stock: parseInt(req.body.stock || '0'),
+            status: req.body.status || 'active'
+        });
+        
+        console.log('Created product object:', {
+            name: product.name,
+            sku: product.sku,
+            category: product.category,
+            price: product.price,
+            costPrice: product.costPrice
+        });
+        
+        // Handle variants if present
+        if (req.body.variants) {
+            try {
+                product.variants = JSON.parse(req.body.variants);
+                console.log('Parsed variants:', product.variants);
+            } catch (e) {
+                console.error('Error parsing variants:', e);
+            }
+        }
+        
+        // Handle uploaded image if present
+        if (req.file) {
+            console.log('Processing uploaded image:', req.file.filename);
+            const imagePath = `/uploads/products/${req.file.filename}`;
+            product.featuredImage = imagePath;
+            console.log('Featured image path stored:', imagePath);
+        }
+        
+        // Save product to database
+        console.log('Saving product to database...');
+        const savedProduct = await product.save();
+        console.log('Product saved successfully with ID:', savedProduct._id);
+        
+        // Transform to add full URLs to images
+        const productObj = savedProduct.toObject();
+        if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
+            productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
+        }
+        
+        console.log('=== PRODUCT CREATION COMPLETE ===');
+        return res.status(201).json({
+            success: true,
+            message: 'Product created successfully',
+            product: productObj
+        });
+    } catch (error) {
+        console.error('=== PRODUCT CREATION ERROR ===');
+        console.error(error);
+        
+        // Clean up uploaded file if there was an error
+        if (req.file) {
+            try {
+                const filePath = path.join(__dirname, '../..', `/uploads/products/${req.file.filename}`);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    console.log('Deleted file after error:', filePath);
+                }
+            } catch (e) {
+                console.error('Error deleting file:', e);
+            }
+        }
+        
+        // Detailed error response
+        if (error.name === 'ValidationError') {
+            const errors = {};
+            for (const field in error.errors) {
+                errors[field] = error.errors[field].message;
+            }
+            console.log('Mongoose validation errors:', errors);
+            return res.status(400).json({ 
+                message: 'Validation failed: ' + error.message,
+                errors
+            });
+        }
+        
+        return res.status(500).json({ 
+            message: 'Server error: ' + error.message
+        });
     }
 });
 
@@ -99,7 +404,7 @@ router.delete('/products/:id', async (req, res) => {
             );
         }
 
-        await product.remove();
+        await Product.findByIdAndDelete(product._id);
         res.json({ message: 'Product deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
