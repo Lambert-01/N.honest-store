@@ -321,11 +321,87 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
         // Handle variants if present
         if (req.body.variants) {
             try {
-                product.variants = JSON.parse(req.body.variants);
-                console.log('Parsed variants:', product.variants);
+                console.log('Processing variants from form submission');
+                console.log('Variants data type:', typeof req.body.variants);
+                console.log('Variants raw value:', req.body.variants);
+                
+                let parsedVariants;
+                
+                // Handle case where variants is already an object (parsed JSON)
+                if (typeof req.body.variants === 'object' && !Array.isArray(req.body.variants)) {
+                    console.log('Variants is already an object, using directly');
+                    parsedVariants = req.body.variants;
+                }
+                // Handle case where variants is an array of strings (form posts data differently)
+                else if (Array.isArray(req.body.variants)) {
+                    console.log('Variants is an array with', req.body.variants.length, 'items');
+                    // Try to join and parse if it contains multiple JSON fragments
+                    try {
+                        const joinedString = req.body.variants.join('');
+                        parsedVariants = JSON.parse(joinedString);
+                        console.log('Successfully parsed joined array of variants');
+                    } catch (e) {
+                        console.error('Error parsing joined variants array:', e);
+                        // Try to parse each item individually
+                        parsedVariants = req.body.variants.map(item => {
+                            try {
+                                return typeof item === 'string' ? JSON.parse(item) : item;
+                            } catch (e) {
+                                console.error('Error parsing variant item:', e);
+                                return null;
+                            }
+                        }).filter(item => item !== null);
+                        
+                        if (parsedVariants.length === 0) {
+                            throw new Error('Could not parse any variant items');
+                        }
+                    }
+                }
+                // Handle case where variants is a string (most common)
+                else if (typeof req.body.variants === 'string') {
+                    console.log('Variants is a string, attempting to parse');
+                    try {
+                        parsedVariants = JSON.parse(req.body.variants);
+                        console.log('Successfully parsed variants string to:', Array.isArray(parsedVariants) ? 'array' : typeof parsedVariants);
+                    } catch (e) {
+                        console.error('Failed to parse variants JSON string:', e);
+                        throw e;
+                    }
+                }
+                
+                // Validate the variants structure
+                if (parsedVariants) {
+                    if (Array.isArray(parsedVariants)) {
+                        console.log('Parsed variants is an array with', parsedVariants.length, 'items');
+                        
+                        product.variants = parsedVariants.map(variant => {
+                            const mappedVariant = {
+                                name: variant.name || '',
+                                combination: variant.combination || [],
+                                sku: variant.sku || '',
+                                price: parseFloat(variant.price) || product.price,
+                                stock: parseInt(variant.stock, 10) || 0
+                            };
+                            console.log('Mapped variant:', mappedVariant);
+                            return mappedVariant;
+                        });
+                        
+                        console.log('Final variants array has', product.variants.length, 'items');
+                    } else {
+                        console.error('Invalid variants format - expected array but got:', typeof parsedVariants);
+                        throw new Error('Invalid variants format - expected array');
+                    }
+                } else {
+                    console.error('Failed to parse variants data');
+                    throw new Error('Failed to parse variants data');
+                }
             } catch (e) {
-                console.error('Error parsing variants:', e);
+                console.error('Error processing variants:', e);
+                console.error('Original variants value:', req.body.variants);
             }
+        } else {
+            console.log('No variants data provided in request');
+            product.variants = [];
         }
         
         // Handle uploaded image if present

@@ -309,8 +309,8 @@ function handleLogout() {
     localStorage.removeItem('sessionActive');
     localStorage.removeItem('lastPageLeave');
     
-    console.log('Redirecting to login page due to logout');
-    window.location.href = '/login.html';
+        console.log('Redirecting to login page due to logout');
+        window.location.href = '/login.html';
 }
 
 // Global Chart instances
@@ -647,9 +647,39 @@ function setupProductFormHandler() {
                 }
             }
 
-            // Add variants to formData if they exist
-            if (window.variants && window.variants.length > 0) {
-                formData.append('variants', JSON.stringify(window.variants));
+            // Ensure we have the variants in the form data
+            // Check for variants-json first (new format)
+            const variantsJsonInput = document.getElementById('variants-json');
+            if (variantsJsonInput && variantsJsonInput.value) {
+                console.log('Found variants-json input, using its value');
+                formData.set('variants', variantsJsonInput.value);
+                console.log('Set variants from variants-json input:', variantsJsonInput.value.substring(0, 100) + '...');
+            } 
+            // Fallback to window.variants if available
+            else if (window.variants && window.variants.length > 0) {
+                console.log('Using window.variants:', window.variants.length, 'items');
+                formData.set('variants', JSON.stringify(window.variants));
+                console.log('Set variants from window.variants');
+            }
+            // Fallback to window.productVariants if available
+            else if (window.productVariants && window.productVariants.length > 0) {
+                console.log('Using window.productVariants:', window.productVariants.length, 'items');
+                formData.set('variants', JSON.stringify(window.productVariants));
+                console.log('Set variants from window.productVariants');
+            }
+            // Ensure at least an empty array is set
+            else {
+                console.log('No variants found, setting empty array');
+                formData.set('variants', JSON.stringify([]));
+            }
+            
+            // Log final form data for debugging
+            console.log('Final form data before submission:');
+            for (const [key, value] of formData.entries()) {
+                const valueDisplay = value instanceof File ? 
+                    `File: ${value.name} (${value.size} bytes)` : 
+                    (key === 'variants' ? `${value.substring(0, 100)}...` : value);
+                console.log(`${key}: ${valueDisplay}`);
             }
             
             // Get auth headers but DO NOT set Content-Type
@@ -686,6 +716,7 @@ function setupProductFormHandler() {
             
             // Reset variants
             window.variants = [];
+            if (window.productVariants) window.productVariants = [];
             updateVariantsTable();
             
             // Close modal
@@ -1763,7 +1794,27 @@ class ProductManager {
 
 // Initialize product variants
 window.variants = [];
+window.productVariants = [];
             
+// Initialize variant attribute array
+window.productAttributes = [];
+
+// Debug function to log variant state
+window.logVariantState = function() {
+    console.log('=== VARIANT STATE DEBUG ===');
+    console.log('window.variants:', JSON.stringify(window.variants));
+    console.log('window.productVariants:', JSON.stringify(window.productVariants));
+    console.log('window.productAttributes:', JSON.stringify(window.productAttributes));
+    
+    const variantsJsonInput = document.getElementById('variants-json');
+    if (variantsJsonInput) {
+        console.log('variants-json input value:', variantsJsonInput.value);
+    } else {
+        console.log('variants-json input not found in DOM');
+    }
+    console.log('=== END VARIANT STATE DEBUG ===');
+};
+
 // Add variant function
 window.addVariant = function() {
     const variantType = document.getElementById('variant-type').value.trim();
@@ -1775,11 +1826,34 @@ window.addVariant = function() {
         return;
     }
     
-    window.variants.push({
+    const newVariant = {
         type: variantType,
         value: variantValue,
         sku: variantSku
+    };
+    
+    if (!window.variants) window.variants = [];
+    window.variants.push(newVariant);
+    
+    // Also add to the new format for compatibility
+    if (!window.productVariants) window.productVariants = [];
+    window.productVariants.push({
+        name: `${variantType}: ${variantValue}`,
+        combination: [{ attribute: variantType, value: variantValue }],
+        sku: variantSku,
+        price: parseFloat(document.getElementById('price').value) || 0,
+        stock: 0
     });
+    
+    console.log('Added variant:', newVariant);
+    console.log('Current variants count:', window.variants.length);
+    
+    // Update hidden input right after adding
+    const variantsJsonInput = document.getElementById('variants-json');
+    if (variantsJsonInput) {
+        variantsJsonInput.value = JSON.stringify(window.variants);
+        console.log('Updated variants-json input after adding variant');
+    }
     
     updateVariantsTable();
     clearVariantForm();
@@ -1790,7 +1864,7 @@ function clearVariantForm() {
     document.getElementById('variant-type').value = '';
     document.getElementById('variant-value').value = '';
     document.getElementById('variant-sku').value = '';
-            }
+}
             
 // Update variants table
 function updateVariantsTable() {
@@ -1818,10 +1892,27 @@ function updateVariantsTable() {
 
 // Remove variant function
 window.removeVariant = function(index) {
-    if (index >= 0 && index < window.variants.length) {
+    if (window.productVariants) {
+        window.productVariants.splice(index, 1);
+    }
+    
+    // Also remove from the legacy variants array if it exists
+    if (window.variants && window.variants.length > index) {
         window.variants.splice(index, 1);
-                updateVariantsTable();
-            }
+    }
+    
+    // Update the hidden input with the latest variant data
+    const variantsJsonInput = document.getElementById('variants-json');
+    if (variantsJsonInput) {
+        variantsJsonInput.value = JSON.stringify(window.productVariants || []);
+        console.log(`Updated variants-json after removing variant ${index}`);
+    }
+    
+    // Update both UI components
+    updateVariantsTable();
+    if (typeof updateVariantsList === 'function') {
+        updateVariantsList();
+    }
 }
 
 // Function to preview image before upload
@@ -2747,3 +2838,387 @@ function setupImagePreviewHandlers() {
         });
     });
 }
+
+// Product variant management
+let productAttributes = [];
+let productVariants = [];
+
+// Initialize variant management
+function initializeVariantManagement() {
+    // Add attribute button event listener
+    document.getElementById('add-attribute-btn')?.addEventListener('click', addProductAttribute);
+    
+    // Generate variants button event listener
+    document.getElementById('generate-variants-btn')?.addEventListener('click', generateProductVariants);
+}
+
+// Add a product attribute
+function addProductAttribute() {
+    const attributeType = document.getElementById('attribute-type').value.trim();
+    const attributeValuesStr = document.getElementById('attribute-values').value.trim();
+    
+    if (!attributeType || !attributeValuesStr) {
+        showAlert('Please enter both attribute type and values', 'warning');
+        return;
+    }
+    
+    // Parse attribute values, removing empty values and trimming
+    const attributeValues = attributeValuesStr
+        .split(',')
+        .map(value => value.trim())
+        .filter(value => value.length > 0);
+    
+    if (attributeValues.length === 0) {
+        showAlert('Please enter at least one attribute value', 'warning');
+        return;
+    }
+    
+    // Check if attribute type already exists
+    if (productAttributes.some(attr => attr.name.toLowerCase() === attributeType.toLowerCase())) {
+        showAlert('This attribute type already exists', 'warning');
+        return;
+    }
+    
+    // Add to attributes array
+    productAttributes.push({
+        name: attributeType,
+        values: attributeValues
+    });
+    
+    // Update the attributes list UI
+    updateAttributesList();
+    
+    // Clear the inputs
+    document.getElementById('attribute-type').value = '';
+    document.getElementById('attribute-values').value = '';
+    
+    // Enable generate variants button if we have attributes
+    document.getElementById('generate-variants-btn').disabled = productAttributes.length === 0;
+    
+    // Show preview of variants count
+    updateVariantsCount();
+}
+
+// Remove a product attribute
+function removeProductAttribute(index) {
+    productAttributes.splice(index, 1);
+    updateAttributesList();
+    
+    // Reset variants when attributes change
+    productVariants = [];
+    document.getElementById('variants-list').innerHTML = `
+        <tr id="no-variants-message">
+            <td colspan="5" class="text-center py-3 text-muted">
+                <i class="fas fa-info-circle me-1"></i> Add attributes and generate variants
+            </td>
+        </tr>
+    `;
+    
+    // Update generate button state
+    document.getElementById('generate-variants-btn').disabled = productAttributes.length === 0;
+    
+    // Update variants count
+    updateVariantsCount();
+}
+
+// Update the attributes list UI
+function updateAttributesList() {
+    const attributesList = document.getElementById('attributes-list');
+    if (!attributesList) return;
+    
+    attributesList.innerHTML = '';
+    
+    productAttributes.forEach((attr, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="fw-medium">${attr.name}</td>
+            <td>${attr.values.join(', ')}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeProductAttribute(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        attributesList.appendChild(row);
+    });
+}
+
+// Update variants count preview
+function updateVariantsCount() {
+    const variantsCountElem = document.getElementById('variants-count');
+    if (!variantsCountElem) return;
+    
+    if (productAttributes.length === 0) {
+        variantsCountElem.textContent = '';
+        return;
+    }
+    
+    // Calculate total possible combinations
+    const totalCombinations = productAttributes.reduce((total, attr) => {
+        return total * attr.values.length;
+    }, 1);
+    
+    variantsCountElem.textContent = `(Will generate ${totalCombinations} variant${totalCombinations !== 1 ? 's' : ''})`;
+}
+
+// Generate all possible variant combinations from attributes
+function generateProductVariants() {
+    if (productAttributes.length === 0) {
+        showAlert('Please add at least one attribute first', 'warning');
+        return;
+    }
+    
+    // Get base product details
+    const baseSku = document.getElementById('sku')?.value || '';
+    const basePrice = parseFloat(document.getElementById('price')?.value || 0);
+    
+    // Generate combinations
+    productVariants = generateVariantCombinations(productAttributes);
+    
+    // Add SKU, price and stock to each variant
+    productVariants = productVariants.map((variant, index) => {
+        // Create a SKU suffix from variant
+        const skuSuffix = variant.combination
+            .map(item => item.value.substring(0, 2).toUpperCase())
+            .join('-');
+        
+        return {
+            ...variant,
+            sku: `${baseSku}-${skuSuffix}`,
+            price: basePrice,
+            stock: 0
+        };
+    });
+    
+    // Update variants UI
+    updateVariantsList();
+}
+
+// Generate all possible combinations of attributes
+function generateVariantCombinations(attributes) {
+    // Helper function to generate combinations recursively
+    function combine(attributes, current = [], index = 0, results = []) {
+        if (index === attributes.length) {
+            // Base case: we've processed all attributes
+            // Create a variant from the current combination
+            const variantName = current.map(item => `${item.attribute}: ${item.value}`).join(', ');
+            results.push({
+                name: variantName,
+                combination: [...current]
+            });
+            return;
+        }
+        
+        // Recursive case: process the current attribute's values
+        const attribute = attributes[index];
+        for (const value of attribute.values) {
+            current.push({ attribute: attribute.name, value });
+            combine(attributes, current, index + 1, results);
+            current.pop(); // Backtrack
+        }
+    }
+    
+    const results = [];
+    combine(attributes, [], 0, results);
+    return results;
+}
+
+// Update the variants table UI
+function updateVariantsList() {
+    const variantsList = document.getElementById('variants-list');
+    if (!variantsList) return;
+    
+    if (productVariants.length === 0) {
+        variantsList.innerHTML = `
+            <tr id="no-variants-message">
+                <td colspan="5" class="text-center py-3 text-muted">
+                    <i class="fas fa-info-circle me-1"></i> Add attributes and generate variants
+                </td>
+            </tr>
+        `;
+        
+        // Update hidden input with empty array
+        const variantsJsonInput = document.getElementById('variants-json');
+        if (variantsJsonInput) {
+            variantsJsonInput.value = JSON.stringify([]);
+            console.log('Updated variants-json input to empty array');
+        }
+        
+        return;
+    }
+    
+    variantsList.innerHTML = '';
+    
+    productVariants.forEach((variant, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="fw-medium">${variant.name}</td>
+            <td>
+                <input type="text" class="form-control form-control-sm variant-sku" 
+                       data-index="${index}" value="${variant.sku}">
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">RWF</span>
+                    <input type="number" class="form-control form-control-sm variant-price" 
+                           data-index="${index}" value="${variant.price}" min="0" step="0.01">
+                </div>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm variant-stock" 
+                       data-index="${index}" value="${variant.stock}" min="0" step="1">
+            </td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="window.removeVariant(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        variantsList.appendChild(row);
+    });
+    
+    // Add event listeners to variant inputs
+    document.querySelectorAll('.variant-sku, .variant-price, .variant-stock').forEach(input => {
+        input.addEventListener('change', updateVariantValue);
+    });
+    
+    // Update hidden input whenever variants are updated
+    const variantsJsonInput = document.getElementById('variants-json');
+    if (variantsJsonInput) {
+        variantsJsonInput.value = JSON.stringify(productVariants);
+        console.log('Updated variants-json input with', productVariants.length, 'variants');
+    } else {
+        console.warn('variants-json input not found, could not update');
+    }
+    
+    // Show success message
+    showAlert(`Generated ${productVariants.length} product variants`, 'success', true, 2000);
+}
+
+// Update a variant's value when input changes
+function updateVariantValue(event) {
+    const input = event.target;
+    const index = parseInt(input.getAttribute('data-index'), 10);
+    
+    if (input.classList.contains('variant-sku')) {
+        productVariants[index].sku = input.value;
+    } else if (input.classList.contains('variant-price')) {
+        productVariants[index].price = parseFloat(input.value) || 0;
+    } else if (input.classList.contains('variant-stock')) {
+        productVariants[index].stock = parseInt(input.value, 10) || 0;
+    }
+    
+    // Update the hidden input with the latest variant data
+    const variantsJsonInput = document.getElementById('variants-json');
+    if (variantsJsonInput) {
+        variantsJsonInput.value = JSON.stringify(productVariants);
+        console.log(`Updated variants-json after changing variant ${index}`);
+    }
+    
+    // Also update window.variants for backward compatibility
+    window.variants = productVariants;
+}
+
+// Remove a variant - use the global function
+function removeVariant(index) {
+    // Call the global function to ensure consistency
+    window.removeVariant(index);
+}
+
+// Hook into product form submission
+function setupVariantFormIntegration() {
+    // Add an event listener to the product form
+    const productForm = document.getElementById('product-form');
+    if (productForm) {
+        // Create the variants input at initialization
+        let variantsInput = document.getElementById('variants-json');
+        if (!variantsInput) {
+            variantsInput = document.createElement('input');
+            variantsInput.type = 'hidden';
+            variantsInput.id = 'variants-json';
+            variantsInput.name = 'variants';
+            variantsInput.value = JSON.stringify([]);
+            productForm.appendChild(variantsInput);
+            console.log('Added variants-json hidden field to form at initialization');
+        }
+        
+        // Function to ensure variants are in the form before submission
+        const ensureVariantsInForm = () => {
+            console.log('=== ENSURING VARIANTS IN FORM ===');
+            console.log('window.productVariants length:', window.productVariants ? window.productVariants.length : 'undefined');
+            console.log('window.variants length:', window.variants ? window.variants.length : 'undefined');
+            
+            // Always get a fresh reference to the input
+            let variantsInput = document.getElementById('variants-json');
+            if (!variantsInput) {
+                variantsInput = document.createElement('input');
+                variantsInput.type = 'hidden';
+                variantsInput.id = 'variants-json';
+                variantsInput.name = 'variants';
+                productForm.appendChild(variantsInput);
+                console.log('Created missing variants-json input during form submission');
+            }
+            
+            // Decide which variants data to use
+            let variantsData = [];
+            
+            if (window.productVariants && window.productVariants.length > 0) {
+                variantsData = window.productVariants;
+                console.log('Using productVariants data with', variantsData.length, 'entries');
+            } else if (window.variants && window.variants.length > 0) {
+                variantsData = window.variants;
+                console.log('Using legacy variants data with', variantsData.length, 'entries');
+            } else {
+                console.log('No variants found, using empty array');
+            }
+            
+            // Stringify the variants
+            const variantsJson = JSON.stringify(variantsData);
+            
+            // Set the value
+            variantsInput.value = variantsJson;
+            console.log('Set variants JSON:', variantsInput.value.substring(0, 100) + (variantsInput.value.length > 100 ? '...' : ''));
+            console.log('=== END ENSURING VARIANTS IN FORM ===');
+            
+            // Log the full form data before submission
+            console.log('Form data before submission:');
+            const formData = new FormData(productForm);
+            for (const [key, value] of formData.entries()) {
+                if (key === 'variants') {
+                    console.log(`${key}: [${value.length} characters]`);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+            
+            return true;
+        };
+        
+        // Add event listener for form submission
+        productForm.addEventListener('submit', function(e) {
+            // Call our debug function
+            window.logVariantState();
+            
+            // Make sure variants are in the form
+            ensureVariantsInForm();
+            
+            // Validate that variants have been generated if attributes exist
+            if (window.productAttributes && window.productAttributes.length > 0 && 
+                (!window.productVariants || window.productVariants.length === 0)) {
+                e.preventDefault();
+                showAlert('Please generate variants before submitting', 'warning');
+                const generateBtn = document.getElementById('generate-variants-btn');
+                if (generateBtn) {
+                    generateBtn.scrollIntoView({ behavior: 'smooth' });
+                }
+                return;
+            }
+        });
+    }
+}
+
+// Initialize variant management when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeVariantManagement();
+    setupVariantFormIntegration();
+});

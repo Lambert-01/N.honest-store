@@ -1,17 +1,28 @@
 const mongoose = require('mongoose');
 
 const variantSchema = new mongoose.Schema({
-    type: {
+    name: {
         type: String,
         required: true
     },
-    value: {
-        type: String,
-        required: true
-    },
+    combination: [{
+        attribute: String,
+        value: String
+    }],
     sku: {
         type: String,
         required: true
+    },
+    price: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+    stock: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0
     }
 });
 
@@ -120,14 +131,65 @@ productSchema.pre('save', function(next) {
 
 // Add a pre-save hook to handle variants
 productSchema.pre('save', function(next) {
+    console.log("Processing variants in pre-save hook");
+    
     if (this.variants && Array.isArray(this.variants)) {
-        // Remove any _id fields from variants to prevent casting errors
-        this.variants = this.variants.map(variant => ({
-            type: variant.type,
-            value: variant.value,
-            sku: variant.sku
-        }));
+        console.log(`Pre-save: Processing ${this.variants.length} variants`);
+        
+        // Filter out invalid variants and ensure proper structure
+        this.variants = this.variants
+            .filter(variant => variant && typeof variant === 'object')
+            .map(variant => {
+                console.log(`Processing variant: ${JSON.stringify(variant).substring(0, 100)}`);
+                
+                // Handle all possible formats that might come from the frontend
+                
+                // Format 1: New format with combination array
+                if (variant.combination && Array.isArray(variant.combination)) {
+                    console.log(`Variant has combination array with ${variant.combination.length} items`);
+                    return {
+                        name: variant.name || `Variant ${variant.sku || ''}`,
+                        combination: variant.combination,
+                        sku: variant.sku || `${this.sku}-variant`,
+                        price: parseFloat(variant.price) || this.price,
+                        stock: parseInt(variant.stock, 10) || 0
+                    };
+                } 
+                // Format 2: Old format with type and value properties
+                else if (variant.type && variant.value) {
+                    console.log(`Variant has type/value format: ${variant.type}:${variant.value}`);
+                    return {
+                        name: `${variant.type}: ${variant.value}`,
+                        combination: [{ attribute: variant.type, value: variant.value }],
+                        sku: variant.sku || `${this.sku}-${variant.value.replace(/\s+/g, '-')}`,
+                        price: parseFloat(variant.price) || this.price,
+                        stock: parseInt(variant.stock, 10) || 0
+                    };
+                }
+                // Format 3: Simple name and price format
+                else if (variant.name) {
+                    console.log(`Variant has name only: ${variant.name}`);
+                    return {
+                        name: variant.name,
+                        combination: [],
+                        sku: variant.sku || `${this.sku}-simple`,
+                        price: parseFloat(variant.price) || this.price,
+                        stock: parseInt(variant.stock, 10) || 0
+                    };
+                }
+                // Skip invalid variants
+                else {
+                    console.log('Invalid variant format, skipping');
+                    return null;
+                }
+            })
+            .filter(Boolean); // Remove any null entries
+        
+        console.log(`Pre-save: Finished processing variants. Final count: ${this.variants.length}`);
+    } else {
+        console.log('Pre-save: No variants array found or not an array');
     }
+    
     next();
 });
 

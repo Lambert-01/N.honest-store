@@ -65,21 +65,22 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Configure multer upload
+// Configure multer upload with better options for JSON handling
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 2 * 1024 * 1024 // 2MB limit
+        fileSize: 5 * 1024 * 1024, // 5MB 
+        fieldSize: 10 * 1024 * 1024 // 10MB field size to handle larger forms with JSON data
     }
-});
+}).single('featuredImage'); // Use single instead of the middleware directly
 
 // Log the upload configuration
 console.log('Multer configuration:', {
     storageDest: 'Function (dynamic)',
     storageFilename: 'Function (dynamic)',
     fileFilterSet: !!fileFilter,
-    fileSizeLimit: '2MB'
+    fileSizeLimit: '5MB'
 });
 
 // Create a wrapped version of the middleware to add logging
@@ -174,14 +175,29 @@ router.post('/', (req, res) => {
     console.log('=== PRODUCT CREATION REQUEST RECEIVED ===');
     console.log('Content-Type:', req.headers['content-type']);
     
-    // Use single file upload for featuredImage
-    upload.single('featuredImage')(req, res, async (err) => {
+    // Use the upload middleware
+    upload(req, res, async function(err) {
         if (err) {
             console.error('Multer error:', err);
             return res.status(400).json({
                 success: false,
                 message: err.message || 'File upload error'
             });
+        }
+        
+        console.log('Form data keys after upload:', Object.keys(req.body));
+        
+        // Check specifically for variants data
+        if (req.body.variants) {
+            console.log('Variants data present. Length:', req.body.variants.length);
+            try {
+                const parsedVariants = JSON.parse(req.body.variants);
+                console.log('Parsed variants count:', parsedVariants.length);
+            } catch (e) {
+                console.error('Failed to parse variants JSON:', e.message);
+            }
+        } else {
+            console.log('No variants data in request');
         }
         
         try {
@@ -215,10 +231,111 @@ router.post('/', (req, res) => {
             // Handle variants if present
             if (req.body.variants) {
                 try {
-                    product.variants = JSON.parse(req.body.variants);
+                    console.log('Processing variants from form submission');
+                    console.log('Variants data type:', typeof req.body.variants);
+                    
+                    let parsedVariants;
+                    
+                    // Handle case where variants is already an object (parsed JSON)
+                    if (typeof req.body.variants === 'object' && !Array.isArray(req.body.variants)) {
+                        console.log('Variants is already an object, using directly');
+                        parsedVariants = req.body.variants;
+                    }
+                    // Handle case where variants is an array of strings (form posts data differently)
+                    else if (Array.isArray(req.body.variants)) {
+                        console.log('Variants is an array with', req.body.variants.length, 'items');
+                        
+                        // If it's a single item array with a valid JSON string, use that
+                        if (req.body.variants.length === 1) {
+                            try {
+                                parsedVariants = JSON.parse(req.body.variants[0]);
+                                console.log('Parsed variants from single array item');
+                            } catch (e) {
+                                console.log('Single item is not valid JSON:', e.message);
+                            }
+                        }
+                        
+                        // If we still don't have valid variants, try each array item
+                        if (!parsedVariants) {
+                            // Find the first item that's a valid JSON array
+                            for (const item of req.body.variants) {
+                                try {
+                                    if (typeof item === 'string') {
+                                        const parsed = JSON.parse(item);
+                                        if (Array.isArray(parsed)) {
+                                            parsedVariants = parsed;
+                                            console.log('Found valid variants JSON in array item');
+                                            break;
+                                        }
+                                    }
+                                } catch (err) {
+                                    console.log('Not valid JSON:', typeof item === 'string' ? item.substring(0, 50) : typeof item);
+                                    // Continue to next item
+                                }
+                            }
+                        }
+                        
+                        // If we still couldn't find valid JSON, try the last item
+                        if (!parsedVariants && req.body.variants.length > 0) {
+                            try {
+                                const lastItem = req.body.variants[req.body.variants.length - 1];
+                                if (typeof lastItem === 'string') {
+                                    parsedVariants = JSON.parse(lastItem);
+                                    console.log('Parsed variants from last array item');
+                                }
+                            } catch (err) {
+                                console.error('Could not parse last item either:', err);
+                            }
+                        }
+                    } 
+                    // Handle case where variants is a string (needs to be parsed)
+                    else if (typeof req.body.variants === 'string') {
+                        try {
+                            parsedVariants = JSON.parse(req.body.variants);
+                            console.log('Parsed variants from string');
+                        } catch (e) {
+                            console.error('Error parsing variants JSON string:', e);
+                        }
+                    }
+                    
+                    // Log what we found
+                    if (parsedVariants) {
+                        console.log(`Parsed variants: ${Array.isArray(parsedVariants) ? 
+                            'Array with ' + parsedVariants.length + ' items' : 
+                            'Object of type ' + typeof parsedVariants}`);
+                        console.log('First variant (if available):', 
+                            Array.isArray(parsedVariants) && parsedVariants.length > 0 ? 
+                            JSON.stringify(parsedVariants[0]) : 'None');
+                    } else {
+                        console.log('Failed to parse any variants data');
+                    }
+                    
+                    // Validate variants structure
+                    if (Array.isArray(parsedVariants)) {
+                        product.variants = parsedVariants.map(variant => ({
+                            name: variant.name || (variant.type ? `${variant.type}: ${variant.value}` : 'Unnamed Variant'),
+                            combination: variant.combination || 
+                                (variant.type && variant.value ? [{ attribute: variant.type, value: variant.value }] : []),
+                            sku: variant.sku || `${product.sku}-variant`,
+                            price: parseFloat(variant.price) || product.price, // Default to product price
+                            stock: parseInt(variant.stock, 10) || 0
+                        }));
+                        
+                        console.log(`Added ${product.variants.length} variants to product`);
+                        if (product.variants.length > 0) {
+                            console.log('First variant example:', JSON.stringify(product.variants[0]));
+                        }
+                    } else {
+                        console.error('Invalid variants format - expected array');
+                    }
                 } catch (e) {
                     console.error('Error parsing variants:', e);
+                    console.log('Raw variants data:', typeof req.body.variants === 'string' ? 
+                        req.body.variants.substring(0, 200) : 
+                        JSON.stringify(req.body.variants).substring(0, 200));
                 }
+            } else {
+                console.log('No variants data found in form submission');
             }
             
             // Process uploaded image if present
@@ -233,9 +350,10 @@ router.post('/', (req, res) => {
             }
             
             // Save product to database
-            console.log('Saving product to database:', product);
+            console.log('Saving product to database. Has variants:', product.variants && product.variants.length);
             const savedProduct = await product.save();
             console.log('Product saved successfully:', savedProduct._id);
+            console.log('Saved product has variants:', savedProduct.variants.length);
             
             // Add full URLs to response
             const productResponse = savedProduct.toObject();
@@ -345,24 +463,66 @@ router.put('/:id', (req, res, next) => {
             let productVariants = product.variants || [];
             if (req.body.variants) {
                 try {
-                    // Parse variants if it's a string
-                    const parsedVariants = typeof req.body.variants === 'string' 
-                        ? JSON.parse(req.body.variants) 
-                        : req.body.variants;
+                    // Check if variants is an array of strings (form posts data differently)
+                    let parsedVariants;
+                    if (Array.isArray(req.body.variants)) {
+                        // If it's already an array, find the valid JSON string
+                        console.log('Variants is an array with', req.body.variants.length, 'items');
+                        
+                        // Find the first item that's a valid JSON array
+                        for (const item of req.body.variants) {
+                            try {
+                                const parsed = JSON.parse(item);
+                                if (Array.isArray(parsed)) {
+                                    parsedVariants = parsed;
+                                    console.log('Found valid variants JSON in array item');
+                                    break;
+                                }
+                            } catch (err) {
+                                console.log('Not valid JSON:', item.substring(0, 50));
+                                // Continue to next item
+                            }
+                        }
+                        
+                        // If we couldn't find valid JSON, try the last item as it's likely the one we want
+                        if (!parsedVariants && req.body.variants.length > 0) {
+                            try {
+                                const lastItem = req.body.variants[req.body.variants.length - 1];
+                                parsedVariants = JSON.parse(lastItem);
+                                console.log('Parsed variants from last array item');
+                            } catch (err) {
+                                console.error('Could not parse last item either:', err);
+                            }
+                        }
+                    } else {
+                        // It's a string, parse normally
+                        parsedVariants = JSON.parse(req.body.variants);
+                        console.log('Parsed variants from string');
+                    }
                     
-                    // If variants is an array, make sure each variant has the required fields
+                    // Validate variants structure
                     if (Array.isArray(parsedVariants)) {
                         productVariants = parsedVariants.map(variant => ({
-                            type: variant.type,
-                            value: variant.value,
-                            sku: variant.sku
+                            name: variant.name,
+                            combination: variant.combination || [],
+                            sku: variant.sku,
+                            price: parseFloat(variant.price) || product.price, // Default to product price
+                            stock: parseInt(variant.stock, 10) || 0
                         }));
+                        
+                        console.log(`Added ${productVariants.length} variants to product`);
+                    } else {
+                        console.error('Invalid variants format - expected array');
+                        return res.status(400).json({
+                            success: false,
+                            message: 'Invalid variants format - expected array'
+                        });
                     }
-                } catch (err) {
-                    console.error('Error parsing variants during update:', err);
+                } catch (e) {
+                    console.error('Error parsing variants:', e);
                     return res.status(400).json({
                         success: false,
-                        message: 'Invalid variants format'
+                        message: 'Error parsing variants: ' + e.message
                     });
                 }
             }
