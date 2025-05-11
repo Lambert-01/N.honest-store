@@ -93,9 +93,10 @@
   <div class="d-flex" id="wrapper">
     <!-- Sidebar -->
     <div class="bg-dark border-right" id="sidebar-wrapper">
-      <div class="sidebar-heading d-flex align-items-center justify-content-center">
-        <i class="fas fa-store me-2"></i>
-        <span>N.HONEST<br><small class="fs-6 fw-light">ADMIN</small></span>
+      <div class="sidebar-profile d-flex flex-column align-items-center py-4">
+        <img src="images/placeholder.png" alt="Admin" class="rounded-circle mb-2" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <span class="fw-bold text-white mt-2">N.HONEST</span>
+        <small class="text-muted">ADMIN</small>
       </div>
       <div class="list-group list-group-flush my-3">
         <a href="#dashboard-section" data-section="dashboard-section" class="list-group-item list-group-item-action second-text fw-bold section-link active">
@@ -127,13 +128,17 @@
         </a>
       </div>
     </div>
+    <!-- Sidebar Overlay for mobile -->
+    <div id="sidebar-overlay"></div>
 
     <!-- Page Content -->
     <div id="page-content-wrapper">
       <nav class="navbar navbar-expand-lg navbar-light bg-white py-2 px-4">
         <div class="d-flex align-items-center">
-          <button class="btn btn-sm btn-light rounded-circle me-3" id="menu-toggle">
-            <i class="fas fa-bars text-primary"></i>
+          <button class="btn btn-sm btn-light rounded-circle me-3 menu-animated" id="menu-toggle" aria-label="Toggle sidebar">
+            <span class="menu-icon-bar"></span>
+            <span class="menu-icon-bar"></span>
+            <span class="menu-icon-bar"></span>
           </button>
           <h2 class="fs-4 m-0 fw-bold" id="section-title">Dashboard</h2>
         </div>
@@ -143,7 +148,7 @@
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
             <li class="nav-item dropdown me-3">
-              <a class="nav-link position-relative p-2" href="#" role="button">
+              <a class="nav-link position-relative p-2" href="#" role="button" id="notification-bell">
                 <i class="fas fa-bell fs-5 text-muted"></i>
                 <span class="notification-badge">3</span>
               </a>
@@ -157,8 +162,8 @@
                 </div>
               </a>
               <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="navbarDropdown">
-                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2 text-primary"></i>Profile</a></li>
-                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2 text-secondary"></i>Settings</a></li>
+                <li><a class="dropdown-item" href="#" id="profile-dropdown-item" data-goto="profile"><i class="fas fa-user me-2 text-primary"></i>Profile</a></li>
+                <li><a class="dropdown-item" href="#" id="settings-dropdown-item" data-goto="settings"><i class="fas fa-cog me-2 text-secondary"></i>Settings</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="#" id="nav-logout-btn"><i class="fas fa-power-off me-2 text-danger"></i>Logout</a></li>
               </ul>
@@ -1695,5 +1700,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<!-- Notification Slide Panel -->
+<div id="notification-panel" class="notification-panel">
+  <div class="notification-header d-flex justify-content-between align-items-center">
+    <span class="fw-bold">Notifications</span>
+    <button class="btn-close" id="close-notification-panel"></button>
+  </div>
+  <div class="notification-list" id="notification-list">
+    <!-- Notifications will be loaded here -->
+  </div>
+</div>
 </body>
 </html>

@@ -8,6 +8,8 @@ const connectDB = require('./db');
 const { router: authRouter, auth } = require('./routes/auth');
 const categoriesRoutes = require('./routes/categories');
 const productsRoutes = require('./routes/products');
+const ordersRoutes = require('./routes/orders');
+const apiRoutes = require('./routes/api');
 
 // Initialize Express app
 const app = express();
@@ -127,7 +129,7 @@ app.use('/uploads', (req, res, next) => {
 }));
 
 // Configure Express to serve static files from the root directory
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, '../')));
 
 // For specific product images
 app.use('/uploads/products', express.static(path.join(__dirname, '../uploads/products'), {
@@ -210,10 +212,10 @@ app.use('/api/auth', authRouter);
 // Protected API routes - require authentication - These should come BEFORE the general API route
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/products', productsRoutes);
-app.use('/api/orders', auth, require('./routes/orders'));
+app.use('/api/orders', ordersRoutes);
 
 // Register general API router - This should come AFTER specific routes
-app.use('/api', require('./routes/api'));
+app.use('/api', apiRoutes);
 
 // Simple ping endpoint for connectivity checks
 app.head('/api/ping', (req, res) => {
@@ -264,6 +266,10 @@ app.use((err, req, res, next) => {
         message: err.message || 'Internal server error'
     });
 });
+
+// Serve static files
+app.use(express.static(path.join(__dirname, '../')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Serve static assets explicitly to ensure they have proper content types
 app.get('*.js', (req, res, next) => {

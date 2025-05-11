@@ -138,6 +138,72 @@ router.get('/', async (req, res, next) => {
     }
 });
 
+// Filter products by category - IMPORTANT: This route must be defined BEFORE the GET by ID route
+router.get('/category/:categoryId', async (req, res, next) => {
+    try {
+        console.log(`GET /products/category/${req.params.categoryId} - Filtering products by category`);
+        const categoryId = req.params.categoryId;
+        
+        if (!categoryId || categoryId.trim() === '') {
+            console.error('Invalid category ID provided:', categoryId);
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid category ID' 
+            });
+        }
+        
+        console.log(`Looking for products with category ID: ${categoryId}`);
+        
+        // First, check if the category exists
+        const categoryExists = await Category.findById(categoryId);
+        if (!categoryExists) {
+            console.error(`Category with ID ${categoryId} not found in database`);
+            return res.status(404).json({
+                success: false,
+                message: 'Category not found'
+            });
+        }
+        
+        console.log(`Found category: ${categoryExists.name}`);
+        
+        // Find products with this category
+        const products = await Product.find({ 
+            category: categoryId,
+            status: 'active'
+        }).populate('category', 'name');
+        
+        console.log(`Found ${products.length} products in category "${categoryExists.name}" (${categoryId})`);
+        
+        if (products.length === 0) {
+            console.log(`No products found in category ${categoryId}`);
+        } else {
+            console.log(`First product in category: ${products[0].name}`);
+        }
+        
+        // Transform products to add full URLs to images
+        const transformedProducts = products.map(product => {
+            const productObj = product.toObject();
+            
+            if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
+                productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
+            }
+            
+            if (productObj.images && productObj.images.length > 0) {
+                productObj.images = productObj.images.map(img => 
+                    img.startsWith('http') ? img : `${BASE_URL}${img}`
+                );
+            }
+            
+            return productObj;
+        });
+        
+        res.json(transformedProducts);
+    } catch (err) {
+        console.error('Error filtering products by category:', err);
+        next(err);
+    }
+});
+
 // GET single product by ID
 router.get('/:id', async (req, res, next) => {
     try {
@@ -355,6 +421,15 @@ router.post('/', (req, res) => {
             console.log('Product saved successfully:', savedProduct._id);
             console.log('Saved product has variants:', savedProduct.variants.length);
             
+            // Update the category's product count
+            try {
+                await Category.updateProductCount(product.category);
+                console.log(`Updated product count for category ${product.category}`);
+            } catch (countError) {
+                console.error('Error updating category product count:', countError);
+                // Don't fail the request if count update fails
+            }
+            
             // Add full URLs to response
             const productResponse = savedProduct.toObject();
             
@@ -527,11 +602,21 @@ router.put('/:id', (req, res, next) => {
                 }
             }
             
+            // Store the old category ID for product count update
+            const oldCategoryId = product.category;
+            let categoryChanged = false;
+            
             // Update product fields
             product.name = req.body.name || product.name;
             product.sku = req.body.sku || product.sku;
             product.description = req.body.description !== undefined ? req.body.description : product.description;
-            product.category = req.body.category || product.category;
+            
+            // Check if category is changing
+            if (req.body.category && req.body.category !== oldCategoryId.toString()) {
+                categoryChanged = true;
+                product.category = req.body.category;
+            }
+            
             product.price = req.body.price ? parseFloat(req.body.price) : product.price;
             product.costPrice = req.body.costPrice ? parseFloat(req.body.costPrice) : product.costPrice;
             product.stock = req.body.stock !== undefined ? parseInt(req.body.stock) : product.stock;
@@ -543,11 +628,35 @@ router.put('/:id', (req, res, next) => {
             
             // Save updated product
             const updatedProduct = await product.save();
+            
+            // Update category product counts if the category was changed
+            if (categoryChanged) {
+                try {
+                    // Update old category count (decrement)
+                    await Category.updateProductCount(oldCategoryId);
+                    console.log(`Updated product count for old category ${oldCategoryId}`);
+                    
+                    // Update new category count (increment)
+                    await Category.updateProductCount(product.category);
+                    console.log(`Updated product count for new category ${product.category}`);
+                } catch (countError) {
+                    console.error('Error updating category product counts:', countError);
+                    // Don't fail the request if count update fails
+                }
+            } else if (product.status !== req.body.status && req.body.status) {
+                // If status changed, this might affect the product count
+                try {
+                    await Category.updateProductCount(product.category);
+                    console.log(`Updated product count for category ${product.category} after status change`);
+                } catch (countError) {
+                    console.error('Error updating category product count after status change:', countError);
+                }
+            }
 
             // Transform product to add full URLs to images for the response
             const productObj = updatedProduct.toObject();
             
-            if (productObj.featuredImage) {
+            if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
                 productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
             }
             
@@ -588,6 +697,9 @@ router.delete('/:id', async (req, res, next) => {
             });
         }
         
+        // Store category ID before deleting the product
+        const categoryId = product.category;
+        
         // Delete product images
         if (product.featuredImage) {
             const imagePath = path.join(__dirname, '../..', product.featuredImage);
@@ -615,6 +727,15 @@ router.delete('/:id', async (req, res, next) => {
         
         // Delete product from database
         await Product.findByIdAndDelete(req.params.id);
+        
+        // Update category product count
+        try {
+            await Category.updateProductCount(categoryId);
+            console.log(`Updated product count for category ${categoryId} after product deletion`);
+        } catch (countError) {
+            console.error('Error updating category product count after deletion:', countError);
+            // Don't fail the request if count update fails
+        }
     
         res.json({ 
             success: true,
@@ -637,37 +758,6 @@ router.get('/search/:term', async (req, res, next) => {
                 { sku: { $regex: searchTerm, $options: 'i' } }
             ]
         }).populate('category', 'name');
-        
-        // Transform products to add full URLs to images
-        const transformedProducts = products.map(product => {
-            const productObj = product.toObject();
-            
-            if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
-                productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-            }
-            
-            if (productObj.images && productObj.images.length > 0) {
-                productObj.images = productObj.images.map(img => 
-                    img.startsWith('http') ? img : `${BASE_URL}${img}`
-                );
-            }
-            
-            return productObj;
-        });
-        
-        res.json(transformedProducts);
-    } catch (err) {
-        next(err);
-    }
-});
-
-// Filter products by category
-router.get('/category/:categoryId', async (req, res, next) => {
-    try {
-        const categoryId = req.params.categoryId;
-        
-        const products = await Product.find({ category: categoryId })
-            .populate('category', 'name');
         
         // Transform products to add full URLs to images
         const transformedProducts = products.map(product => {

@@ -57,21 +57,11 @@ const upload = multer({
 // Category Routes
 router.get('/categories', async (req, res) => {
     try {
-        // Removed .populate() calls to non-existent fields
-        const categories = await Category.find();
-        
-        // Transform categories to have full URLs
-        const transformedCategories = categories.map(category => {
-            const categoryObj = category.toObject();
-            if (categoryObj.image && !categoryObj.image.startsWith('http')) {
-                categoryObj.image = `${BASE_URL}${categoryObj.image}`;
-            }
-            return categoryObj;
-        });
-        
-        res.json(transformedCategories);
+        const categories = await Category.find({ status: 'active' });
+        res.json(categories);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error fetching categories:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
@@ -196,44 +186,75 @@ router.delete('/categories/:id', async (req, res) => {
 // Product Routes
 router.get('/products', async (req, res) => {
     try {
-        // Get products and populate category
-        const products = await Product.find()
-            .populate('category', 'name');
-            
-        // Transform products to have full URLs with port 5000
-        const transformedProducts = products.map(product => {
-            const productObj = product.toObject();
-            
-            // Fix image URLs
-            if (productObj.featuredImage) {
-                // Replace any URLs with localhost:3000 to localhost:5000
-                if (productObj.featuredImage.includes('localhost:3000')) {
-                    productObj.featuredImage = productObj.featuredImage.replace('localhost:3000', 'localhost:5000');
-                } 
-                // Add base URL if it's a relative path
-                else if (!productObj.featuredImage.startsWith('http')) {
-                    productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-                }
-            }
-            
-            // Fix images array URLs
-            if (productObj.images && productObj.images.length > 0) {
-                productObj.images = productObj.images.map(img => {
-                    if (img.includes('localhost:3000')) {
-                        return img.replace('localhost:3000', 'localhost:5000');
-                    } else if (!img.startsWith('http')) {
-                        return `${BASE_URL}${img}`;
-                    }
-                    return img;
-                });
-            }
-            
-            return productObj;
-        });
-        
-        res.json(transformedProducts);
+        const products = await Product.find({ status: 'active' }).populate('category');
+        res.json(products);
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Error fetching products:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Get products by category - This must be defined BEFORE the product ID route
+router.get('/products/category/:categoryId', async (req, res) => {
+    try {
+        console.log(`GET /api/products/category/${req.params.categoryId} - Fetching products by category`);
+        const categoryId = req.params.categoryId;
+        
+        if (!categoryId || categoryId.trim() === '') {
+            console.error('Invalid category ID provided:', categoryId);
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid category ID' 
+            });
+        }
+        
+        console.log(`Looking for products with category ID: ${categoryId}`);
+        
+        // First, check if the category exists
+        const categoryExists = await Category.findById(categoryId);
+        if (!categoryExists) {
+            console.error(`Category with ID ${categoryId} not found in database`);
+            return res.status(404).json({
+                success: false,
+                message: 'Category not found'
+            });
+        }
+        
+        console.log(`Found category: ${categoryExists.name}`);
+        
+        // Find products with this category
+        const products = await Product.find({ 
+            category: categoryId,
+            status: 'active'
+        }).populate('category');
+        
+        console.log(`Found ${products.length} products in category "${categoryExists.name}" (${categoryId})`);
+        
+        if (products.length === 0) {
+            console.log(`No products found in category ${categoryId}`);
+            // Still return empty array rather than error
+        } else {
+            console.log(`First product in category: ${products[0].name}`);
+        }
+        
+        res.json(products);
+    } catch (error) {
+        console.error('Error fetching products by category:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Get product by ID - This must be defined AFTER more specific routes
+router.get('/products/:id', async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id).populate('category');
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+                } 
+        res.json(product);
+    } catch (error) {
+        console.error('Error fetching product:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 

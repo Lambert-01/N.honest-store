@@ -943,6 +943,147 @@ document.addEventListener("DOMContentLoaded", function() {
             console.log(`Form submitted: ${form.id}`);
         });
     });
+
+    // Sidebar toggle logic
+    const menuToggle = document.getElementById('menu-toggle');
+    const wrapper = document.getElementById('wrapper');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const sectionLinks = document.querySelectorAll('.section-link');
+
+    function openSidebar() {
+        wrapper.classList.add('sidebar-open');
+    }
+    function closeSidebar() {
+        wrapper.classList.remove('sidebar-open');
+    }
+    function toggleSidebar() {
+        wrapper.classList.toggle('sidebar-open');
+    }
+
+    if (menuToggle) {
+        menuToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            toggleSidebar();
+        });
+    }
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function() {
+            closeSidebar();
+        });
+    }
+    // Close sidebar on nav link click (mobile)
+    sectionLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth < 992) {
+                closeSidebar();
+            }
+        });
+    });
+
+    // Optional: close sidebar on window resize if desktop
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 992) {
+            closeSidebar();
+        }
+    });
+
+    // Profile/Settings dropdown navigation (single source of truth)
+    const profileDropdown = document.getElementById('profile-dropdown-item');
+    const settingsDropdown = document.getElementById('settings-dropdown-item');
+    if (profileDropdown) {
+        profileDropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            goToSettingsTab('profile');
+        });
+    }
+    if (settingsDropdown) {
+        settingsDropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            goToSettingsTab('general');
+        });
+    }
+    function goToSettingsTab(tab) {
+        // Show settings section
+        document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+        const settingsSection = document.getElementById('settings-section');
+        settingsSection.classList.add('active');
+        // Use Bootstrap's tab API
+        const tabBtn = document.getElementById(tab+'-tab');
+        if (tabBtn) {
+            if (window.bootstrap) {
+                const tabInstance = window.bootstrap.Tab.getOrCreateInstance(tabBtn);
+                tabInstance.show();
+            } else {
+                tabBtn.click();
+            }
+        }
+        // Scroll to settings
+        settingsSection.scrollIntoView({behavior:'smooth'});
+        // Set sidebar active
+        document.querySelectorAll('.section-link').forEach(l => l.classList.remove('active'));
+        const sidebarLink = document.querySelector('[data-section="settings-section"]');
+        if (sidebarLink) sidebarLink.classList.add('active');
+        // Close dropdown (if open)
+        document.body.click();
+    }
+
+    // Notification panel logic (single source of truth)
+    const notificationBell = document.getElementById('notification-bell');
+    const notificationPanel = document.getElementById('notification-panel');
+    const closeNotificationPanel = document.getElementById('close-notification-panel');
+    const notificationList = document.getElementById('notification-list');
+    function openNotificationPanel() {
+        notificationPanel.classList.add('open');
+        setTimeout(() => { notificationPanel.focus?.(); }, 100);
+    }
+    function closeNotificationPanelFn() {
+        notificationPanel.classList.remove('open');
+    }
+    if (notificationBell) {
+        notificationBell.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (notificationPanel.classList.contains('open')) {
+                closeNotificationPanelFn();
+            } else {
+                openNotificationPanel();
+            }
+        });
+    }
+    if (closeNotificationPanel) {
+        closeNotificationPanel.addEventListener('click', closeNotificationPanelFn);
+    }
+    // Close on outside click
+    document.addEventListener('mousedown', function(e) {
+        if (notificationPanel.classList.contains('open') && !notificationPanel.contains(e.target) && e.target.id !== 'notification-bell') {
+            closeNotificationPanelFn();
+        }
+    });
+    // Close on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && notificationPanel.classList.contains('open')) {
+            closeNotificationPanelFn();
+        }
+    });
+    // Sample notifications
+    if (notificationList) {
+        const notifications = [
+            {icon:'fa-shopping-cart text-primary', title:'New Order', desc:'Order #1234 placed', time:'2 min ago'},
+            {icon:'fa-envelope text-success', title:'New Message', desc:'You have a new support message', time:'10 min ago'},
+            {icon:'fa-user-plus text-info', title:'New Subscription', desc:'John Doe subscribed', time:'1 hour ago'},
+            {icon:'fa-box-open text-warning', title:'Stock Alert', desc:'Product ABC is low on stock', time:'2 hours ago'},
+            {icon:'fa-bell text-danger', title:'System Alert', desc:'Backup needed soon', time:'Yesterday'}
+        ];
+        notificationList.innerHTML = notifications.map(n => `
+            <div class="notification-item">
+                <span class="notification-icon"><i class="fas ${n.icon}"></i></span>
+                <div class="notification-content">
+                    <div class="notification-title">${n.title}</div>
+                    <div class="notification-desc small">${n.desc}</div>
+                    <div class="notification-time">${n.time}</div>
+                </div>
+            </div>
+        `).join('');
+    }
 });
 
 // Function to preview image before upload
@@ -1048,6 +1189,50 @@ class CategoryManager {
         const refreshBtn = document.getElementById('refresh-categories');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.loadCategories());
+        }
+        
+        // Add recalculate counts button if it exists
+        const recalculateBtn = document.getElementById('recalculate-category-counts');
+        if (recalculateBtn) {
+            recalculateBtn.addEventListener('click', () => this.recalculateProductCounts());
+        } else {
+            // If button doesn't exist, try to add it to the categories toolbar
+            const toolbar = document.querySelector('.categories-toolbar');
+            if (toolbar) {
+                const recalculateButton = document.createElement('button');
+                recalculateButton.id = 'recalculate-category-counts';
+                recalculateButton.className = 'btn btn-sm btn-secondary ms-2';
+                recalculateButton.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Update Counts';
+                recalculateButton.addEventListener('click', () => this.recalculateProductCounts());
+                toolbar.appendChild(recalculateButton);
+            }
+        }
+    }
+    
+    // Method to recalculate product counts for all categories
+    async recalculateProductCounts() {
+        try {
+            showAlert('Recalculating product counts...', 'info', true);
+            
+            const response = await fetch('/api/categories/recalculate-counts', {
+                method: 'POST',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Error: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            showAlert(result.message || 'Product counts updated successfully', 'success');
+            
+            // Reload categories to show updated counts
+            await this.loadCategories();
+            
+        } catch (error) {
+            console.error('Error recalculating product counts:', error);
+            showAlert('Failed to update product counts: ' + error.message, 'danger');
         }
     }
 
@@ -1158,6 +1343,9 @@ class CategoryManager {
                     category.image;
             }
 
+            // Get product count safely, defaulting to 0 if not available
+            const productCount = typeof category.products === 'number' ? category.products : 0;
+
             return `
             <tr data-id="${category._id}" class="category-row">
                 <td>
@@ -1169,7 +1357,7 @@ class CategoryManager {
                 </td>
                 <td>${category.name}</td>
                 <td>${category.description || '-'}</td>
-                <td>0</td>
+                <td>${productCount}</td>
                 <td>
                     <span class="badge bg-${category.status === 'active' ? 'success' : 'danger'}">
                         ${category.status}
@@ -2824,6 +3012,104 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('Admin panel initialization completed');
+
+    // Profile/Settings dropdown navigation (single source of truth)
+    const profileDropdown = document.getElementById('profile-dropdown-item');
+    const settingsDropdown = document.getElementById('settings-dropdown-item');
+    if (profileDropdown) {
+        profileDropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            goToSettingsTab('profile');
+        });
+    }
+    if (settingsDropdown) {
+        settingsDropdown.addEventListener('click', function(e) {
+            e.preventDefault();
+            goToSettingsTab('general');
+        });
+    }
+    function goToSettingsTab(tab) {
+        // Show settings section
+        document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+        const settingsSection = document.getElementById('settings-section');
+        settingsSection.classList.add('active');
+        // Use Bootstrap's tab API
+        const tabBtn = document.getElementById(tab+'-tab');
+        if (tabBtn) {
+            if (window.bootstrap) {
+                const tabInstance = window.bootstrap.Tab.getOrCreateInstance(tabBtn);
+                tabInstance.show();
+            } else {
+                tabBtn.click();
+            }
+        }
+        // Scroll to settings
+        settingsSection.scrollIntoView({behavior:'smooth'});
+        // Set sidebar active
+        document.querySelectorAll('.section-link').forEach(l => l.classList.remove('active'));
+        const sidebarLink = document.querySelector('[data-section="settings-section"]');
+        if (sidebarLink) sidebarLink.classList.add('active');
+        // Close dropdown (if open)
+        document.body.click();
+    }
+
+    // Notification panel logic (single source of truth)
+    const notificationBell = document.getElementById('notification-bell');
+    const notificationPanel = document.getElementById('notification-panel');
+    const closeNotificationPanel = document.getElementById('close-notification-panel');
+    const notificationList = document.getElementById('notification-list');
+    function openNotificationPanel() {
+        notificationPanel.classList.add('open');
+        setTimeout(() => { notificationPanel.focus?.(); }, 100);
+    }
+    function closeNotificationPanelFn() {
+        notificationPanel.classList.remove('open');
+    }
+    if (notificationBell) {
+        notificationBell.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (notificationPanel.classList.contains('open')) {
+                closeNotificationPanelFn();
+            } else {
+                openNotificationPanel();
+            }
+        });
+    }
+    if (closeNotificationPanel) {
+        closeNotificationPanel.addEventListener('click', closeNotificationPanelFn);
+    }
+    // Close on outside click
+    document.addEventListener('mousedown', function(e) {
+        if (notificationPanel.classList.contains('open') && !notificationPanel.contains(e.target) && e.target.id !== 'notification-bell') {
+            closeNotificationPanelFn();
+        }
+    });
+    // Close on Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && notificationPanel.classList.contains('open')) {
+            closeNotificationPanelFn();
+        }
+    });
+    // Sample notifications
+    if (notificationList) {
+        const notifications = [
+            {icon:'fa-shopping-cart text-primary', title:'New Order', desc:'Order #1234 placed', time:'2 min ago'},
+            {icon:'fa-envelope text-success', title:'New Message', desc:'You have a new support message', time:'10 min ago'},
+            {icon:'fa-user-plus text-info', title:'New Subscription', desc:'John Doe subscribed', time:'1 hour ago'},
+            {icon:'fa-box-open text-warning', title:'Stock Alert', desc:'Product ABC is low on stock', time:'2 hours ago'},
+            {icon:'fa-bell text-danger', title:'System Alert', desc:'Backup needed soon', time:'Yesterday'}
+        ];
+        notificationList.innerHTML = notifications.map(n => `
+            <div class="notification-item">
+                <span class="notification-icon"><i class="fas ${n.icon}"></i></span>
+                <div class="notification-content">
+                    <div class="notification-title">${n.title}</div>
+                    <div class="notification-desc small">${n.desc}</div>
+                    <div class="notification-time">${n.time}</div>
+                </div>
+            </div>
+        `).join('');
+    }
 });
 
 // Setup image preview handlers
@@ -3221,4 +3507,75 @@ function setupVariantFormIntegration() {
 document.addEventListener('DOMContentLoaded', function() {
     initializeVariantManagement();
     setupVariantFormIntegration();
+});
+
+// --- Notification Bell Logic: Only one instance, at the end of the file ---
+document.addEventListener('DOMContentLoaded', function() {
+  const notificationBell = document.getElementById('notification-bell');
+  const notificationPanel = document.getElementById('notification-panel');
+  const closeNotificationPanel = document.getElementById('close-notification-panel');
+  const notificationList = document.getElementById('notification-list');
+
+  function openNotificationPanel() {
+    if (notificationPanel) {
+      notificationPanel.classList.add('open');
+    }
+  }
+  function closeNotificationPanelFn() {
+    if (notificationPanel) {
+      notificationPanel.classList.remove('open');
+    }
+  }
+  if (notificationBell) {
+    notificationBell.addEventListener('click', function(e) {
+      e.preventDefault();
+      console.log('Notification bell clicked');
+      if (notificationPanel) {
+        if (notificationPanel.classList.contains('open')) {
+          closeNotificationPanelFn();
+        } else {
+          openNotificationPanel();
+        }
+      } else {
+        console.warn('Notification panel not found in DOM');
+      }
+    });
+  } else {
+    console.warn('Notification bell not found in DOM');
+  }
+  if (closeNotificationPanel) {
+    closeNotificationPanel.addEventListener('click', closeNotificationPanelFn);
+  }
+  // Close on outside click
+  document.addEventListener('mousedown', function(e) {
+    if (notificationPanel && notificationPanel.classList.contains('open') && !notificationPanel.contains(e.target) && e.target.id !== 'notification-bell') {
+      closeNotificationPanelFn();
+    }
+  });
+  // Close on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && notificationPanel && notificationPanel.classList.contains('open')) {
+      closeNotificationPanelFn();
+    }
+  });
+  // Sample notifications
+  if (notificationList) {
+    const notifications = [
+      {icon:'fa-shopping-cart text-primary', title:'New Order', desc:'Order #1234 placed', time:'2 min ago'},
+      {icon:'fa-envelope text-success', title:'New Message', desc:'You have a new support message', time:'10 min ago'},
+      {icon:'fa-user-plus text-info', title:'New Subscription', desc:'John Doe subscribed', time:'1 hour ago'},
+      {icon:'fa-box-open text-warning', title:'Stock Alert', desc:'Product ABC is low on stock', time:'2 hours ago'},
+      {icon:'fa-bell text-danger', title:'System Alert', desc:'Backup needed soon', time:'Yesterday'}
+    ];
+    notificationList.innerHTML = notifications.map(n => `
+      <div class="notification-item">
+        <span class="notification-icon"><i class="fas ${n.icon}"></i></span>
+        <div class="notification-content">
+          <div class="notification-title">${n.title}</div>
+          <div class="notification-desc small">${n.desc}</div>
+          <div class="notification-time">${n.time}</div>
+        </div>
+      </div>
+    `).join('');
+  }
 });

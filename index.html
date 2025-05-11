@@ -1,17 +1,15 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>N.Honest Supermarket</title>
+    <title>N.Honest Supermarket - Rwanda's Premier Online Grocery Store</title>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="format-detection" content="telephone=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="author" content="">
-    <meta name="keywords" content="supermarket, grocery, online shopping">
-    <meta name="description" content="N.Honest Supermarket - Your trusted grocery partner">
+    <meta name="keywords" content="supermarket, grocery, online shopping, Rwanda, Kigali, food delivery">
+    <meta name="description" content="N.Honest Supermarket - Your trusted grocery partner in Rwanda. Fresh products, quick delivery, competitive prices.">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
@@ -21,8 +19,10 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="/images/f.logo.png" type="image/png">
 
   <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
       <defs>
@@ -114,7 +114,7 @@
     <div id="cart-items-container" class="flex-grow-1">
       <!-- If cart is empty -->
       <div id="empty-cart-message" class="text-center py-5">
-        <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+        <i class="fas fa-shopping-basket fa-3x text-muted mb-3"></i>
         <p class="text-muted">Your cart is empty.</p>
         <button class="btn btn-outline-primary" data-bs-dismiss="offcanvas">Continue Shopping</button>
       </div>
@@ -125,19 +125,24 @@
       <h6 class="fw-bold mb-3">Order Summary</h6>
       <div class="d-flex justify-content-between mb-2">
         <span>Subtotal:</span>
-        <span id="cart-subtotal" class="fw-semibold">$0.00</span>
+        <span id="cart-subtotal" class="fw-semibold">RWF 0.00</span>
       </div>
       <div class="d-flex justify-content-between mb-2">
         <span>Tax (10%):</span>
-        <span id="cart-tax" class="fw-semibold">$0.00</span>
+        <span id="cart-tax" class="fw-semibold">RWF 0.00</span>
       </div>
       <div class="d-flex justify-content-between mb-4">
         <span class="fw-bold">Total:</span>
-        <span id="cart-total" class="fw-bold text-success">$0.00</span>
+        <span id="cart-total" class="fw-bold text-success">RWF 0.00</span>
       </div>
-      <button id="proceed-to-checkout" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#checkoutModal">
-        Proceed to Checkout
-      </button>
+      <div class="d-grid gap-2">
+        <button id="proceed-to-checkout" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#checkoutModal">
+          <i class="fas fa-shopping-bag me-2"></i> Proceed to Checkout
+        </button>
+        <button id="clear-cart" class="btn btn-outline-danger btn-sm">
+          <i class="fas fa-trash me-2"></i> Clear Cart
+        </button>
+      </div>
     </div>
 
   </div>
@@ -253,56 +258,65 @@
 
    
           
-    <header class="py-3 border-bottom">
+    <!-- Header -->
+    <header class="py-3 border-bottom bg-white shadow-sm">
   <div class="container">
     <div class="row align-items-center justify-content-between">
       <!-- Logo -->
       <div class="col-lg-2 col-md-3 col-6">
         <a href="index.html" class="d-flex align-items-center text-decoration-none">
-          <img src="/images/f.logo.png" alt="N.Honest Supermarket Logo" class="img-fluid me-2" style="max-height: 40px;">
-          <span class="fw-bold fs-5 text-dark">N.Honest</span>
+              <img src="/images/f.logo.png" alt="N.Honest Supermarket Logo" class="img-fluid me-2" style="max-height: 50px;">
+              <div class="d-flex flex-column">
+                <span class="fw-bold fs-5 text-danger mb-0">N.Honest</span>
+                <small class="text-muted d-none d-md-block">Rwanda's Choice</small>
+              </div>
         </a>
       </div>
 
       <!-- Search Bar -->
-      <div class="col-lg-6 col-md-7 col-12">
-        <div class="search-bar d-flex bg-light rounded-pill overflow-hidden">
-          <select class="form-select border-0 bg-transparent flex-grow-1" id="category-filter">
+          <div class="col-lg-6 col-md-7 d-none d-md-block">
+            <div class="search-bar d-flex bg-light rounded-pill overflow-hidden border">
+              <select class="form-select border-0 bg-transparent" id="category-filter" style="max-width: 130px;">
             <option value="">All Categories</option>
             <option value="beverages">Beverages</option>
             <option value="packaged-foods">Packaged Foods</option>
             <option value="dairy">Dairy Products</option>
-            <option value="household">Household Supplies</option>
+                <option value="household">Household</option>
             <option value="personal-care">Personal Care</option>
-            <option value="cleaning">Cleaning Products</option>
+                <option value="cleaning">Cleaning</option>
             <option value="baby-care">Baby Care</option>
             <option value="pet-supplies">Pet Supplies</option>
           </select>
           <input type="text" id="search-input" class="form-control border-0 bg-transparent flex-grow-1" placeholder="Search for products...">
-          <button id="search-button" class="btn btn-link p-2">
+              <button id="search-button" class="btn btn-danger px-3 rounded-end-pill">
             <i class="fas fa-search"></i>
           </button>
         </div>
       </div>
 
       <!-- User Icons -->
-      <div class="col-lg-2 col-md-2 col-6 text-end">
-        <ul class="list-unstyled d-flex justify-content-end m-0">
+          <div class="col-lg-3 col-md-2 col-6 text-end">
+            <ul class="list-unstyled d-flex justify-content-end m-0 gap-1">
           <li>
-            <a href="#" class="p-2 mx-1" data-bs-toggle="modal" data-bs-target="#loginModal">
+                <a href="#" class="btn btn-light rounded-circle p-2" data-bs-toggle="modal" data-bs-target="#loginModal" title="My Account">
               <i class="fas fa-user"></i>
             </a>
           </li>
           <li>
-            <a href="#" class="p-2 mx-1" id="wishlist-button">
+                <a href="#" class="btn btn-light rounded-circle p-2" id="wishlist-button" title="Wishlist">
               <i class="fas fa-heart"></i>
             </a>
           </li>
           <li>
-            <a href="#" class="p-2 mx-1 position-relative" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCart" aria-controls="offcanvasCart">
+                <a href="#" class="btn btn-light rounded-circle p-2 position-relative" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCart" aria-controls="offcanvasCart" title="Shopping Cart">
               <i class="fas fa-shopping-cart"></i>
               <span class="cart-badge badge bg-danger rounded-circle position-absolute top-0 start-100 translate-middle" id="cart-count">0</span>
             </a>
+          </li>
+              <li class="d-md-none">
+                <button class="btn btn-light rounded-circle p-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+                  <i class="fas fa-bars"></i>
+                </button>
           </li>
         </ul>
       </div>
@@ -310,25 +324,51 @@
   </div>
 </header>
 
-<!-- Navigation -->
-<nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom py-2">
+    <!-- Mobile Search Bar (visible only on mobile) -->
+    <div class="d-md-none bg-light py-2 border-bottom">
   <div class="container">
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
+        <div class="search-bar d-flex bg-white rounded-pill overflow-hidden border">
+          <input type="text" id="mobile-search-input" class="form-control border-0 bg-transparent flex-grow-1" placeholder="Search products...">
+          <button id="mobile-search-button" class="btn btn-danger px-3 rounded-end-pill">
+            <i class="fas fa-search"></i>
     </button>
-    <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
-      <ul class="navbar-nav gap-3 gap-lg-5 fw-bold text-uppercase">
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-0 d-none d-lg-block">
+      <div class="container">
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav gap-lg-3 fw-semibold">
         <li class="nav-item">
-          <a href="index.html" class="nav-link">Home</a>
+              <a href="index.html" class="nav-link py-3 px-2 border-bottom border-3 border-primary">Home</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a href="#" class="nav-link py-3 px-2 dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">Categories</a>
+              <ul class="dropdown-menu border-0 shadow-sm rounded-3 py-2 mt-0">
+                <li><a class="dropdown-item py-2 px-3" href="#" data-category="beverages">Beverages</a></li>
+                <li><a class="dropdown-item py-2 px-3" href="#" data-category="packaged-foods">Packaged Foods</a></li>
+                <li><a class="dropdown-item py-2 px-3" href="#" data-category="dairy">Dairy Products</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item py-2 px-3" href="#" data-category="household">Household</a></li>
+                <li><a class="dropdown-item py-2 px-3" href="#" data-category="personal-care">Personal Care</a></li>
+                <li><a class="dropdown-item py-2 px-3" href="#" data-category="cleaning">Cleaning Products</a></li>
+              </ul>
         </li>
         <li class="nav-item">
-          <a href="#products-section" class="nav-link">Shop</a>
+              <a href="#products-section" class="nav-link py-3 px-2">Shop</a>
         </li>
         <li class="nav-item">
-          <a href="#about-section" class="nav-link">About</a>
+              <a href="#about-section" class="nav-link py-3 px-2">About</a>
         </li>
         <li class="nav-item">
-          <a href="#contact-section" class="nav-link">Contact</a>
+              <a href="#contact-section" class="nav-link py-3 px-2">Contact</a>
+            </li>
+            <li class="nav-item ms-lg-auto">
+              <a href="tel:+250780000000" class="nav-link py-3 px-2 text-primary d-flex align-items-center">
+                <i class="fas fa-phone-alt me-2"></i> +250 780 000 000
+              </a>
         </li>
       </ul>
     </div>
@@ -337,63 +377,80 @@
 
 
    <!-- Hero Section -->
-<section id="hero" class="position-relative overflow-hidden" style="background-image: url('images/banner-1.jpg'); background-repeat: no-repeat; background-size: cover; background-position: center;">
-  <div class="container-lg py-5">
-    <div class="row align-items-center justify-content-between">
-      <!-- Left Content -->
-      <div class="col-lg-6 py-5">
-        <h1 class="display-4 fw-bold text-primary ls-1 mb-3">
-          Welcome to N.Honest Supermarket
+<section id="hero" class="position-relative overflow-hidden mb-5 mb-md-6">
+  <div class="hero-slider position-relative">
+    <!-- Main Banner with Overlay -->
+    <div class="hero-slide position-relative" style="background-image: url('images/banner-1.jpg'); background-size: cover; background-position: center; height: 500px;">
+      <!-- Note: The gradient overlay is now applied via CSS using :before pseudo-element -->
+      
+      <div class="container h-100 position-relative" style="z-index: 2;">
+        <div class="row h-100 align-items-center">
+          <div class="col-lg-6 py-md-5 py-4 text-white">
+            <div class="hero-content">
+              <span class="badge bg-danger rounded-pill px-3 py-2 mb-3 animate-badge">Rwanda's Premier Online Supermarket</span>
+              <h1 class="display-4 fw-bold mb-3 text-white animate-title">
+                Fresh Foods & <br><span class="text-success">Quality Products</span>
         </h1>
-        <p class="fs-5 text-muted mb-4">
-          Your trusted partner for fresh groceries, household essentials, and premium products. Quality, affordability, and convenience delivered to your doorstep.
+              <p class="fs-5 mb-4 text-white-75 d-none d-sm-block animate-text">
+                Shop the finest groceries, household essentials, and premium products with fast delivery across Rwanda.
         </p>
-        <div class="d-flex gap-3 flex-wrap">
-          <a href="#products-section" class="btn btn-primary rounded-pill px-4 py-2">Start Shopping</a>
-          <a href="#" class="btn btn-outline-dark rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#newsletterModal">Join Our Community</a>
+              
+              <!-- CTA Buttons -->
+              <div class="cta-container mb-4 animate-cta">
+                <a href="#products-section" class="btn btn-danger btn-lg rounded-pill px-4 py-2 fw-medium me-2 mb-2 mb-sm-0">
+                  <i class="fas fa-shopping-bag me-2"></i>Shop Now
+                </a>
+                <a href="#" class="btn btn-outline-light rounded-pill px-4 py-2 fw-medium" data-bs-toggle="modal" data-bs-target="#newsletterModal">
+                  <i class="fas fa-envelope me-2"></i>Get Updates
+                </a>
         </div>
-        <div class="row mt-4 text-center text-lg-start">
-          <!-- Key Highlights -->
-          <div class="col-md-4">
-            <p class="fs-2 fw-bold text-dark mb-1">100+</p>
-            <p class="small text-muted mb-0">Fresh Products Daily</p>
+              
+              <!-- Feature Pills -->
+              <div class="feature-list d-flex flex-wrap mt-3 gap-3 animate-features">
+                <div class="feature-item d-flex align-items-center">
+                  <div class="feature-icon bg-danger rounded-circle p-2 me-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-truck text-white fa-sm"></i>
           </div>
-          <div class="col-md-4">
-            <p class="fs-2 fw-bold text-dark mb-1">5K+</p>
-            <p class="small text-muted mb-0">Happy Customers</p>
+                  <span class="feature-text small fw-medium">Fast Delivery</span>
           </div>
-          <div class="col-md-4">
-            <p class="fs-2 fw-bold text-dark mb-1">10+</p>
-            <p class="small text-muted mb-0">Store Locations</p>
+                <div class="feature-item d-flex align-items-center">
+                  <div class="feature-icon bg-success rounded-circle p-2 me-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-credit-card text-white fa-sm"></i>
+          </div>
+                  <span class="feature-text small fw-medium">MTN MoMo Accepted</span>
+        </div>
+                <div class="feature-item d-flex align-items-center">
+                  <div class="feature-icon bg-warning rounded-circle p-2 me-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-shield-alt text-white fa-sm"></i>
+      </div>
+                  <span class="feature-text small fw-medium">Secure Checkout</span>
+    </div>
+  </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-  <!-- Overlay for Better Readability -->
-  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-25"></div>
 </section>
 
 
     <!-- Categories Section -->
-    <section class="py-5 overflow-hidden" id="categories-section">
-      <div class="container-lg">
-        <div class="row">
-          <div class="col-md-12">
-            <!-- Section Header -->
-            <div class="section-header d-flex flex-wrap justify-content-between mb-5">
-              <h2 class="section-title text-uppercase fw-bold">Explore Our Categories</h2>
-              <div class="d-flex align-items-center">
-                <a href="#products-section" class="btn btn-primary rounded-pill me-2">View All</a>
-                <div class="swiper-buttons">
-                  <button class="swiper-prev category-carousel-prev btn btn-outline-secondary rounded-circle p-2">
+    <section class="py-5 bg-light" id="categories-section">
+      <div class="container">
+        <div class="row mb-4">
+          <div class="col-lg-8 col-md-7">
+            <h2 class="section-title h3 fw-bold mb-2">Popular Categories</h2>
+            <p class="text-muted">Explore our wide range of product categories</p>
+          </div>
+          <div class="col-lg-4 col-md-5 text-md-end">
+            <div class="swiper-buttons d-flex justify-content-md-end gap-2">
+              <button class="btn btn-outline-primary rounded-circle p-2 category-carousel-prev">
                     <i class="fas fa-chevron-left"></i>
                   </button>
-                  <button class="swiper-next category-carousel-next btn btn-outline-secondary rounded-circle p-2 ms-2">
+              <button class="btn btn-outline-primary rounded-circle p-2 category-carousel-next">
                     <i class="fas fa-chevron-right"></i>
                   </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -401,98 +458,162 @@
         <!-- Category Carousel -->
         <div class="category-carousel swiper">
           <div class="swiper-wrapper">
+            <!-- All Categories -->
+            <div class="swiper-slide">
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/banner-1.jpg" class="card-img-top" alt="All Categories" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-th-large fa-2x"></i>
+                    </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">All Categories</h4>
+                  </div>
+                </div>
+                <div class="card-body text-center">
+                  <p class="card-text small text-muted">Browse our complete collection</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="">View All</a>
+                </div>
+              </div>
+            </div>
+
             <!-- Beverages -->
             <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/beverages.jpg" class="card-img-top" alt="Beverages">
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/beverages.jpg" class="card-img-top" alt="Beverages" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-glass-cheers fa-2x"></i>
+                    </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">Beverages</h4>
+                  </div>
+                </div>
                 <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Beverages</h4>
-                  <p class="card-text text-muted small">Explore sodas, juices, water, and more.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="beverages">Browse</a>
+                  <p class="card-text small text-muted">Explore sodas, juices, water, and more</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="beverages">Browse</a>
                 </div>
               </div>
             </div>
 
             <!-- Packaged Foods -->
             <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/packaged-foods.jpg" class="card-img-top" alt="Packaged Foods">
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/packaged-foods.jpg" class="card-img-top" alt="Packaged Foods" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-box fa-2x"></i>
+                    </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">Packaged Foods</h4>
+                  </div>
+                </div>
                 <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Packaged Foods</h4>
-                  <p class="card-text text-muted small">Discover snacks, canned goods, pasta, and rice.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="packaged-foods">Browse</a>
+                  <p class="card-text small text-muted">Discover snacks, canned goods, pasta, and rice</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="packaged-foods">Browse</a>
                 </div>
               </div>
             </div>
 
             <!-- Dairy Products -->
             <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/dairy-products.jpg" class="card-img-top" alt="Dairy Products">
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/dairy-products.jpg" class="card-img-top" alt="Dairy Products" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-cheese fa-2x"></i>
+                    </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">Dairy Products</h4>
+                  </div>
+                </div>
                 <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Dairy Products</h4>
-                  <p class="card-text text-muted small">Find milk, cheese, yogurt, butter, and more.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="dairy">Browse</a>
+                  <p class="card-text small text-muted">Find milk, cheese, yogurt, butter, and more</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="dairy">Browse</a>
                 </div>
               </div>
             </div>
 
             <!-- Household Supplies -->
             <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/household-supplies.jpg" class="card-img-top" alt="Household Supplies">
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/household-supplies.jpg" class="card-img-top" alt="Household Supplies" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-home fa-2x"></i>
+                    </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">Household</h4>
+                  </div>
+                </div>
                 <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Household Supplies</h4>
-                  <p class="card-text text-muted small">Shop for cleaning tools, detergents, and garbage bags.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="household">Browse</a>
+                  <p class="card-text small text-muted">Shop for cleaning tools, detergents, and more</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="household">Browse</a>
                 </div>
               </div>
             </div>
 
             <!-- Personal Care -->
             <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/personal-care.jpg" class="card-img-top" alt="Personal Care">
-                <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Personal Care</h4>
-                  <p class="card-text text-muted small">Browse toiletries like soap, shampoo, and toothpaste.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="personal-care">Browse</a>
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/personal-care.jpg" class="card-img-top" alt="Personal Care" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-pump-soap fa-2x"></i>
                 </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">Personal Care</h4>
               </div>
             </div>
-
-            <!-- Cleaning Products -->
-            <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/cleaning-products.jpg" class="card-img-top" alt="Cleaning Products">
                 <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Cleaning Products</h4>
-                  <p class="card-text text-muted small">Find dishwashing liquid, surface cleaners, and bleach.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="cleaning">Browse</a>
+                  <p class="card-text small text-muted">Browse toiletries, skin care, and beauty products</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="personal-care">Browse</a>
                 </div>
               </div>
             </div>
 
             <!-- Baby Care -->
             <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/baby-care.jpg" class="card-img-top" alt="Baby Care">
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/baby-care.jpg" class="card-img-top" alt="Baby Care" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-baby fa-2x"></i>
+                    </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">Baby Care</h4>
+                  </div>
+                </div>
                 <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Baby Care</h4>
-                  <p class="card-text text-muted small">Shop baby food, diapers, wipes, and formula.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="baby-care">Browse</a>
+                  <p class="card-text small text-muted">Shop baby food, diapers, wipes, and formula</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="baby-care">Browse</a>
                 </div>
               </div>
             </div>
 
-            <!-- Additional categories... -->
+            <!-- Pet Supplies -->
             <div class="swiper-slide">
-              <div class="card h-100 border-0 shadow-sm rounded-3">
-                <img src="images/pet-supplies.jpg" class="card-img-top" alt="Pet Supplies">
+              <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="position-relative category-card">
+                  <img src="images/pet-supplies.jpg" class="card-img-top" alt="Pet Supplies" style="height: 160px; object-fit: cover;">
+                  <div class="position-absolute top-0 start-0 w-100 h-100 bg-dark opacity-50"></div>
+                  <div class="position-absolute top-50 start-50 translate-middle text-center text-white">
+                    <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 70px; height: 70px">
+                      <i class="fas fa-paw fa-2x"></i>
+                    </div>
+                    <h4 class="card-title h6 fw-bold text-uppercase mb-0">Pet Supplies</h4>
+                  </div>
+                </div>
                 <div class="card-body text-center">
-                  <h4 class="card-title fs-6 fw-normal text-uppercase">Pet Supplies</h4>
-                  <p class="card-text text-muted small">Find pet food, toys, and grooming supplies.</p>
-                  <a href="#" class="btn btn-sm btn-outline-primary" data-category="pet-supplies">Browse</a>
+                  <p class="card-text small text-muted">Find pet food, toys, and grooming supplies</p>
+                  <a href="#" class="btn btn-sm btn-primary rounded-pill px-3" data-category="pet-supplies">Browse</a>
                 </div>
               </div>
             </div>
@@ -503,42 +624,51 @@
 
 <!-- Products Section -->
 <section class="py-5" id="products-section">
-  <div class="container-lg">
+  <div class="container">
     <!-- Section Header with Filter Controls -->
     <div class="row mb-4">
-      <div class="col-12">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-          <h2 class="section-title text-uppercase fw-bold mb-0">Our Products</h2>
+      <div class="col-md-12">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 bg-white p-4 rounded-4 shadow-sm">
+          <div>
+            <h2 class="h3 fw-bold mb-1">Our Products</h2>
+            <p class="text-muted mb-0">Fresh products delivered to your doorstep</p>
+          </div>
           
           <div class="d-flex flex-wrap gap-2">
+            <!-- Search Bar (Hidden on mobile - already in header) -->
+            <div class="search-container me-2 d-none d-md-block">
+              <div class="input-group">
+                <input type="text" id="products-search-input" class="form-control" placeholder="Search products...">
+                <button class="btn btn-primary" id="products-search-button">
+                  <i class="fas fa-search"></i>
+                </button>
+              </div>
+            </div>
+            
             <!-- Category Filter Dropdown -->
             <div class="dropdown">
               <button class="btn btn-outline-primary dropdown-toggle" type="button" id="categoryDropdown" data-bs-toggle="dropdown">
-                <i class="fas fa-filter me-2"></i>Categories
+                <i class="fas fa-filter me-1"></i> Categories
               </button>
-              <ul class="dropdown-menu" aria-labelledby="categoryDropdown">
-                <li><a class="dropdown-item category-option" href="#" data-category="">All Categories</a></li>
+              <ul class="dropdown-menu shadow border-0 rounded-3 py-2" aria-labelledby="categoryDropdown">
+                <li><a class="dropdown-item py-2 px-3 category-option" href="#" data-category=""><i class="fas fa-th-large me-2 text-primary"></i>All Categories</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item category-option" href="#" data-category="beverages">Beverages</a></li>
-                <li><a class="dropdown-item category-option" href="#" data-category="packaged-foods">Packaged Foods</a></li>
-                <li><a class="dropdown-item category-option" href="#" data-category="dairy">Dairy Products</a></li>
-                <li><a class="dropdown-item category-option" href="#" data-category="household">Household Supplies</a></li>
-                <li><a class="dropdown-item category-option" href="#" data-category="personal-care">Personal Care</a></li>
+                <!-- Categories will be loaded dynamically from the database -->
               </ul>
             </div>
             
             <!-- Sort Dropdown -->
             <div class="dropdown">
               <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown">
-                <i class="fas fa-sort me-2"></i>Sort By
+                <i class="fas fa-sort me-1"></i> Sort By
               </button>
-              <ul class="dropdown-menu" aria-labelledby="sortDropdown">
-                <li><h6 class="dropdown-header">Sort Options</h6></li>
-                <li><a class="dropdown-item sort-option" href="#" data-sort="price-asc"><i class="fas fa-sort-amount-down-alt me-2"></i>Price: Low to High</a></li>
-                <li><a class="dropdown-item sort-option" href="#" data-sort="price-desc"><i class="fas fa-sort-amount-down me-2"></i>Price: High to Low</a></li>
+              <ul class="dropdown-menu shadow border-0 rounded-3 py-2" aria-labelledby="sortDropdown">
+                <li><h6 class="dropdown-header text-uppercase small">Sort Options</h6></li>
+                <li><a class="dropdown-item py-2 px-3 sort-option" href="#" data-sort="price-asc"><i class="fas fa-sort-amount-down-alt me-2 text-secondary"></i>Price: Low to High</a></li>
+                <li><a class="dropdown-item py-2 px-3 sort-option" href="#" data-sort="price-desc"><i class="fas fa-sort-amount-down me-2 text-secondary"></i>Price: High to Low</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item sort-option" href="#" data-sort="name-asc"><i class="fas fa-sort-alpha-down me-2"></i>Name: A to Z</a></li>
-                <li><a class="dropdown-item sort-option" href="#" data-sort="name-desc"><i class="fas fa-sort-alpha-down-alt me-2"></i>Name: Z to A</a></li>
+                <li><a class="dropdown-item py-2 px-3 sort-option" href="#" data-sort="name-asc"><i class="fas fa-sort-alpha-down me-2 text-secondary"></i>Name: A to Z</a></li>
+                <li><a class="dropdown-item py-2 px-3 sort-option" href="#" data-sort="name-desc"><i class="fas fa-sort-alpha-down-alt me-2 text-secondary"></i>Name: Z to A</a></li>
               </ul>
             </div>
           </div>
@@ -546,13 +676,28 @@
       </div>
     </div>
 
+    <!-- Active Filters Display -->
+    <div class="row mb-4" id="active-filters-container" style="display: none;">
+      <div class="col-12">
+        <div class="bg-white p-3 rounded-4 shadow-sm">
+          <div class="d-flex align-items-center flex-wrap">
+            <span class="me-3 text-muted"><i class="fas fa-filter me-2"></i>Active Filters:</span>
+            <div id="active-filters" class="d-flex flex-wrap gap-2"></div>
+            <button id="clear-all-filters" class="btn btn-sm btn-link ms-auto text-danger">
+              <i class="fas fa-times-circle me-1"></i>Clear All
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div class="row" id="loading-products">
-      <div class="col-12 text-center py-5">
-        <div class="spinner-grow text-primary" style="width: 3rem; height: 3rem;" role="status">
+      <div class="col-12 text-center py-5 bg-white rounded-4 shadow-sm">
+        <div class="spinner-grow text-primary mx-auto" style="width: 3rem; height: 3rem;" role="status">
           <span class="visually-hidden">Loading...</span>
         </div>
-        <h5 class="mt-4 text-muted">Loading Products...</h5>
+        <h5 class="mt-4 text-primary">Loading Products...</h5>
         <p class="text-muted small">Please wait while we fetch the latest products</p>
       </div>
     </div>
@@ -564,12 +709,12 @@
 
     <!-- Empty State -->
     <div class="row" id="empty-products" style="display: none;">
-      <div class="col-12 text-center py-5">
+      <div class="col-12 text-center py-5 bg-white rounded-4 shadow-sm">
         <div class="empty-state-icon mb-4">
           <i class="fas fa-box-open fa-4x text-muted"></i>
         </div>
-        <h5>No Products Found</h5>
-        <p class="text-muted">Try adjusting your filters or search terms</p>
+        <h5 class="text-dark">No Products Found</h5>
+        <p class="text-muted">We couldn't find any products matching your criteria.</p>
         <button class="btn btn-primary mt-3" id="reset-filters">
           <i class="fas fa-sync-alt me-2"></i>Reset Filters
         </button>
@@ -578,12 +723,67 @@
 
     <!-- Pagination -->
     <div class="row mt-5">
-      <div class="col-12">
+      <div class="col-12 d-flex justify-content-center">
         <nav aria-label="Product pagination" id="pagination-container" style="display: none;">
-          <ul class="pagination justify-content-center">
+          <ul class="pagination pagination-sm flex-wrap justify-content-center">
             <!-- Pagination will be generated here -->
           </ul>
         </nav>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature Section -->
+<section class="py-5 bg-light">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-3 col-md-6">
+        <div class="feature-card d-flex align-items-center bg-white p-4 rounded-4 shadow-sm h-100">
+          <div class="feature-icon bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3">
+            <i class="fas fa-truck fa-lg"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-1 h6">Fast Delivery</h5>
+            <p class="small text-muted mb-0">Anywhere in Rwanda</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="feature-card d-flex align-items-center bg-white p-4 rounded-4 shadow-sm h-100">
+          <div class="feature-icon bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3">
+            <i class="fas fa-credit-card fa-lg"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-1 h6">Secure Payments</h5>
+            <p class="small text-muted mb-0">MTN MoMo & Airtel Money</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="feature-card d-flex align-items-center bg-white p-4 rounded-4 shadow-sm h-100">
+          <div class="feature-icon bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3">
+            <i class="fas fa-shield-alt fa-lg"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-1 h6">Quality Guarantee</h5>
+            <p class="small text-muted mb-0">100% quality check</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="feature-card d-flex align-items-center bg-white p-4 rounded-4 shadow-sm h-100">
+          <div class="feature-icon bg-primary bg-opacity-10 p-3 rounded-circle text-primary me-3">
+            <i class="fas fa-headset fa-lg"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-1 h6">24/7 Support</h5>
+            <p class="small text-muted mb-0">Customer service</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -663,15 +863,22 @@
               <h6 class="fw-bold mb-3">Order Summary</h6>
               <div class="d-flex justify-content-between mb-2">
                 <span>Subtotal:</span>
-                <span id="modal-subtotal" class="fw-semibold">RWF 0</span>
+                <span id="modal-subtotal" class="fw-semibold">RWF 0.00</span>
               </div>
-              <div class="d-flex justify-content-between mb-3">
+              <div class="d-flex justify-content-between mb-2">
                 <span>Delivery Fee:</span>
-                <span id="modal-delivery" class="fw-semibold">RWF 0</span>
+                <span id="modal-delivery" class="fw-semibold">RWF 0.00</span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span>Tax (10%):</span>
+                <span id="modal-tax" class="fw-semibold">RWF 0.00</span>
               </div>
               <div class="d-flex justify-content-between fw-bold fs-5">
                 <span>Total:</span>
-                <span id="modal-total" class="text-success">RWF 0</span>
+                <span id="modal-total" class="text-success">RWF 0.00</span>
+              </div>
+              <div class="mt-3 small text-muted">
+                <i class="fas fa-info-circle me-1"></i> Free delivery on orders over RWF 5,000
               </div>
             </div>
             
@@ -783,7 +990,7 @@
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                   <span>Total Paid:</span>
-                  <span class="fw-bold" id="order-total">RWF 0</span>
+                  <span class="fw-bold" id="order-total">RWF 0.00</span>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                   <span>Delivery To:</span>
@@ -804,93 +1011,116 @@
     
 
 
-<footer class="footer py-5 bg-light">
+<!-- Modern Footer -->
+<footer class="footer pt-5 pb-4 bg-dark text-white footer-animate">
   <div class="container-lg">
-    <div class="row gy-4">
-
-      <!-- Logo and Social Links -->
-      <div class="col-lg-3 col-md-6 col-sm-6">
-        <div class="footer-logo">
+    <div class="row gy-4 gx-5">
+      <!-- Company Info -->
+      <div class="col-lg-4 col-md-6 mb-4 mb-md-0 footer-info-animate">
+        <div class="footer-logo mb-4">
           <a href="index.html" class="d-flex align-items-center text-decoration-none">
-            <img src="/images/f.logo.png" alt="N.Honest Supermarket Logo" class="img-fluid me-2" style="max-height: 40px;">
-            <span class="fw-bold fs-5 text-dark">N.Honest</span>
+            <img src="/images/f.logo.png" alt="N.Honest Supermarket Logo" class="img-fluid me-2" style="max-height: 45px;">
+            <div class="d-flex flex-column">
+              <span class="fw-bold fs-4 text-white">N.Honest</span>
+              <span class="small text-light opacity-75">Rwanda's Choice</span>
+            </div>
           </a>
         </div>
-        <p class="text-muted small mt-3">Your trusted online supermarket for fresh and quality products.</p>
-        <div class="social-links d-flex gap-3 mt-3">
-          <a href="#" class="btn btn-outline-secondary rounded-circle p-1">
+        <p class="text-light mb-4 opacity-75 footer-text-animate">Your trusted partner for delivering fresh groceries and quality products across Rwanda. We pride ourselves on reliability, speed, and excellence.</p>
+        <div class="social-links d-flex gap-3 mt-3 footer-social-animate">
+          <a href="#" class="social-link" aria-label="Facebook">
+            <div class="social-icon-container">
             <svg width="18" height="18"><use xlink:href="#facebook"></use></svg>
+            </div>
           </a>
-          <a href="#" class="btn btn-outline-secondary rounded-circle p-1">
-            <svg width="18" height="18"><use xlink:href="#twitter"></use></svg>
-          </a>
-          <a href="#" class="btn btn-outline-secondary rounded-circle p-1">
+          <a href="#" class="social-link" aria-label="YouTube">
+            <div class="social-icon-container">
             <svg width="18" height="18"><use xlink:href="#youtube"></use></svg>
+            </div>
           </a>
-          <a href="#" class="btn btn-outline-secondary rounded-circle p-1">
+          <a href="#" class="social-link" aria-label="Instagram">
+            <div class="social-icon-container">
             <svg width="18" height="18"><use xlink:href="#instagram"></use></svg>
-          </a>
-          <a href="#" class="btn btn-outline-secondary rounded-circle p-1">
-            <svg width="18" height="18"><use xlink:href="#amazon"></use></svg>
+            </div>
           </a>
         </div>
       </div>
 
-  
-
       <!-- Quick Links -->
-      <div class="col-md-2 col-sm-6">
-        <h5 class="widget-title fw-bold mb-3">Quick Links</h5>
-        <ul class="list-unstyled small">
-          <li><a href="#" class="nav-link text-dark">Offers</a></li>
-          <li><a href="#" class="nav-link text-dark">Discount Coupons</a></li>
-          <li><a href="#" class="nav-link text-dark">Stores</a></li>
-          <li><a href="#" class="nav-link text-dark">Track Order</a></li>
-          <li><a href="#" class="nav-link text-dark">Shop</a></li>
-          <li><a href="#" class="nav-link text-dark">Info</a></li>
+      <div class="col-lg-2 col-md-3 col-sm-6 mb-4 mb-md-0 footer-links-animate">
+        <h5 class="widget-title fw-bold mb-4 position-relative">Quick Links</h5>
+        <ul class="list-unstyled footer-links">
+          <li class="footer-link-item"><a href="#" class="footer-link">Special Offers</a></li>
+          <li class="footer-link-item"><a href="#" class="footer-link">Discount Coupons</a></li>
+          <li class="footer-link-item"><a href="#" class="footer-link">Store Locations</a></li>
+          <li class="footer-link-item"><a href="#" class="footer-link">Track Your Order</a></li>
+          <li class="footer-link-item"><a href="#products-section" class="footer-link">Shop Now</a></li>
         </ul>
       </div>
 
       <!-- Customer Service -->
-      <div class="col-md-2 col-sm-6">
-        <h5 class="widget-title fw-bold mb-3">Customer Service</h5>
-        <ul class="list-unstyled small">
-          <li><a href="#" class="nav-link text-dark">FAQ</a></li>
-          <li><a href="#" class="nav-link text-dark">Contact</a></li>
-          <li><a href="#" class="nav-link text-dark">Privacy Policy</a></li>
-          <li><a href="#" class="nav-link text-dark">Returns & Refunds</a></li>
-          <li><a href="#" class="nav-link text-dark">Cookie Guidelines</a></li>
-          <li><a href="#" class="nav-link text-dark">Delivery Information</a></li>
+      <div class="col-lg-2 col-md-3 col-sm-6 mb-4 mb-md-0 footer-links-animate">
+        <h5 class="widget-title fw-bold mb-4 position-relative">Customer Service</h5>
+        <ul class="list-unstyled footer-links">
+          <li class="footer-link-item"><a href="#" class="footer-link">Help & FAQ</a></li>
+          <li class="footer-link-item"><a href="#contact-section" class="footer-link">Contact Us</a></li>
+          <li class="footer-link-item"><a href="#" class="footer-link">Privacy Policy</a></li>
+          <li class="footer-link-item"><a href="#" class="footer-link">Returns & Refunds</a></li>
+          <li class="footer-link-item"><a href="#" class="footer-link">Shipping Information</a></li>
         </ul>
       </div>
 
       <!-- Newsletter Subscription -->
-      <div class="col-lg-3 col-md-6 col-sm-6">
-        <h5 class="widget-title fw-bold mb-3">Subscribe Us</h5>
-        <p class="text-muted small">Subscribe to our newsletter to get updates about our grand offers.</p>
-        <form class="d-flex gap-2 mt-3">
-          <input type="email" class="form-control rounded-start bg-light" placeholder="Enter your email" aria-label="Email Address">
-          <button type="submit" class="btn btn-primary rounded-end">Subscribe</button>
+      <div class="col-lg-4 col-md-6 mb-0 footer-newsletter-animate">
+        <h5 class="widget-title fw-bold mb-4 position-relative">Join Our Newsletter</h5>
+        <p class="text-light opacity-75 mb-3">Subscribe to receive updates on new products, special offers, and exclusive discounts.</p>
+        <form class="newsletter-form position-relative mb-4">
+          <div class="input-group">
+            <input type="email" class="form-control bg-dark border-secondary text-white" placeholder="Your email address" aria-label="Email Address" required>
+            <button type="submit" class="btn btn-danger">
+              <i class="fas fa-paper-plane me-1"></i> Subscribe
+            </button>
+          </div>
+          <div class="newsletter-success-message d-none mt-2 small text-success">
+            <i class="fas fa-check-circle me-1"></i> Thank you for subscribing!
+          </div>
         </form>
+        <div class="d-flex align-items-center footer-contact-animate">
+          <div class="contact-icon bg-danger rounded-circle p-2 me-2 d-flex align-items-center justify-content-center">
+            <i class="fas fa-phone-alt text-white"></i>
       </div>
-
+          <div>
+            <p class="mb-0 small text-light opacity-75">Customer Support</p>
+            <a href="tel:+250780000000" class="footer-phone fw-bold text-white">+250 780 000 000</a>
     </div>
   </div>
-</footer>
-
-<!-- Footer Bottom -->
-<div id="footer-bottom" class="py-3 bg-secondary text-light">
-  <div class="container-lg">
-    <div class="row align-items-center">
-      <div class="col-md-6 text-center text-md-start">
-        <p class="mb-0 small">© 2025 N.Honest Supermarket. All rights reserved.</p>
       </div>
-      <div class="col-md-6 text-center text-md-end">
-        <p class="mb-0 small">Developed by <strong>Ferro Oliverti</strong>, Web Developer</p>
+    </div>
+
+    <!-- Horizontal Line -->
+    <hr class="mt-4 mb-4 border-secondary footer-divider-animate">
+
+    <!-- Bottom Bar -->
+    <div class="row align-items-center">
+      <div class="col-md-6 mb-3 mb-md-0 footer-copyright-animate">
+        <p class="mb-0 small text-light opacity-75">© 2025 N.Honest Supermarket. All rights reserved.</p>
+      </div>
+      <div class="col-md-6 text-md-end footer-payment-animate">
+        <div class="payment-methods">
+          <span class="me-2 small text-light opacity-75">Payment Methods:</span>
+          <img src="images/MoMo.jpg" alt="MTN Mobile Money" class="payment-icon" height="24">
+          <img src="images/219_visa.jpg" alt="Visa" class="payment-icon" height="24">
+          <img src="images/mastercard.png" alt="Mastercard" class="payment-icon" height="24">
       </div>
     </div>
   </div>
 </div>
+</footer>
+
+<!-- Back to Top Button -->
+<a href="#" id="back-to-top" class="back-to-top-btn" aria-label="Back to top">
+  <i class="fas fa-chevron-up"></i>
+</a>
 
 <!-- Scripts -->
 <script>
@@ -916,5 +1146,62 @@
 <script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/script.js"></script>
+
+<!-- Product Quick View Modal -->
+<div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="quickViewModalLabel">Product Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <!-- Product Image -->
+          <div class="col-md-5 text-center">
+            <img id="quick-view-image" src="" alt="Product" class="img-fluid modal-product-image mb-4">
+          </div>
+          
+          <!-- Product Details -->
+          <div class="col-md-7">
+            <h2 id="quick-view-title" class="fs-4 mb-2"></h2>
+            
+            <div class="d-flex align-items-center mb-3">
+              <div id="quick-view-rating" class="stars-outer me-2">
+                <div class="stars-inner"></div>
+              </div>
+              <span id="quick-view-reviews" class="text-muted small"></span>
+            </div>
+            
+            <div class="mb-3">
+              <span id="quick-view-price" class="product-modal-price"></span>
+              <span id="quick-view-original-price" class="product-modal-original-price"></span>
+            </div>
+            
+            <div id="quick-view-stock" class="mb-3"></div>
+            
+            <div id="quick-view-description" class="mb-4 text-muted"></div>
+            
+            <!-- Variants will be added here dynamically -->
+            <div id="quick-view-variants" class="mb-4"></div>
+            
+            <!-- Quantity and Add to Cart -->
+            <div class="d-flex align-items-center">
+              <div class="quantity-selector d-flex align-items-center border rounded me-3">
+                <button class="btn btn-sm btn-quantity" id="quick-view-decrease">-</button>
+                <input type="number" class="form-control form-control-sm text-center border-0" id="quick-view-quantity" value="1" min="1" style="width: 50px">
+                <button class="btn btn-sm btn-quantity" id="quick-view-increase">+</button>
+              </div>
+              
+              <button id="quick-view-add-to-cart" class="btn btn-primary">
+                <i class="fas fa-shopping-cart me-2"></i> Add to Cart
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>

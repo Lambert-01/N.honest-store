@@ -408,4 +408,19 @@ router.get('/search/:query', async (req, res) => {
     }
 });
 
+// Recalculate all category product counts
+router.post('/recalculate-counts', async (req, res, next) => {
+    try {
+        console.log('Recalculating all category product counts...');
+        await Category.recalculateAllCounts();
+        res.json({
+            success: true,
+            message: 'Product counts recalculated for all categories'
+        });
+    } catch (err) {
+        console.error('Error recalculating category product counts:', err);
+        next(err);
+    }
+});
+
 module.exports = router;

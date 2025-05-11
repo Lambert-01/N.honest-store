@@ -1,88 +1,80 @@
 const mongoose = require('mongoose');
 
+// Define the variant schema
 const variantSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true
     },
-    combination: [{
-        attribute: String,
-        value: String
-    }],
+    combination: {
+        type: Array,
+        default: []
+    },
     sku: {
         type: String,
         required: true
     },
     price: {
         type: Number,
-        required: true,
-        min: 0
+        required: true
     },
     stock: {
         type: Number,
         required: true,
-        min: 0,
         default: 0
     }
 });
 
+// Define the product schema
 const productSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Product name is required - please provide a name for the product'],
-        trim: true
+        required: true
     },
     sku: {
         type: String,
-        required: [true, 'SKU is required - please provide a unique stock keeping unit'],
-        unique: true,
-        trim: true
+        required: true,
+        unique: true
     },
     description: {
-        type: String,
-        trim: true
+        type: String
     },
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Category',
-        required: [true, 'Product category is required - please select a category']
+        required: true
     },
     price: {
         type: Number,
-        required: [true, 'Price is required - please enter the selling price'],
-        min: [0, 'Price cannot be negative']
+        required: true
     },
     costPrice: {
         type: Number,
-        required: [true, 'Cost price is required - please enter the purchase price'],
-        min: [0, 'Cost price cannot be negative']
+        required: true
     },
     stock: {
         type: Number,
-        required: [true, 'Stock quantity is required - please enter how many items are in stock'],
-        min: [0, 'Stock cannot be negative'],
+        required: true,
         default: 0
     },
-    images: [String],
-    featuredImage: String,
-    variants: [variantSchema],
+    images: {
+        type: [String],
+        default: []
+    },
+    featuredImage: {
+        type: String
+    },
     status: {
         type: String,
-        enum: ['active', 'inactive', 'draft'],
+        enum: ['active', 'inactive'],
         default: 'active'
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
+    variants: {
+        type: [variantSchema],
+        default: []
     }
 }, {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+    timestamps: true
 });
 
 // Index for faster queries

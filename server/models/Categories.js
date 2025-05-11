@@ -3,44 +3,24 @@ const mongoose = require('mongoose');
 const categorySchema = new mongoose.Schema({
     name: {
         type: String,
-        required: [true, 'Category name is required'],
+        required: true,
         trim: true
     },
     description: {
         type: String,
-        trim: true,
-        default: ''
-    },
-    slug: {
-        type: String,
-        lowercase: true,
-        // Remove unique constraint to prevent duplicate key errors
-        unique: false
+        trim: true
     },
     image: {
-        type: String,
-        default: null
+        type: String
     },
     status: {
         type: String,
         enum: ['active', 'inactive'],
         default: 'active'
     },
-    products: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product'
-    }],
-    productsCount: {
+    products: {
         type: Number,
         default: 0
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
     }
 }, {
     timestamps: true
@@ -88,6 +68,39 @@ categorySchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     next();
 });
+
+// Static method to update product count for a category
+categorySchema.statics.updateProductCount = async function(categoryId) {
+    const Product = mongoose.model('Product');
+    const count = await Product.countDocuments({ category: categoryId, status: 'active' });
+    
+    return this.findByIdAndUpdate(
+        categoryId, 
+        { products: count },
+        { new: true }
+    );
+};
+
+// Static method to recalculate all product counts
+categorySchema.statics.recalculateAllCounts = async function() {
+    const Product = mongoose.model('Product');
+    const categories = await this.find();
+    
+    for (const category of categories) {
+        const count = await Product.countDocuments({ 
+            category: category._id, 
+            status: 'active' 
+        });
+        
+        await this.findByIdAndUpdate(
+            category._id,
+            { products: count }
+        );
+    }
+    
+    console.log('Recalculated product counts for all categories');
+    return true;
+};
 
 const Category = mongoose.model('Category', categorySchema);
 
