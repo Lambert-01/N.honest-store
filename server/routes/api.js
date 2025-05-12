@@ -7,7 +7,7 @@ const fs = require('fs');
 const multer = require('multer');
 
 // Set base URL with port 5000 explicitly
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const BASE_URL = ''; // Just use relative path
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({

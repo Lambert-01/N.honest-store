@@ -81,10 +81,6 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-<<<<<<< HEAD
-=======
-
->>>>>>> f5f5b11 (Add latest updates to N.honest-store)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

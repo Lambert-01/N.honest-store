@@ -7,7 +7,7 @@ const Product = require('../models/Product');
 const Category = require('../models/Categories');
 
 // Get base URL from environment or default to localhost:5000
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const BASE_URL = ''; // Just use relative path
 
 // Create uploads directory if it doesn't exist
 const createUploadsDirectory = () => {

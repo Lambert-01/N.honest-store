@@ -1,3 +1,8 @@
+const BASE_URL = window.location.hostname.includes('localhost')
+  ? 'http://localhost:5000' // or your dev backend
+  : 'https://n-honest.onrender.com/'; // replace with your actual Render backend URL
+
+
 // Global Variables
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentPage = 1;
@@ -456,7 +461,8 @@ async function loadProducts() {
     toggleProductStates(false, false, true);
     
     // Build the API URL with query parameters for filtering
-    let apiUrl = '/api/products';
+   let apiUrl = `${BASE_URL}/api/products`;
+
     
     // Add query parameters array
     const queryParams = [];
