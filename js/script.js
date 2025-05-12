@@ -456,7 +456,7 @@ async function loadProducts() {
     toggleProductStates(false, false, true);
     
     // Build the API URL with query parameters for filtering
-    let apiUrl = 'http://localhost:5000/api/products';
+    let apiUrl = '/api/products';
     
     // Add query parameters array
     const queryParams = [];
@@ -464,7 +464,7 @@ async function loadProducts() {
     // If a category is selected, use the category-specific endpoint
     if (currentCategory) {
       console.log(`Category filter active with ID: "${currentCategory}"`);
-      apiUrl = `http://localhost:5000/api/products/category/${currentCategory}`;
+      apiUrl = `/api/products/category/${currentCategory}`;
       console.log(`Using category-specific endpoint: ${apiUrl}`);
       
       // Add pagination to category endpoint
@@ -1583,7 +1583,7 @@ function showQuickView(product) {
 async function loadCategories() {
   try {
     console.log('=== LOADING CATEGORIES ===');
-    const response = await fetch('http://localhost:5000/api/categories');
+    const response = await fetch('/api/categories');
     if (!response.ok) {
       console.error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
