@@ -100,7 +100,7 @@ productSchema.methods.getImageUrl = function() {
     }
     
     // Get base URL from env or default
-   const BASE_URL = ''; // Just use relative path
+    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
     
     // Ensure path starts with /
     const imagePath = this.featuredImage.startsWith('/') 
