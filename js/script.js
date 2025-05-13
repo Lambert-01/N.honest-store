@@ -1,6 +1,19 @@
-const BASE_URL = window.location.hostname.includes('localhost')
-  ? 'http://localhost:5000' // or your dev backend
-  : 'https://n-honest.onrender.com/'; // replace with your actual Render backend URL
+// Get the base URL dynamically
+const getBaseUrl = () => {
+  if (window.location.hostname.includes('localhost')) {
+    return 'http://localhost:5000'; // Development backend
+  } else {
+    return 'https://n-honest.onrender.com'; // Production backend
+  }
+};
+
+// API endpoints
+const API = {
+  products: `${getBaseUrl()}/api/products`,
+  categories: `${getBaseUrl()}/api/categories`,
+  orders: `${getBaseUrl()}/api/orders`,
+  payments: `${getBaseUrl()}/api/payments`
+};
 
 
 // Global Variables
@@ -461,8 +474,7 @@ async function loadProducts() {
     toggleProductStates(false, false, true);
     
     // Build the API URL with query parameters for filtering
-   let apiUrl = `${BASE_URL}/api/products`;
-
+    let apiUrl = API.products;
     
     // Add query parameters array
     const queryParams = [];
@@ -470,7 +482,7 @@ async function loadProducts() {
     // If a category is selected, use the category-specific endpoint
     if (currentCategory) {
       console.log(`Category filter active with ID: "${currentCategory}"`);
-      apiUrl = `/api/products/category/${currentCategory}`;
+      apiUrl = `${getBaseUrl()}/api/products/category/${currentCategory}`;
       console.log(`Using category-specific endpoint: ${apiUrl}`);
       
       // Add pagination to category endpoint
@@ -1162,7 +1174,7 @@ async function processMobileMoneyPayment() {
 
  try {
   // Send payment request to backend
-  const response = await fetch('/api/payments/create-payment', {
+  const response = await fetch(`${API.payments}/create-payment`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1294,7 +1306,7 @@ async function saveOrderToDatabase() {
 
   try {
     // In a real app, you would send this to your backend API
-    const response = await fetch('/api/orders', {
+    const response = await fetch(API.orders, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1589,7 +1601,7 @@ function showQuickView(product) {
 async function loadCategories() {
   try {
     console.log('=== LOADING CATEGORIES ===');
-    const response = await fetch('/api/categories');
+    const response = await fetch(API.categories);
     if (!response.ok) {
       console.error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch categories: ${response.status} ${response.statusText}`);

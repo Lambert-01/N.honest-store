@@ -5,9 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const Product = require('../models/Product');
 const Category = require('../models/Categories');
-
-// Get base URL from environment or default to localhost:5000
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const { getBaseUrl, ensureAbsoluteUrl, transformItemUrls } = require('../utils/urlHelper');
 
 // Create uploads directory if it doesn't exist
 const createUploadsDirectory = () => {
@@ -115,22 +113,8 @@ router.get('/', async (req, res, next) => {
             .populate('category', 'name')
             .sort({ createdAt: -1 });
         
-        // Transform products to add full URLs to images
-        const transformedProducts = products.map(product => {
-            const productObj = product.toObject();
-            
-            if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
-                productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-            }
-            
-            if (productObj.images && productObj.images.length > 0) {
-                productObj.images = productObj.images.map(img => 
-                    img.startsWith('http') ? img : `${BASE_URL}${img}`
-                );
-            }
-            
-            return productObj;
-        });
+        // Transform products to add full URLs to images using our helper
+        const transformedProducts = products.map(product => transformItemUrls(product));
         
         res.json(transformedProducts);
     } catch (err) {
@@ -180,22 +164,8 @@ router.get('/category/:categoryId', async (req, res, next) => {
             console.log(`First product in category: ${products[0].name}`);
         }
         
-        // Transform products to add full URLs to images
-        const transformedProducts = products.map(product => {
-            const productObj = product.toObject();
-            
-            if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
-                productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-            }
-            
-            if (productObj.images && productObj.images.length > 0) {
-                productObj.images = productObj.images.map(img => 
-                    img.startsWith('http') ? img : `${BASE_URL}${img}`
-                );
-            }
-            
-            return productObj;
-        });
+        // Transform products to add full URLs to images using our helper
+        const transformedProducts = products.map(product => transformItemUrls(product));
         
         res.json(transformedProducts);
     } catch (err) {
@@ -217,20 +187,10 @@ router.get('/:id', async (req, res, next) => {
             });
         }
         
-        // Transform product to add full URLs to images
-        const productObj = product.toObject();
+        // Transform product to add full URLs to images using our helper
+        const transformedProduct = transformItemUrls(product);
         
-        if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
-            productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-        }
-        
-        if (productObj.images && productObj.images.length > 0) {
-            productObj.images = productObj.images.map(img => 
-                img.startsWith('http') ? img : `${BASE_URL}${img}`
-            );
-        }
-        
-        res.json(productObj);
+        res.json(transformedProduct);
     } catch (err) {
         next(err);
     }
@@ -430,12 +390,8 @@ router.post('/', (req, res) => {
                 // Don't fail the request if count update fails
             }
             
-            // Add full URLs to response
-            const productResponse = savedProduct.toObject();
-            
-            if (productResponse.featuredImage) {
-                productResponse.featuredImage = `${BASE_URL}${productResponse.featuredImage}`;
-            }
+            // Return response with transformed URLs
+            const productResponse = transformItemUrls(savedProduct);
             
             res.status(201).json({
                 success: true,
@@ -654,20 +610,12 @@ router.put('/:id', (req, res, next) => {
             }
 
             // Transform product to add full URLs to images for the response
-            const productObj = updatedProduct.toObject();
-            
-            if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
-                productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-            }
-            
-            if (productObj.images && productObj.images.length > 0) {
-                productObj.images = productObj.images.map(img => `${BASE_URL}${img}`);
-            }
+            const transformedProduct = transformItemUrls(updatedProduct);
 
             res.json({
                 success: true,
                 message: 'Product updated successfully',
-                product: productObj
+                product: transformedProduct
             });
         } catch (error) {
             // Clean up uploaded files if there was an error
@@ -759,22 +707,8 @@ router.get('/search/:term', async (req, res, next) => {
             ]
         }).populate('category', 'name');
         
-        // Transform products to add full URLs to images
-        const transformedProducts = products.map(product => {
-            const productObj = product.toObject();
-            
-            if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
-                productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-            }
-            
-            if (productObj.images && productObj.images.length > 0) {
-                productObj.images = productObj.images.map(img => 
-                    img.startsWith('http') ? img : `${BASE_URL}${img}`
-                );
-            }
-            
-            return productObj;
-        });
+        // Transform products to add full URLs to images using our helper
+        const transformedProducts = products.map(product => transformItemUrls(product));
         
         res.json(transformedProducts);
     } catch (err) {

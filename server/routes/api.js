@@ -5,9 +5,7 @@ const Category = require('../models/Categories');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-
-// Set base URL with port 5000 explicitly
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const { ensureAbsoluteUrl, transformItemUrls, BASE_URL } = require('../utils/urlHelper');
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -58,7 +56,9 @@ const upload = multer({
 router.get('/categories', async (req, res) => {
     try {
         const categories = await Category.find({ status: 'active' });
-        res.json(categories);
+        // Transform all URLs to absolute URLs
+        const transformedCategories = categories.map(category => transformItemUrls(category));
+        res.json(transformedCategories);
     } catch (error) {
         console.error('Error fetching categories:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -187,7 +187,9 @@ router.delete('/categories/:id', async (req, res) => {
 router.get('/products', async (req, res) => {
     try {
         const products = await Product.find({ status: 'active' }).populate('category');
-        res.json(products);
+        // Transform all URLs to absolute URLs
+        const transformedProducts = products.map(product => transformItemUrls(product));
+        res.json(transformedProducts);
     } catch (error) {
         console.error('Error fetching products:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -237,7 +239,9 @@ router.get('/products/category/:categoryId', async (req, res) => {
             console.log(`First product in category: ${products[0].name}`);
         }
         
-        res.json(products);
+        // Transform all URLs to absolute URLs
+        const transformedProducts = products.map(product => transformItemUrls(product));
+        res.json(transformedProducts);
     } catch (error) {
         console.error('Error fetching products by category:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -250,8 +254,10 @@ router.get('/products/:id', async (req, res) => {
         const product = await Product.findById(req.params.id).populate('category');
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
-                } 
-        res.json(product);
+        } 
+        // Transform URLs to absolute URLs
+        const transformedProduct = transformItemUrls(product);
+        res.json(transformedProduct);
     } catch (error) {
         console.error('Error fetching product:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
@@ -439,10 +445,7 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
         console.log('Product saved successfully with ID:', savedProduct._id);
         
         // Transform to add full URLs to images
-        const productObj = savedProduct.toObject();
-        if (productObj.featuredImage && !productObj.featuredImage.startsWith('http')) {
-            productObj.featuredImage = `${BASE_URL}${productObj.featuredImage}`;
-        }
+        const productObj = transformItemUrls(savedProduct);
         
         console.log('=== PRODUCT CREATION COMPLETE ===');
         return res.status(201).json({

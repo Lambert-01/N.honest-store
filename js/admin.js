@@ -586,6 +586,12 @@ function initializeModals() {
                         }
                     }
                 });
+                
+                // Set up image preview listeners when modal is shown
+                modalElement.addEventListener('shown.bs.modal', function() {
+                    // Timeout to ensure DOM is ready
+                    setTimeout(setupImagePreviewListeners, 100);
+                });
             } catch (error) {
                 console.error(`Error initializing modal ${modalId}:`, error);
             }
@@ -780,21 +786,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Add auth status indicator for debugging
     addAuthDebugPanel();
-
-    // Image preview functionality for category image upload
-    const categoryImageInput = document.getElementById("category-image");
-    if (categoryImageInput) {
-        categoryImageInput.addEventListener("change", function() {
-            previewImage(this, "preview-image");
-        });
-    }
-
-    const editCategoryImageInput = document.getElementById("edit-category-image");
-    if (editCategoryImageInput) {
-        editCategoryImageInput.addEventListener("change", function() {
-            previewImage(this, "edit-preview-image");
-        });
-    }
+    
+    // Set up image preview functionality
+    setupImagePreviewListeners();
 
     // Set up the product form with a single handler
     setupProductFormHandler();
@@ -914,6 +908,10 @@ document.addEventListener("DOMContentLoaded", function() {
     window.resetImagePreviews = resetImagePreviews;
     window.showAlert = showAlert;
     window.updateVariantsTable = updateVariantsTable;
+    window.updateEditVariantsTable = updateEditVariantsTable;
+    window.removeEditVariant = removeEditVariant;
+    window.addEditVariant = addEditVariant;
+    window.showEditVariantEditor = showEditVariantEditor;
 
     // Patch ProductManager.displayProducts method to fix image URLs
     if (window.ProductManager && ProductManager.prototype.displayProducts) {
@@ -1089,12 +1087,12 @@ document.addEventListener("DOMContentLoaded", function() {
 // Function to preview image before upload
 function previewImage(input, previewId) {
     const preview = document.getElementById(previewId);
-    const previewContainer = preview.parentElement;
-    
     if (!preview) {
         console.error(`Preview element with ID ${previewId} not found`);
         return;
     }
+    
+    const previewContainer = preview.parentElement;
     
     if (input.files && input.files[0]) {
         const file = input.files[0];
@@ -1110,21 +1108,27 @@ function previewImage(input, previewId) {
         reader.onload = function(e) {
             preview.src = e.target.result;
             preview.style.display = 'block';
-            previewContainer.classList.remove('d-none');
+            if (previewContainer) {
+                previewContainer.classList.remove('d-none');
+            }
         };
         
         reader.onerror = function(e) {
             console.error('Error reading file:', e);
             preview.src = '#';
             preview.style.display = 'none';
-            previewContainer.classList.add('d-none');
+            if (previewContainer) {
+                previewContainer.classList.add('d-none');
+            }
         };
         
         reader.readAsDataURL(file);
     } else {
         preview.src = '#';
         preview.style.display = 'none';
-        previewContainer.classList.add('d-none');
+        if (previewContainer) {
+            previewContainer.classList.add('d-none');
+        }
     }
 }
 
@@ -1377,13 +1381,22 @@ class CategoryManager {
         `;
         }).join('');
         
-        // Add event listeners to the buttons
+        // Add event listeners to the buttons - Fix: Use proper binding to preserve 'this' context
+        const self = this; // Store reference to 'this' for use in event handlers
         document.querySelectorAll('.edit-category-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.editCategory(btn.getAttribute('data-id')));
+            btn.addEventListener('click', function() {
+                const categoryId = this.getAttribute('data-id');
+                console.log('Edit button clicked for category ID:', categoryId);
+                self.editCategory(categoryId);
+            });
         });
         
         document.querySelectorAll('.delete-category-btn').forEach(btn => {
-            btn.addEventListener('click', () => this.deleteCategory(btn.getAttribute('data-id')));
+            btn.addEventListener('click', function() {
+                const categoryId = this.getAttribute('data-id');
+                console.log('Delete button clicked for category ID:', categoryId);
+                self.deleteCategory(categoryId);
+            });
         });
     }
 
@@ -1820,6 +1833,9 @@ class ProductManager {
             return;
         }
 
+        // Store reference to 'this' for use in event handlers
+        const self = this;
+
         tbody.innerHTML = products.map(product => {
             // Fix image URL if needed
             const imageUrl = window.fixImageUrl ? 
@@ -1879,10 +1895,10 @@ class ProductManager {
                 </td>
                 <td>
                     <div class="btn-group">
-                        <button class="btn btn-sm btn-primary" onclick="productManager.editProduct('${product._id}')">
+                        <button class="btn btn-sm btn-primary edit-product-btn" data-id="${product._id}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="productManager.deleteProduct('${product._id}')">
+                        <button class="btn btn-sm btn-danger delete-product-btn" data-id="${product._id}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -1890,6 +1906,23 @@ class ProductManager {
             </tr>
         `;
         }).join('');
+        
+        // Fix: Use proper event binding for product edit/delete buttons
+        document.querySelectorAll('.edit-product-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const productId = this.getAttribute('data-id');
+                console.log('Edit button clicked for product ID:', productId);
+                self.editProduct(productId);
+            });
+        });
+        
+        document.querySelectorAll('.delete-product-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const productId = this.getAttribute('data-id');
+                console.log('Delete button clicked for product ID:', productId);
+                self.deleteProduct(productId);
+            });
+        });
         
         // Set up select all functionality
         const selectAllCheckbox = document.getElementById('select-all-products');
@@ -1971,13 +2004,568 @@ class ProductManager {
         }
     }
 
-    async editProduct(id) {
-        // Implement edit product functionality here
-        // This will load product details into a modal form for editing
+   async editProduct(id) {
+    console.log(`Editing product with ID: ${id}`);
+    try {
+        // Show loading indicator
+        showAlert('Loading product data...', 'info', 1000);
+        // Fetch product details from the server
+        const response = await fetch(`/api/products/${id}`, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch product data: ${response.status}`);
+        }
+        const product = await response.json();
+        console.log('Product data loaded:', product);
+        // Populate the edit form with product data
+        const editForm = document.getElementById('edit-product-form');
+        if (!editForm) {
+            throw new Error('Edit product form not found');
+        }
+        // Check if the hidden input exists
+        const productIdInput = document.getElementById('edit-product-id');
+        if (!productIdInput) {
+            throw new Error('Edit product ID input not found');
+        }
+        console.log('Edit product ID input found:', productIdInput);
+        // Set hidden product ID field
+        productIdInput.value = product._id;
+        // Set basic product fields
+        const nameInput = document.getElementById('edit-name');
+        if (!nameInput) {
+            throw new Error('Edit name input not found');
+        }
+        nameInput.value = product.name || '';
         
-        // For now, just show an alert that this feature is coming soon
-        showAlert('Edit product feature coming soon.', 'info');
+        const skuInput = document.getElementById('edit-sku');
+        if (!skuInput) {
+            throw new Error('Edit SKU input not found');
+        }
+        skuInput.value = product.sku || '';
+        
+        const descriptionInput = document.getElementById('edit-description');
+        if (!descriptionInput) {
+            throw new Error('Edit description input not found');
+        }
+        descriptionInput.value = product.description || '';
+        
+        const priceInput = document.getElementById('edit-price');
+        if (!priceInput) {
+            throw new Error('Edit price input not found');
+        }
+        priceInput.value = product.price || '';
+        
+        const costPriceInput = document.getElementById('edit-costPrice');
+        if (!costPriceInput) {
+            throw new Error('Edit cost price input not found');
+        }
+        costPriceInput.value = product.costPrice || '';
+        
+        const stockInput = document.getElementById('edit-stock');
+        if (!stockInput) {
+            throw new Error('Edit stock input not found');
+        }
+        stockInput.value = product.stock || 0;
+        
+        const statusSelect = document.getElementById('edit-status');
+        if (!statusSelect) {
+            throw new Error('Edit status select not found');
+        }
+        statusSelect.value = product.status || 'active';
+        
+        // Set category dropdown
+        const categorySelect = document.getElementById('edit-category');
+        if (categorySelect) {
+            // If category is not in the list, fetch and update categories
+            if (!Array.from(categorySelect.options).some(option => option.value === product.category)) {
+                await this.loadCategoriesForDropdown(categorySelect);
             }
+            categorySelect.value = product.category;
+        }
+        // Clear previous image previews
+        resetImagePreviews('edit-product-images-preview');
+        // Display existing product images
+        const previewContainer = document.getElementById('edit-product-images-preview');
+        if (previewContainer && product.images && product.images.length > 0) {
+            previewContainer.innerHTML = '';
+            product.images.forEach((image, index) => {
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'image-preview-item position-relative mb-2';
+                imgContainer.dataset.imageIndex = index;
+                const img = document.createElement('img');
+                img.src = image.includes('://') ? image : window.fixImageUrl(image);
+                img.className = 'img-thumbnail preview-image';
+                img.alt = `Product image ${index + 1}`;
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn btn-sm btn-danger position-absolute top-0 end-0 m-1';
+                deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                deleteBtn.onclick = () => {
+                    imgContainer.remove();
+                    // Update hidden field with remaining images
+                    updateExistingImagesField();
+                };
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(deleteBtn);
+                previewContainer.appendChild(imgContainer);
+            });
+            // Function to update hidden field with remaining images
+            function updateExistingImagesField() {
+                const remainingImages = [];
+                document.querySelectorAll('#edit-product-images-preview .image-preview-item').forEach(item => {
+                    const index = parseInt(item.dataset.imageIndex);
+                    if (!isNaN(index) && product.images[index]) {
+                        remainingImages.push(product.images[index]);
+                    }
+                });
+                document.getElementById('edit-existing-images').value = JSON.stringify(remainingImages);
+            }
+            // Initialize hidden field with all images
+            document.getElementById('edit-existing-images').value = JSON.stringify(product.images);
+        }
+        // Set up variants
+        if (product.variants && product.variants.length > 0) {
+            // Store variants in global variable for later use
+            window.editProductVariants = [...product.variants];
+            // Update variants table in the UI
+            updateEditVariantsTable();
+        } else {
+            window.editProductVariants = [];
+            document.getElementById('edit-variants-table').querySelector('tbody').innerHTML = 
+                '<tr><td colspan="6" class="text-center">No variants defined</td></tr>';
+        }
+        // Update hidden field for variants
+        document.getElementById('edit-variants-json').value = JSON.stringify(window.editProductVariants || []);
+        // Show the edit modal
+        const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+        editModal.show();
+        // Set up form submission handler if not already set
+        if (!editForm.dataset.handlerAttached) {
+            editForm.addEventListener('submit', this.handleEditProductSubmit.bind(this));
+            editForm.dataset.handlerAttached = 'true';
+        }
+    } catch (error) {
+        console.error('Error editing product:', error);
+        showAlert(error.message || 'Failed to load product data', 'danger');
+    }
+}
+    // Helper method to load categories for dropdown
+    async loadCategoriesForDropdown(selectElement) {
+        try {
+            const response = await fetch('/api/categories', {
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch categories');
+            }
+            
+            const categories = await response.json();
+            
+            // Clear existing options except the first one (if it's a placeholder)
+            const firstOption = selectElement.options[0];
+            selectElement.innerHTML = '';
+            
+            if (firstOption && firstOption.value === '') {
+                selectElement.appendChild(firstOption);
+            }
+            
+            // Add categories as options
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category._id;
+                option.textContent = category.name;
+                selectElement.appendChild(option);
+            });
+            
+            return categories;
+        } catch (error) {
+            console.error('Error loading categories for dropdown:', error);
+            return [];
+        }
+    }
+    
+    // Handler for edit product form submission
+    async handleEditProductSubmit(e) {
+        e.preventDefault();
+        console.log('Edit product form submitted');
+        
+        // Validate form
+        if (!e.target.checkValidity()) {
+            e.target.classList.add('was-validated');
+            return;
+        }
+        
+        // Disable the submit button
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
+        }
+        
+        try {
+            // Get product ID
+            const productId = e.target.querySelector('#edit-product-id').value;
+            if (!productId) {
+                throw new Error('Product ID is missing');
+            }
+            
+            // Create FormData from the form
+            const formData = new FormData(e.target);
+            
+            // Add existing images data
+            const existingImagesField = document.getElementById('edit-existing-images');
+            if (existingImagesField && existingImagesField.value) {
+                formData.set('existingImages', existingImagesField.value);
+            }
+            
+            // Ensure we have the variants in the form data
+            // Check for edit-variants-json first
+            const variantsJsonInput = document.getElementById('edit-variants-json');
+            if (variantsJsonInput && variantsJsonInput.value) {
+                formData.set('variants', variantsJsonInput.value);
+            } 
+            // Fallback to window.editProductVariants if available
+            else if (window.editProductVariants) {
+                formData.set('variants', JSON.stringify(window.editProductVariants));
+            }
+            // Ensure at least an empty array is set
+            else {
+                formData.set('variants', JSON.stringify([]));
+            }
+            
+            // Log form data for debugging
+            console.log('Edit product form data:');
+            for (const [key, value] of formData.entries()) {
+                const valueDisplay = value instanceof File ? 
+                    `File: ${value.name} (${value.size} bytes)` : 
+                    (key === 'variants' || key === 'existingImages' ? 
+                        `${value.substring(0, 50)}...` : value);
+                console.log(`${key}: ${valueDisplay}`);
+            }
+            
+            // Get auth headers but DO NOT set Content-Type
+            const headers = getAuthHeaders();
+            delete headers['Content-Type'];
+            
+            console.log('Sending updated product data to server...');
+            
+            // Send request to server
+            const response = await fetch(`/api/products/${productId}`, {
+                method: 'PUT',
+                headers: headers,
+                body: formData
+            });
+            
+            console.log('Response status:', response.status);
+            
+            // Parse response
+            const data = await response.json();
+            console.log('Server response:', data);
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Error updating product');
+            }
+            
+            // Show success message
+            showAlert('Product updated successfully', 'success');
+            
+            // Reset form
+            e.target.reset();
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Reload products
+            this.loadProducts();
+        } catch (error) {
+            console.error('Error updating product:', error);
+            showAlert(error.message || 'Failed to update product', 'danger');
+        } finally {
+            // Re-enable submit button
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Update Product';
+            }
+        }
+    }
+}
+
+function updateEditVariantsTable() {
+    const variantsTable = document.getElementById('edit-variants-table');
+    if (!variantsTable) {
+        console.error('Edit variants table not found in DOM');
+        return;
+    }
+    const tbody = variantsTable.querySelector('tbody');
+    if (!tbody) {
+        console.error('Tbody element not found within edit variants table');
+        return;
+    }
+    if (!window.editProductVariants || window.editProductVariants.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No variants defined</td></tr>';
+        return;
+    }
+    tbody.innerHTML = '';
+    window.editProductVariants.forEach((variant, index) => {
+        const row = document.createElement('tr');
+        // Create variant name from combination
+        let variantName = variant.name;
+        if (!variantName && variant.combination) {
+            variantName = variant.combination
+                .map(item => `${item.attribute}: ${item.value}`)
+                .join(', ');
+        }
+        row.innerHTML = `
+            <td class="fw-medium">${variantName || `Variant ${index + 1}`}</td>
+            <td>
+                <input type="text" class="form-control form-control-sm edit-variant-sku" 
+                       data-index="${index}" value="${variant.sku || ''}">
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">RWF</span>
+                    <input type="number" class="form-control form-control-sm edit-variant-price" 
+                           data-index="${index}" value="${variant.price || 0}" min="0" step="0.01">
+                </div>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm edit-variant-stock" 
+                       data-index="${index}" value="${variant.stock || 0}" min="0" step="1">
+            </td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditVariant(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    // Add event listeners to variant inputs
+    document.querySelectorAll('.edit-variant-sku, .edit-variant-price, .edit-variant-stock').forEach(input => {
+        input.addEventListener('change', updateEditVariantValue);
+    });
+    // Update hidden input
+    const variantsJsonInput = document.getElementById('edit-variants-json');
+    if (variantsJsonInput) {
+        variantsJsonInput.value = JSON.stringify(window.editProductVariants);
+    }
+}
+
+// Update edit variant value when input changes
+function updateEditVariantValue(event) {
+    const input = event.target;
+    const index = parseInt(input.getAttribute('data-index'), 10);
+    
+    if (input.classList.contains('edit-variant-sku')) {
+        window.editProductVariants[index].sku = input.value;
+    } else if (input.classList.contains('edit-variant-price')) {
+        window.editProductVariants[index].price = parseFloat(input.value) || 0;
+    } else if (input.classList.contains('edit-variant-stock')) {
+        window.editProductVariants[index].stock = parseInt(input.value, 10) || 0;
+    }
+    
+    // Update the hidden input
+    const variantsJsonInput = document.getElementById('edit-variants-json');
+    if (variantsJsonInput) {
+        variantsJsonInput.value = JSON.stringify(window.editProductVariants);
+    }
+}
+
+// Remove edit variant
+function removeEditVariant(index) {
+    window.editProductVariants.splice(index, 1);
+    updateEditVariantsTable();
+}
+
+// Function to add a variant to the edit form
+function addEditVariant() {
+    // Initialize editProductVariants if it doesn't exist
+    if (!window.editProductVariants) {
+        window.editProductVariants = [];
+    }
+    
+    // Create empty variant
+    const newVariant = {
+        options: {},
+        price: document.getElementById('edit-product-price')?.value || 0,
+        sku: document.getElementById('edit-product-sku')?.value + '-variant-' + (window.editProductVariants.length + 1),
+        stock: 0
+    };
+    
+    // Add to variants array
+    window.editProductVariants.push(newVariant);
+    
+    // Update the variants table
+    updateEditVariantsTable();
+    
+    // Show variant editor modal
+    const variantIndex = window.editProductVariants.length - 1;
+    showEditVariantEditor(variantIndex);
+}
+
+// Function to show the variant editor
+function showEditVariantEditor(index) {
+    const variant = window.editProductVariants[index];
+    if (!variant) return;
+    
+    // Create modal HTML
+    let modalHTML = `
+    <div class="modal fade" id="editVariantModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Variant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-variant-form">
+                        <input type="hidden" id="edit-variant-index" value="${index}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Variant Options</label>
+                            <div id="variant-options-container">`;
+    
+    // Add existing options
+    if (variant.options) {
+        Object.entries(variant.options).forEach(([key, value]) => {
+            modalHTML += `
+            <div class="input-group mb-2">
+                <input type="text" class="form-control option-name" placeholder="Option name" value="${key}">
+                <input type="text" class="form-control option-value" placeholder="Option value" value="${value}">
+                <button type="button" class="btn btn-outline-danger remove-option">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>`;
+        });
+    }
+    
+    // Add button to add more options
+    modalHTML += `
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-option-btn">
+                                <i class="fas fa-plus"></i> Add Option
+                            </button>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="variant-price" class="form-label">Price (RWF)</label>
+                                <input type="number" class="form-control" id="variant-price" value="${variant.price || 0}" min="0">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="variant-stock" class="form-label">Stock</label>
+                                <input type="number" class="form-control" id="variant-stock" value="${variant.stock || 0}" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="variant-sku" class="form-label">SKU</label>
+                            <input type="text" class="form-control" id="variant-sku" value="${variant.sku || ''}">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-variant-btn">Save Variant</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    // Add modal to body
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer);
+    
+    // Initialize modal
+    const variantModal = new bootstrap.Modal(document.getElementById('editVariantModal'));
+    variantModal.show();
+    
+    // Set up event handlers
+    document.getElementById('add-option-btn').addEventListener('click', () => {
+        const optionsContainer = document.getElementById('variant-options-container');
+        const newOptionHTML = `
+        <div class="input-group mb-2">
+            <input type="text" class="form-control option-name" placeholder="Option name">
+            <input type="text" class="form-control option-value" placeholder="Option value">
+            <button type="button" class="btn btn-outline-danger remove-option">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>`;
+        
+        optionsContainer.insertAdjacentHTML('beforeend', newOptionHTML);
+        
+        // Add remove button handler
+        const removeButtons = document.querySelectorAll('.remove-option');
+        removeButtons[removeButtons.length - 1].addEventListener('click', function() {
+            this.closest('.input-group').remove();
+        });
+    });
+    
+    // Add handlers for existing remove buttons
+    document.querySelectorAll('.remove-option').forEach(button => {
+        button.addEventListener('click', function() {
+            this.closest('.input-group').remove();
+        });
+    });
+    
+    // Save variant button
+    document.getElementById('save-variant-btn').addEventListener('click', () => {
+        // Get values
+        const variantIndex = parseInt(document.getElementById('edit-variant-index').value);
+        const variantPrice = parseFloat(document.getElementById('variant-price').value) || 0;
+        const variantStock = parseInt(document.getElementById('variant-stock').value) || 0;
+        const variantSku = document.getElementById('variant-sku').value;
+        
+        // Get options
+        const options = {};
+        document.querySelectorAll('#variant-options-container .input-group').forEach(group => {
+            const nameInput = group.querySelector('.option-name');
+            const valueInput = group.querySelector('.option-value');
+            
+            if (nameInput && valueInput && nameInput.value.trim()) {
+                options[nameInput.value.trim()] = valueInput.value.trim();
+            }
+        });
+        
+        // Update variant
+        if (window.editProductVariants && window.editProductVariants[variantIndex]) {
+            window.editProductVariants[variantIndex] = {
+                options: options,
+                price: variantPrice,
+                stock: variantStock,
+                sku: variantSku
+            };
+            
+            // Update variants table
+            updateEditVariantsTable();
+            
+            // Update hidden field for variants
+            const variantsJsonInput = document.getElementById('edit-variants-json');
+            if (variantsJsonInput) {
+                variantsJsonInput.value = JSON.stringify(window.editProductVariants || []);
+            }
+        }
+        
+        // Close modal
+        variantModal.hide();
+        
+        // Remove modal from DOM after hiding
+        document.getElementById('editVariantModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    });
+    
+    // Clean up modal when closed
+    document.getElementById('editVariantModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
 }
 
 // Initialize product variants
@@ -2977,8 +3565,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dashboard data
     loadDashboardData();
     
-    // Setup category and product image previews
-    setupImagePreviewHandlers();
+    // Setup image preview listeners
+    setupImagePreviewListeners();
     
     // Setup session manager for auto logout
     initSessionManager();
@@ -3112,9 +3700,45 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Setup image preview handlers
-function setupImagePreviewHandlers() {
-    // Setup image preview for file inputs
+// Set up image preview functionality for all file inputs
+function setupImagePreviewListeners() {
+    console.log('Setting up image preview listeners');
+    
+    // For regular product images
+    const featuredImageInput = document.getElementById("featuredImage");
+    if (featuredImageInput) {
+        featuredImageInput.addEventListener("change", function() {
+            const previewId = this.getAttribute('data-preview') || 'product-preview-image';
+            previewImage(this, previewId);
+        });
+    }
+    
+    // For edit product images
+    const editProductImageInput = document.getElementById("edit-product-image");
+    if (editProductImageInput) {
+        editProductImageInput.addEventListener("change", function() {
+            const previewId = this.getAttribute('data-preview') || 'edit-product-preview-image';
+            previewImage(this, previewId);
+        });
+    }
+    
+    // For category images
+    const categoryImageInput = document.getElementById("category-image");
+    if (categoryImageInput) {
+        categoryImageInput.addEventListener("change", function() {
+            previewImage(this, "preview-image");
+        });
+    }
+    
+    // For edit category images
+    const editCategoryImageInput = document.getElementById("edit-category-image");
+    if (editCategoryImageInput) {
+        editCategoryImageInput.addEventListener("change", function() {
+            previewImage(this, "edit-preview-image");
+        });
+    }
+    
+    // For any other file inputs with data-preview attribute
     document.querySelectorAll('input[type="file"][data-preview]').forEach(input => {
         input.addEventListener('change', function() {
             const previewId = this.getAttribute('data-preview');
@@ -3123,6 +3747,8 @@ function setupImagePreviewHandlers() {
             }
         });
     });
+    
+    console.log('Image preview listeners set up');
 }
 
 // Product variant management

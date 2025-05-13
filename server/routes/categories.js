@@ -5,9 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { auth } = require('./auth'); // Import the auth middleware
-
-// Get base URL from environment or default to localhost:5000
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5000';
+const { ensureAbsoluteUrl, transformItemUrls } = require('../utils/urlHelper');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -56,14 +54,8 @@ router.get('/', async (req, res, next) => {
     try {
         const categories = await Category.find().sort({ createdAt: -1 });
         
-        // Add full URLs to images
-        const categoriesWithFullUrls = categories.map(category => {
-            const categoryObj = category.toObject();
-            if (categoryObj.image) {
-                categoryObj.image = `${BASE_URL}${categoryObj.image}`;
-            }
-            return categoryObj;
-        });
+        // Add full URLs to images using our helper function
+        const categoriesWithFullUrls = categories.map(category => transformItemUrls(category));
         
         res.json(categoriesWithFullUrls);
     } catch (err) {
@@ -93,13 +85,10 @@ router.get('/:id', async (req, res, next) => {
             });
         }
         
-        // Add full URL to image
-        const categoryObj = category.toObject();
-        if (categoryObj.image) {
-            categoryObj.image = `${BASE_URL}${categoryObj.image}`;
-        }
+        // Transform URLs using our helper function
+        const transformedCategory = transformItemUrls(category);
         
-        res.json(categoryObj);
+        res.json(transformedCategory);
     } catch (err) {
         next(err);
     }
@@ -184,15 +173,12 @@ router.post('/', upload.single('image'), async (req, res) => {
             console.log('Category saved successfully with ID:', savedCategory._id);
             
             // Return success response with transformed image URL
-            const categoryObj = savedCategory.toObject();
-            if (categoryObj.image) {
-                categoryObj.image = `${BASE_URL}${categoryObj.image}`;
-            }
+            const transformedCategory = transformItemUrls(savedCategory);
             
             res.status(201).json({
                 success: true,
                 message: 'Category created successfully',
-                category: categoryObj
+                category: transformedCategory
             });
         } catch (saveError) {
             console.error('Error saving category:', saveError);
@@ -216,16 +202,13 @@ router.post('/', upload.single('image'), async (req, res) => {
                     // Try saving again
                     const savedCategory = await uniqueCategory.save();
                     
-                    // Return success response
-                    const categoryObj = savedCategory.toObject();
-                    if (categoryObj.image) {
-                        categoryObj.image = `${BASE_URL}${categoryObj.image}`;
-                    }
+                    // Return success response with transformed image URL
+                    const transformedCategory = transformItemUrls(savedCategory);
                     
                     return res.status(201).json({
                         success: true,
                         message: 'Category created successfully',
-                        category: categoryObj
+                        category: transformedCategory
                     });
                 }
                 
@@ -329,16 +312,13 @@ router.put('/:id', (req, res, next) => {
             // Save updated category
             const updatedCategory = await category.save();
             
-            // Add full URL to image in response
-            const categoryObj = updatedCategory.toObject();
-            if (categoryObj.image) {
-                categoryObj.image = `${BASE_URL}${categoryObj.image}`;
-            }
+            // Transform URLs using our helper function
+            const transformedCategory = transformItemUrls(updatedCategory);
             
             res.json({
                 success: true,
                 message: 'Category updated successfully',
-                category: categoryObj
+                category: transformedCategory
             });
         } catch (error) {
             // Clean up uploaded file if there was an error
