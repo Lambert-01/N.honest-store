@@ -2347,10 +2347,6 @@ function updateEditVariantsTable() {
         row.innerHTML = `
             <td class="fw-medium">${variantName || `Variant ${index + 1}`}</td>
             <td>
-                <input type="text" class="form-control form-control-sm edit-variant-sku" 
-                       data-index="${index}" value="${variant.sku || ''}">
-            </td>
-            <td>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text">RWF</span>
                     <input type="number" class="form-control form-control-sm edit-variant-price" 
@@ -2370,7 +2366,7 @@ function updateEditVariantsTable() {
         variantsTable.appendChild(row);
     });
     // Add event listeners to variant inputs
-    document.querySelectorAll('.edit-variant-sku, .edit-variant-price, .edit-variant-stock').forEach(input => {
+    document.querySelectorAll('.edit-variant-price, .edit-variant-stock').forEach(input => {
         input.addEventListener('change', updateEditVariantValue);
     });
     // Update hidden input
@@ -2384,9 +2380,7 @@ function updateEditVariantValue(event) {
     const input = event.target;
     const index = parseInt(input.getAttribute('data-index'), 10);
     
-    if (input.classList.contains('edit-variant-sku')) {
-        window.editProductVariants[index].sku = input.value;
-    } else if (input.classList.contains('edit-variant-price')) {
+    if (input.classList.contains('edit-variant-price')) {
         window.editProductVariants[index].price = parseFloat(input.value) || 0;
     } else if (input.classList.contains('edit-variant-stock')) {
         window.editProductVariants[index].stock = parseInt(input.value, 10) || 0;
@@ -2416,7 +2410,6 @@ function addEditVariant() {
     const newVariant = {
         options: {},
         price: document.getElementById('edit-product-price')?.value || 0,
-        sku: document.getElementById('edit-product-sku')?.value + '-variant-' + (window.editProductVariants.length + 1),
         stock: 0
     };
     
@@ -3063,7 +3056,6 @@ function addAuthDebugPanel() {
         debugPanel.style.height = isMinimized ? 'auto' : '';
         debugPanel.style.width = isMinimized ? 'auto' : '';
         if (isMinimized) {
-            debugPanel.style.padding = '10px';
             debugPanel.innerHTML = '';
             debugPanel.appendChild(document.createTextNode('Auth Debug'));
             debugPanel.appendChild(toggleButton);
@@ -3620,7 +3612,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (loader) {
         loader.style.display = 'none';
     }
-    
+
     console.log('Admin panel initialization completed');
 
     // Profile/Settings dropdown navigation (single source of truth)
@@ -3950,10 +3942,6 @@ function updateVariantsList() {
         row.innerHTML = `
             <td class="fw-medium">${variant.name}</td>
             <td>
-                <input type="text" class="form-control form-control-sm variant-sku" 
-                       data-index="${index}" value="${variant.sku}">
-            </td>
-            <td>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text">RWF</span>
                     <input type="number" class="form-control form-control-sm variant-price" 
@@ -3974,7 +3962,7 @@ function updateVariantsList() {
     });
     
     // Add event listeners to variant inputs
-    document.querySelectorAll('.variant-sku, .variant-price, .variant-stock').forEach(input => {
+    document.querySelectorAll('.variant-price, .variant-stock').forEach(input => {
         input.addEventListener('change', updateVariantValue);
     });
     
@@ -3996,9 +3984,7 @@ function updateVariantValue(event) {
     const input = event.target;
     const index = parseInt(input.getAttribute('data-index'), 10);
     
-    if (input.classList.contains('variant-sku')) {
-        productVariants[index].sku = input.value;
-    } else if (input.classList.contains('variant-price')) {
+    if (input.classList.contains('variant-price')) {
         productVariants[index].price = parseFloat(input.value) || 0;
     } else if (input.classList.contains('variant-stock')) {
         productVariants[index].stock = parseInt(input.value, 10) || 0;
@@ -4158,13 +4144,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   // Close on outside click
   document.addEventListener('mousedown', function(e) {
-    if (notificationPanel && notificationPanel.classList.contains('open') && !notificationPanel.contains(e.target) && e.target.id !== 'notification-bell') {
+    if (notificationPanel.classList.contains('open') && !notificationPanel.contains(e.target) && e.target.id !== 'notification-bell') {
       closeNotificationPanelFn();
     }
   });
   // Close on Escape
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && notificationPanel && notificationPanel.classList.contains('open')) {
+    if (e.key === 'Escape' && notificationPanel.classList.contains('open')) {
       closeNotificationPanelFn();
     }
   });
