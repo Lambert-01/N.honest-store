@@ -314,8 +314,19 @@ app.use((req, res) => {
 });
 
 // DB Connection & Server Start
-connectDB().then(() => {
+connectDB().then(async () => {
     const PORT = process.env.PORT || 5000;
+    
+    // Drop the SKU index to allow products without SKU
+    try {
+        console.log('Attempting to drop SKU index from products collection...');
+        const Product = require('./models/Product');
+        if (Product.dropSkuIndex) {
+            await Product.dropSkuIndex();
+        }
+    } catch (error) {
+        console.error('Error dropping SKU index:', error);
+    }
     
     // Create placeholder image if it doesn't exist
     const placeholderPath = path.join(__dirname, '../images/placeholder.png');

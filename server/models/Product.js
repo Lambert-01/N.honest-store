@@ -31,9 +31,7 @@ const productSchema = new mongoose.Schema({
         required: true
     },
     sku: {
-        type: String,
-        unique: true,
-        sparse: true
+        type: String
     },
     description: {
         type: String
@@ -230,5 +228,24 @@ productSchema.pre('save', function(next) {
 });
 
 const Product = mongoose.model('Product', productSchema);
+
+// Drop the existing SKU index to allow multiple null values
+(async () => {
+    try {
+        // Check if the index exists before trying to drop it
+        const indexes = await Product.collection.indexes();
+        const skuIndex = indexes.find(index => index.name === 'sku_1');
+        
+        if (skuIndex) {
+            console.log('Dropping SKU index to allow multiple null values...');
+            await Product.collection.dropIndex('sku_1');
+            console.log('SKU index dropped successfully');
+        } else {
+            console.log('No SKU index found, no need to drop');
+        }
+    } catch (error) {
+        console.error('Error dropping SKU index:', error);
+    }
+})();
 
 module.exports = Product;
