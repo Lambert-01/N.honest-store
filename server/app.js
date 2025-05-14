@@ -17,52 +17,58 @@ const app = express();
 // Create necessary upload directories
 const createUploadDirs = () => {
     try {
+        // Determine base directory - use absolute path for cPanel compatibility
+        const baseDir = process.env.NODE_ENV === 'production' 
+            ? path.resolve(process.env.UPLOAD_PATH || 'uploads')
+            : path.join(__dirname, '../uploads');
+        
+        console.log('Base uploads directory:', baseDir);
+        
         // Main uploads dir
-        const uploadsDir = path.join(__dirname, '../uploads');
-        if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir);
-            console.log('Directory created:', uploadsDir);
+        if (!fs.existsSync(baseDir)) {
+            fs.mkdirSync(baseDir, { recursive: true });
+            console.log('Directory created:', baseDir);
         } else {
-            console.log('Directory already exists:', uploadsDir);
+            console.log('Directory already exists:', baseDir);
         }
         
         // Product uploads dir
-        const productUploadsDir = path.join(__dirname, '../uploads/products');
+        const productUploadsDir = path.join(baseDir, 'products');
         if (!fs.existsSync(productUploadsDir)) {
-            fs.mkdirSync(productUploadsDir);
+            fs.mkdirSync(productUploadsDir, { recursive: true });
             console.log('Directory created:', productUploadsDir);
         } else {
             console.log('Directory already exists:', productUploadsDir);
         }
         
         // Category uploads dir
-        const categoryUploadsDir = path.join(__dirname, '../uploads/categories');
+        const categoryUploadsDir = path.join(baseDir, 'categories');
         if (!fs.existsSync(categoryUploadsDir)) {
-            fs.mkdirSync(categoryUploadsDir);
+            fs.mkdirSync(categoryUploadsDir, { recursive: true });
             console.log('Directory created:', categoryUploadsDir);
         } else {
             console.log('Directory already exists:', categoryUploadsDir);
         }
 
         // Make sure the directories are writable
-        fs.access(uploadsDir, fs.constants.W_OK, (err) => {
+        fs.access(baseDir, fs.constants.W_OK, (err) => {
             if (err) {
                 console.error('ERROR: uploads directory is not writable!', err);
             } else {
-                console.log('uploads directory is writable');
+                console.log('Uploads directory is writable');
             }
         });
         
         // Verify permissions
-const testFile = path.join(__dirname, '../uploads/test.txt');
-try {
-    fs.writeFileSync(testFile, 'test write permission');
-    fs.unlinkSync(testFile);
-    console.log('Write permissions verified for uploads directory');
-} catch (error) {
-    console.error('ERROR: Cannot write to uploads directory!', error);
-    console.error('Images uploads will fail - please check folder permissions');
-}
+        const testFile = path.join(baseDir, 'test.txt');
+        try {
+            fs.writeFileSync(testFile, 'test write permission');
+            fs.unlinkSync(testFile);
+            console.log('Write permissions verified for uploads directory');
+        } catch (error) {
+            console.error('ERROR: Cannot write to uploads directory!', error);
+            console.error('Images uploads will fail - please check folder permissions');
+        }
         
         console.log('All upload directories created and verified successfully');
     } catch (error) {
@@ -314,19 +320,36 @@ app.use((req, res) => {
 });
 
 // DB Connection & Server Start
-connectDB().then(async () => {
-    const PORT = process.env.PORT || 5000;
-    
-    // Drop the SKU index to allow products without SKU
-    try {
-        console.log('Attempting to drop SKU index from products collection...');
+connectDB()
+  .then(connection => {
+    if (connection) {
+      console.log('MongoDB connection established successfully');
+      
+      // Try to drop the SKU index but don't let it block the application
+      try {
         const Product = require('./models/Product');
-        if (Product.dropSkuIndex) {
-            await Product.dropSkuIndex();
-        }
-    } catch (error) {
-        console.error('Error dropping SKU index:', error);
+        Product.dropSkuIndex()
+          .then(() => console.log('SKU index dropped successfully'))
+          .catch(err => {
+            console.warn('Warning: Could not drop SKU index, but continuing anyway:', err.message);
+            // This is non-critical, so we can continue
+          });
+      } catch (error) {
+        console.warn('Warning: Error in SKU index dropping setup, but continuing anyway:', error.message);
+      }
+    } else {
+      console.warn('Running without MongoDB connection - limited functionality available');
     }
+  })
+  .catch(err => {
+    console.error('Failed to establish MongoDB connection:', err.message);
+    // Don't exit in production, allow the app to start with limited functionality
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
+  })
+  .then(() => {
+    const PORT = process.env.PORT || 5000;
     
     // Create placeholder image if it doesn't exist
     const placeholderPath = path.join(__dirname, '../images/placeholder.png');
@@ -351,9 +374,6 @@ connectDB().then(async () => {
     app.listen(PORT, () => {
         console.log(`✅ Server running on http://localhost:${PORT}`);
     });
-}).catch(err => {
-    console.error('Database connection failed:', err);
-    process.exit(1);
-});
+  });
 
 module.exports = app;

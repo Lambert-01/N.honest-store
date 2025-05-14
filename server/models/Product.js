@@ -227,21 +227,61 @@ productSchema.pre('save', function(next) {
     next();
 });
 
+// Static method to drop the SKU index
+productSchema.statics.dropSkuIndex = async function() {
+  try {
+    console.log('Attempting to drop SKU index from products collection...');
+    
+    // Set a timeout for the operation
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Dropping SKU index timed out after 5 seconds')), 5000);
+    });
+    
+    // Try to get the collection indexes
+    const getIndexesPromise = new Promise(async (resolve, reject) => {
+      try {
+        const indexes = await this.collection.indexes();
+        resolve(indexes);
+      } catch (error) {
+        reject(error);
+      }
+    });
+    
+    // Race the promises to handle timeout
+    const indexes = await Promise.race([getIndexesPromise, timeoutPromise]);
+    
+    // Look for the SKU index
+    const skuIndex = indexes.find(index => 
+      index.name === 'sku_1' || 
+      (index.key && index.key.sku)
+    );
+    
+    if (skuIndex) {
+      console.log('Found SKU index, dropping it...');
+      await this.collection.dropIndex(skuIndex.name);
+      console.log('SKU index dropped successfully');
+    } else {
+      console.log('No SKU index found, nothing to drop');
+    }
+    
+    return true;
+  } catch (error) {
+    // Don't throw an error, just log it and continue
+    console.warn(`Warning: Could not drop SKU index: ${error.message}`);
+    return false;
+  }
+};
+
 const Product = mongoose.model('Product', productSchema);
 
 // Drop the existing SKU index to allow multiple null values
 (async () => {
     try {
-        // Check if the index exists before trying to drop it
-        const indexes = await Product.collection.indexes();
-        const skuIndex = indexes.find(index => index.name === 'sku_1');
-        
-        if (skuIndex) {
-            console.log('Dropping SKU index to allow multiple null values...');
-            await Product.collection.dropIndex('sku_1');
+        const dropped = await Product.dropSkuIndex();
+        if (dropped) {
             console.log('SKU index dropped successfully');
         } else {
-            console.log('No SKU index found, no need to drop');
+            console.log('Failed to drop SKU index');
         }
     } catch (error) {
         console.error('Error dropping SKU index:', error);
