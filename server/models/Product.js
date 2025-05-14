@@ -11,8 +11,7 @@ const variantSchema = new mongoose.Schema({
         default: []
     },
     sku: {
-        type: String,
-        required: true
+        type: String
     },
     price: {
         type: Number,
@@ -33,8 +32,8 @@ const productSchema = new mongoose.Schema({
     },
     sku: {
         type: String,
-        required: true,
-        unique: true
+        unique: true,
+        sparse: true
     },
     description: {
         type: String

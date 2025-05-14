@@ -232,10 +232,10 @@ router.post('/', (req, res) => {
             console.log('Form data:', req.body);
             
             // Extract and validate form data
-            const { name, sku, category, price, costPrice, stock, description, status } = req.body;
+            const { name, category, price, costPrice, stock, description, status } = req.body;
             
-            if (!name || !sku || !category || !price || !costPrice) {
-                console.error('Missing required fields:', { name, sku, category, price, costPrice });
+            if (!name || !category || !price || !costPrice) {
+                console.error('Missing required fields:', { name, category, price, costPrice });
                 return res.status(400).json({
                     success: false,
                     message: 'Required fields are missing'
@@ -245,7 +245,6 @@ router.post('/', (req, res) => {
             // Create new product object
             const product = new Product({
                 name,
-                sku,
                 description: description || '',
                 category,
                 price: parseFloat(price),
@@ -342,7 +341,7 @@ router.post('/', (req, res) => {
                             name: variant.name || (variant.type ? `${variant.type}: ${variant.value}` : 'Unnamed Variant'),
                             combination: variant.combination || 
                                 (variant.type && variant.value ? [{ attribute: variant.type, value: variant.value }] : []),
-                            sku: variant.sku || `${product.sku}-variant`,
+                            sku: variant.sku || null,
                             price: parseFloat(variant.price) || product.price, // Default to product price
                             stock: parseInt(variant.stock, 10) || 0
                         }));
@@ -439,21 +438,6 @@ router.put('/:id', (req, res, next) => {
                 });
             }
             
-            // Check if SKU is being changed and if new SKU already exists
-            if (req.body.sku && req.body.sku !== product.sku) {
-                const existingSku = await Product.findOne({ 
-                    sku: req.body.sku,
-                    _id: { $ne: productId }
-                });
-                
-                if (existingSku) {
-                    return res.status(400).json({ 
-                        success: false,
-                        message: 'Product with this SKU already exists'
-                    });
-                }
-            }
-            
             // Handle images
             let featuredImage = product.featuredImage;
             let images = product.images;
@@ -536,7 +520,7 @@ router.put('/:id', (req, res, next) => {
                         productVariants = parsedVariants.map(variant => ({
                             name: variant.name,
                             combination: variant.combination || [],
-                            sku: variant.sku,
+                            sku: variant.sku || null,
                             price: parseFloat(variant.price) || product.price, // Default to product price
                             stock: parseInt(variant.stock, 10) || 0
                         }));
@@ -564,7 +548,6 @@ router.put('/:id', (req, res, next) => {
             
             // Update product fields
             product.name = req.body.name || product.name;
-            product.sku = req.body.sku || product.sku;
             product.description = req.body.description !== undefined ? req.body.description : product.description;
             
             // Check if category is changing

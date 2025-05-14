@@ -7,6 +7,9 @@ const fs = require('fs');
 const { auth } = require('./auth'); // Import the auth middleware
 const { ensureAbsoluteUrl, transformItemUrls } = require('../utils/urlHelper');
 
+// Get base URL from environment or default to localhost:5000
+const BASE_URL = ''; // Just use relative path
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {

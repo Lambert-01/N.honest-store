@@ -83,47 +83,39 @@
 // Fix image URLs function 
 window.fixImageUrl = function(url) {
     if (!url) return null; // Return null instead of a placeholder
-    
     // Handle non-string urls (shouldn't happen, but just in case)
     if (typeof url !== 'string') {
         console.warn('fixImageUrl received non-string URL:', url);
         return null;
     }
-    
     // Skip data URLs - important to prevent the "Request Header Fields Too Large" error
     if (url.startsWith('data:')) {
         // console.log('URL is a data URL, no changes needed');
         return url;
     }
-    
     // Log original URL for debugging
     console.log('Processing image URL:', url);
-    
     // If the URL is already absolute and valid, return it
     if (url.match(/^https?:\/\/.+/)) {
         console.log('URL is already absolute, no changes needed:', url);
         return url;
     }
-    
     // Handle URLs that are just paths without server prefix
     if (url.startsWith('/uploads/')) {
         const fixedUrl = `${window.location.origin}${url}`;
         console.log('Fixed absolute path to uploads:', fixedUrl);
         return fixedUrl;
     }
-    
     // Handle paths without leading slash
     if (url.startsWith('uploads/')) {
         const fixedUrl = `${window.location.origin}/${url}`;
         console.log('Fixed relative path to uploads:', fixedUrl);
         return fixedUrl;
     }
-    
     // For any other relative paths, ensure they start with a slash
     if (!url.startsWith('/')) {
         url = `/${url}`;
     }
-    
     // Add the base URL using the current origin instead of hardcoded localhost
     const fixedUrl = `${window.location.origin}${url}`;
     console.log('Fixed image URL:', fixedUrl);
@@ -586,12 +578,6 @@ function initializeModals() {
                         }
                     }
                 });
-                
-                // Set up image preview listeners when modal is shown
-                modalElement.addEventListener('shown.bs.modal', function() {
-                    // Timeout to ensure DOM is ready
-                    setTimeout(setupImagePreviewListeners, 100);
-                });
             } catch (error) {
                 console.error(`Error initializing modal ${modalId}:`, error);
             }
@@ -646,7 +632,7 @@ function setupProductFormHandler() {
             }
             
             // Ensure all required fields are present
-            const requiredFields = ['name', 'sku', 'category', 'price', 'costPrice'];
+            const requiredFields = ['name', 'category', 'price', 'costPrice'];
             for (const field of requiredFields) {
                 if (!formData.get(field) || formData.get(field).trim() === '') {
                     throw new Error(`${field} is required`);
@@ -786,9 +772,21 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Add auth status indicator for debugging
     addAuthDebugPanel();
-    
-    // Set up image preview functionality
-    setupImagePreviewListeners();
+
+    // Image preview functionality for category image upload
+    const categoryImageInput = document.getElementById("category-image");
+    if (categoryImageInput) {
+        categoryImageInput.addEventListener("change", function() {
+            previewImage(this, "preview-image");
+        });
+    }
+
+    const editCategoryImageInput = document.getElementById("edit-category-image");
+    if (editCategoryImageInput) {
+        editCategoryImageInput.addEventListener("change", function() {
+            previewImage(this, "edit-preview-image");
+        });
+    }
 
     // Set up the product form with a single handler
     setupProductFormHandler();
@@ -1086,15 +1084,24 @@ document.addEventListener("DOMContentLoaded", function() {
 
 // Function to preview image before upload
 function previewImage(input, previewId) {
-    const preview = document.getElementById(previewId);
-    if (!preview) {
-        console.error(`Preview element with ID ${previewId} not found`);
+    console.log(`Previewing image for ${previewId}`);
+    
+    // Check if input exists and has files
+    if (!input || !input.files || input.files.length === 0) {
+        console.warn('No file selected for preview');
         return;
     }
     
+    const preview = document.getElementById(previewId);
+    if (!preview) {
+        console.error(`Preview element with ID '${previewId}' not found`);
+        return;
+    }
+    
+    // Get the preview container safely
     const previewContainer = preview.parentElement;
     
-    if (input.files && input.files[0]) {
+    try {
         const file = input.files[0];
         
         // Check if it's a valid image file
@@ -1123,9 +1130,12 @@ function previewImage(input, previewId) {
         };
         
         reader.readAsDataURL(file);
-    } else {
-        preview.src = '#';
-        preview.style.display = 'none';
+    } catch (error) {
+        console.error('Error in previewImage:', error);
+        if (preview) {
+            preview.src = '#';
+            preview.style.display = 'none';
+        }
         if (previewContainer) {
             previewContainer.classList.add('d-none');
         }
@@ -1135,40 +1145,61 @@ function previewImage(input, previewId) {
 // Function to reset image preview
 function resetImagePreview(previewId) {
     const preview = document.getElementById(previewId);
-    if (preview) {
-        preview.src = '#';
-        preview.style.display = 'none';
-        const previewContainer = preview.parentElement;
-        if (previewContainer) {
-            previewContainer.classList.add('d-none');
-        }
+    if (!preview) {
+        console.warn(`Reset image preview: Element with ID '${previewId}' not found`);
+        return;
+    }
+    
+    preview.src = '#';
+    preview.style.display = 'none';
+    
+    // Find container - could be direct parent or ancestor with specific class
+    const previewContainer = preview.parentElement || 
+                            preview.closest('.featured-image-preview, .edit-featured-image-preview');
+    
+    if (previewContainer) {
+        previewContainer.classList.add('d-none');
     }
 }
 
 // Function to reset image previews
 function resetImagePreviews() {
-    // Reset featured image preview
-    const featuredPreview = document.querySelector('.featured-image-preview img');
-    if (featuredPreview) {
-        featuredPreview.src = '#';
-        featuredPreview.style.display = 'none';
-        const previewContainer = featuredPreview.parentElement;
-        if (previewContainer) {
-            previewContainer.classList.add('d-none');
-        }
-    }
+    console.log('Resetting all image previews');
     
-    // Reset any additional image previews
-    const additionalPreviews = document.querySelectorAll('.additional-images-preview img');
-    if (additionalPreviews && additionalPreviews.length > 0) {
-        additionalPreviews.forEach(preview => {
-            preview.src = '#';
-            preview.style.display = 'none';
-            const previewContainer = preview.parentElement;
+    try {
+        // Reset featured image preview
+        const featuredPreview = document.querySelector('.featured-image-preview img');
+        if (featuredPreview) {
+            featuredPreview.src = '#';
+            featuredPreview.style.display = 'none';
+            const previewContainer = featuredPreview.closest('.featured-image-preview');
             if (previewContainer) {
                 previewContainer.classList.add('d-none');
             }
+        }
+        
+        // Reset any additional image previews
+        const additionalPreviews = document.querySelectorAll('.additional-images-preview img');
+        if (additionalPreviews && additionalPreviews.length > 0) {
+            additionalPreviews.forEach(preview => {
+                preview.src = '#';
+                preview.style.display = 'none';
+                const previewContainer = preview.closest('.additional-images-preview');
+                if (previewContainer) {
+                    previewContainer.classList.add('d-none');
+                }
+            });
+        }
+        
+        // Also reset any preview elements with data-preview attribute
+        document.querySelectorAll('[data-preview]').forEach(input => {
+            const previewId = input.getAttribute('data-preview');
+            if (previewId) {
+                resetImagePreview(previewId);
+            }
         });
+    } catch (error) {
+        console.error('Error in resetImagePreviews:', error);
     }
 }
 
@@ -2004,7 +2035,8 @@ class ProductManager {
         }
     }
 
-   async editProduct(id) {
+    
+async editProduct(id) {
     console.log(`Editing product with ID: ${id}`);
     try {
         // Show loading indicator
@@ -2039,11 +2071,7 @@ class ProductManager {
         }
         nameInput.value = product.name || '';
         
-        const skuInput = document.getElementById('edit-sku');
-        if (!skuInput) {
-            throw new Error('Edit SKU input not found');
-        }
-        skuInput.value = product.sku || '';
+        
         
         const descriptionInput = document.getElementById('edit-description');
         if (!descriptionInput) {
@@ -2151,6 +2179,8 @@ class ProductManager {
         showAlert(error.message || 'Failed to load product data', 'danger');
     }
 }
+
+
     // Helper method to load categories for dropdown
     async loadCategoriesForDropdown(selectElement) {
         try {
@@ -2296,22 +2326,15 @@ class ProductManager {
     }
 }
 
+// Function to update edit variants table
 function updateEditVariantsTable() {
-    const variantsTable = document.getElementById('edit-variants-table');
-    if (!variantsTable) {
-        console.error('Edit variants table not found in DOM');
-        return;
-    }
-    const tbody = variantsTable.querySelector('tbody');
-    if (!tbody) {
-        console.error('Tbody element not found within edit variants table');
-        return;
-    }
+    const variantsTable = document.getElementById('edit-variants-table').querySelector('tbody');
+    if (!variantsTable) return;
     if (!window.editProductVariants || window.editProductVariants.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No variants defined</td></tr>';
+        variantsTable.innerHTML = '<tr><td colspan="6" class="text-center">No variants defined</td></tr>';
         return;
     }
-    tbody.innerHTML = '';
+    variantsTable.innerHTML = '';
     window.editProductVariants.forEach((variant, index) => {
         const row = document.createElement('tr');
         // Create variant name from combination
@@ -2344,7 +2367,7 @@ function updateEditVariantsTable() {
                 </button>
             </td>
         `;
-        tbody.appendChild(row);
+        variantsTable.appendChild(row);
     });
     // Add event listeners to variant inputs
     document.querySelectorAll('.edit-variant-sku, .edit-variant-price, .edit-variant-stock').forEach(input => {
@@ -2356,7 +2379,6 @@ function updateEditVariantsTable() {
         variantsJsonInput.value = JSON.stringify(window.editProductVariants);
     }
 }
-
 // Update edit variant value when input changes
 function updateEditVariantValue(event) {
     const input = event.target;
@@ -3565,8 +3587,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load dashboard data
     loadDashboardData();
     
-    // Setup image preview listeners
-    setupImagePreviewListeners();
+    // Setup category and product image previews
+    setupImagePreviewHandlers();
     
     // Setup session manager for auto logout
     initSessionManager();
@@ -3700,45 +3722,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Set up image preview functionality for all file inputs
-function setupImagePreviewListeners() {
-    console.log('Setting up image preview listeners');
-    
-    // For regular product images
-    const featuredImageInput = document.getElementById("featuredImage");
-    if (featuredImageInput) {
-        featuredImageInput.addEventListener("change", function() {
-            const previewId = this.getAttribute('data-preview') || 'product-preview-image';
-            previewImage(this, previewId);
-        });
-    }
-    
-    // For edit product images
-    const editProductImageInput = document.getElementById("edit-product-image");
-    if (editProductImageInput) {
-        editProductImageInput.addEventListener("change", function() {
-            const previewId = this.getAttribute('data-preview') || 'edit-product-preview-image';
-            previewImage(this, previewId);
-        });
-    }
-    
-    // For category images
-    const categoryImageInput = document.getElementById("category-image");
-    if (categoryImageInput) {
-        categoryImageInput.addEventListener("change", function() {
-            previewImage(this, "preview-image");
-        });
-    }
-    
-    // For edit category images
-    const editCategoryImageInput = document.getElementById("edit-category-image");
-    if (editCategoryImageInput) {
-        editCategoryImageInput.addEventListener("change", function() {
-            previewImage(this, "edit-preview-image");
-        });
-    }
-    
-    // For any other file inputs with data-preview attribute
+// Setup image preview handlers
+function setupImagePreviewHandlers() {
+    // Setup image preview for file inputs
     document.querySelectorAll('input[type="file"][data-preview]').forEach(input => {
         input.addEventListener('change', function() {
             const previewId = this.getAttribute('data-preview');
@@ -3747,8 +3733,6 @@ function setupImagePreviewListeners() {
             }
         });
     });
-    
-    console.log('Image preview listeners set up');
 }
 
 // Product variant management
@@ -4204,4 +4188,148 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     `).join('');
   }
+});
+
+
+// Add these functions to your admin.js file
+
+// Initialize edit product attributes array
+window.editProductAttributes = [];
+
+// Function to initialize edit variant management
+function initializeEditVariantManagement() {
+    // Add attribute button
+    const addAttributeBtn = document.getElementById('edit-add-attribute-btn');
+    if (addAttributeBtn) {
+        addAttributeBtn.addEventListener('click', addEditProductAttribute);
+    }
+
+    // Generate variants button
+    const generateVariantsBtn = document.getElementById('edit-generate-variants-btn');
+    if (generateVariantsBtn) {
+        generateVariantsBtn.addEventListener('click', generateEditProductVariants);
+    }
+}
+
+// Add a product attribute in edit form
+function addEditProductAttribute() {
+    const typeInput = document.getElementById('edit-attribute-type');
+    const valuesInput = document.getElementById('edit-attribute-values');
+    
+    if (!typeInput || !valuesInput) return;
+    
+    const type = typeInput.value.trim();
+    const valuesString = valuesInput.value.trim();
+    
+    if (!type || !valuesString) {
+        showAlert('Please enter both attribute type and values', 'warning');
+        return;
+    }
+    
+    const values = valuesString.split(',').map(v => v.trim()).filter(v => v);
+    
+    if (values.length === 0) {
+        showAlert('Please enter at least one attribute value', 'warning');
+        return;
+    }
+    
+    // Add new attribute
+    window.editProductAttributes.push({ type, values });
+    
+    // Clear inputs
+    typeInput.value = '';
+    valuesInput.value = '';
+    
+    // Update UI
+    updateEditAttributesList();
+    updateEditGenerateButtonState();
+}
+
+// Update the attributes list UI in edit form
+function updateEditAttributesList() {
+    const attributesList = document.getElementById('edit-attributes-list');
+    if (!attributesList) return;
+    
+    if (window.editProductAttributes.length === 0) {
+        attributesList.innerHTML = `
+            <tr>
+                <td colspan="3" class="text-center py-3 text-muted">
+                    <i class="fas fa-info-circle me-1"></i> No attributes defined yet
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    attributesList.innerHTML = '';
+    
+    window.editProductAttributes.forEach((attr, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="fw-medium">${attr.type}</td>
+            <td>${attr.values.join(', ')}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditProductAttribute(${index})">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </td>
+        `;
+        attributesList.appendChild(row);
+    });
+}
+
+// Remove a product attribute in edit form
+function removeEditProductAttribute(index) {
+    window.editProductAttributes.splice(index, 1);
+    updateEditAttributesList();
+    updateEditGenerateButtonState();
+}
+
+// Update generate button state in edit form
+function updateEditGenerateButtonState() {
+    const generateBtn = document.getElementById('edit-generate-variants-btn');
+    if (!generateBtn) return;
+    
+    generateBtn.disabled = window.editProductAttributes.length < 1;
+    
+    // Update variants count preview
+    updateEditVariantsCount();
+}
+
+// Update variants count preview in edit form
+function updateEditVariantsCount() {
+    const countEl = document.getElementById('edit-variants-count');
+    if (!countEl) return;
+    
+    if (window.editProductAttributes.length === 0) {
+        countEl.textContent = '';
+        return;
+    }
+    
+    const count = window.editProductAttributes.reduce((acc, attr) => acc * attr.values.length, 1);
+    countEl.textContent = `Will generate ${count} variant${count !== 1 ? 's' : ''}`;
+}
+
+// Generate all possible variant combinations from attributes in edit form
+function generateEditProductVariants() {
+    if (window.editProductAttributes.length === 0) {
+        showAlert('Please add at least one attribute first', 'warning');
+        return;
+    }
+    
+    // Generate all possible combinations
+    window.editProductVariants = generateVariantCombinations(window.editProductAttributes);
+    
+    // Update the variants table
+    updateEditVariantsTable();
+    
+    // Update the hidden field for form submission
+    document.getElementById('edit-variants-json').value = JSON.stringify(window.editProductVariants);
+    
+    showAlert(`Generated ${window.editProductVariants.length} variants successfully`, 'success');
+}
+
+// Initialize variant management when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeEditVariantManagement();
 });
