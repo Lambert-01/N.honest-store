@@ -80,47 +80,132 @@
     }
 })();
 
-// Fix image URLs function 
+// Fix image URLs function with improved hosting compatibility
 window.fixImageUrl = function(url) {
-    if (!url) return null; // Return null instead of a placeholder
+    if (!url) return 'images/placeholder.png'; // Return placeholder for null/undefined URLs
+    
     // Handle non-string urls (shouldn't happen, but just in case)
     if (typeof url !== 'string') {
         console.warn('fixImageUrl received non-string URL:', url);
-        return null;
+        return 'images/placeholder.png';
     }
-    // Skip data URLs - important to prevent the "Request Header Fields Too Large" error
+    
+    // Skip data URLs
     if (url.startsWith('data:')) {
-        // console.log('URL is a data URL, no changes needed');
         return url;
     }
-    // Log original URL for debugging
-    console.log('Processing image URL:', url);
+    
     // If the URL is already absolute and valid, return it
     if (url.match(/^https?:\/\/.+/)) {
-        console.log('URL is already absolute, no changes needed:', url);
         return url;
     }
-    // Handle URLs that are just paths without server prefix
+    
+    // Get the base URL from environment or use the current origin
+    const baseUrl = window.BASE_URL || window.location.origin;
+    
+    // Handle URLs that are paths without server prefix
     if (url.startsWith('/uploads/')) {
-        const fixedUrl = `${window.location.origin}${url}`;
-        console.log('Fixed absolute path to uploads:', fixedUrl);
-        return fixedUrl;
+        return `${baseUrl}${url}`;
     }
+    
     // Handle paths without leading slash
     if (url.startsWith('uploads/')) {
-        const fixedUrl = `${window.location.origin}/${url}`;
-        console.log('Fixed relative path to uploads:', fixedUrl);
-        return fixedUrl;
+        return `${baseUrl}/${url}`;
     }
+    
     // For any other relative paths, ensure they start with a slash
     if (!url.startsWith('/')) {
         url = `/${url}`;
     }
-    // Add the base URL using the current origin instead of hardcoded localhost
-    const fixedUrl = `${window.location.origin}${url}`;
-    console.log('Fixed image URL:', fixedUrl);
-    return fixedUrl;
+    
+    // Add the base URL
+    return `${baseUrl}${url}`;
 };
+
+// Add a global image error handler with improved hosting compatibility
+document.addEventListener('DOMContentLoaded', function() {
+    // Create a map to track failed image loads to prevent infinite retries
+    const failedImages = new Map();
+    
+    // Try to set the BASE_URL from meta tag if available (useful for cPanel)
+    const baseUrlMeta = document.querySelector('meta[name="base-url"]');
+    if (baseUrlMeta) {
+        window.BASE_URL = baseUrlMeta.getAttribute('content');
+        console.log('Base URL set from meta tag:', window.BASE_URL);
+    }
+    
+    // Add a global handler for image errors
+    document.addEventListener('error', function(e) {
+        if (e.target.tagName.toLowerCase() === 'img') {
+            const src = e.target.src;
+            
+            // Skip if this is already the placeholder or if we've tried this image multiple times
+            if (src.includes('placeholder.png') || failedImages.has(src)) {
+                return;
+            }
+            
+            console.warn('Image failed to load, trying alternative URLs:', src);
+            
+            // Add to failed images map to prevent retry loops
+            failedImages.set(src, true);
+            
+            // For product/category images, try different URL formats
+            if (src.includes('/uploads/')) {
+                // Try with different base URLs
+                const pathParts = src.split('/uploads/');
+                if (pathParts.length > 1) {
+                    const imagePath = pathParts[1];
+                    
+                    // Try with window.location.origin
+                    const altUrl1 = `${window.location.origin}/uploads/${imagePath}`;
+                    
+                    // Try with BASE_URL if available
+                    const altUrl2 = window.BASE_URL ? `${window.BASE_URL}/uploads/${imagePath}` : null;
+                    
+                    // Try with absolute path from root
+                    const altUrl3 = `/uploads/${imagePath}`;
+                    
+                    console.log('Trying alternative URLs:', { altUrl1, altUrl2, altUrl3 });
+                    
+                    // Set a timeout to try the first alternative URL
+                    setTimeout(() => {
+                        if (!failedImages.has(altUrl1)) {
+                            e.target.src = altUrl1;
+                        }
+                    }, 100);
+                    
+                    // If that fails, try the second alternative after a delay
+                    setTimeout(() => {
+                        if (altUrl2 && !failedImages.has(altUrl2)) {
+                            e.target.src = altUrl2;
+                        }
+                    }, 300);
+                    
+                    // If that also fails, try the third alternative after another delay
+                    setTimeout(() => {
+                        if (!failedImages.has(altUrl3)) {
+                            e.target.src = altUrl3;
+                        }
+                    }, 500);
+                    
+                    // Only use placeholder as a last resort after all alternatives fail
+                    setTimeout(() => {
+                        if (e.target.naturalWidth === 0) {
+                            e.target.src = 'images/placeholder.png';
+                            e.target.classList.add('placeholder-image');
+                        }
+                    }, 1000);
+                    
+                    return;
+                }
+            }
+            
+            // If all else fails, use placeholder
+            e.target.src = 'images/placeholder.png';
+            e.target.classList.add('placeholder-image');
+        }
+    }, true); // Use capture phase to catch all image errors
+});
 
 // Check if user is authenticated
 function checkAuth() {
@@ -1886,11 +1971,6 @@ class ProductManager {
             return `
             <tr data-product-id="${product._id}">
                 <td>
-                    <div class="form-check">
-                        <input class="form-check-input product-checkbox" type="checkbox" value="${product._id}">
-                    </div>
-                </td>
-                <td>
                     <div class="product-image-container">
                         ${product.featuredImage ? 
                               `<img src="${imageUrl}" 
@@ -3176,7 +3256,7 @@ function initNetworkStatusMonitor() {
                 setTimeout(() => {
                     networkIndicator.style.display = 'none';
                     networkIndicator.style.opacity = '1';
-                }, 300);
+                }, 300);  // Match the Bootstrap fade animation time
             }, 3000);
         } else {
             networkIndicator.textContent = '✕ Offline';
@@ -3470,6 +3550,7 @@ function setupEditCategoryFormHandler() {
         }
 
         try {
+            // Get category ID
             const categoryId = document.getElementById('edit-category-id').value;
             if (!categoryId) {
                 throw new Error('Category ID is missing');
@@ -4174,148 +4255,4 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
     `).join('');
   }
-});
-
-
-// Add these functions to your admin.js file
-
-// Initialize edit product attributes array
-window.editProductAttributes = [];
-
-// Function to initialize edit variant management
-function initializeEditVariantManagement() {
-    // Add attribute button
-    const addAttributeBtn = document.getElementById('edit-add-attribute-btn');
-    if (addAttributeBtn) {
-        addAttributeBtn.addEventListener('click', addEditProductAttribute);
-    }
-
-    // Generate variants button
-    const generateVariantsBtn = document.getElementById('edit-generate-variants-btn');
-    if (generateVariantsBtn) {
-        generateVariantsBtn.addEventListener('click', generateEditProductVariants);
-    }
-}
-
-// Add a product attribute in edit form
-function addEditProductAttribute() {
-    const typeInput = document.getElementById('edit-attribute-type');
-    const valuesInput = document.getElementById('edit-attribute-values');
-    
-    if (!typeInput || !valuesInput) return;
-    
-    const type = typeInput.value.trim();
-    const valuesString = valuesInput.value.trim();
-    
-    if (!type || !valuesString) {
-        showAlert('Please enter both attribute type and values', 'warning');
-        return;
-    }
-    
-    const values = valuesString.split(',').map(v => v.trim()).filter(v => v);
-    
-    if (values.length === 0) {
-        showAlert('Please enter at least one attribute value', 'warning');
-        return;
-    }
-    
-    // Add new attribute
-    window.editProductAttributes.push({ type, values });
-    
-    // Clear inputs
-    typeInput.value = '';
-    valuesInput.value = '';
-    
-    // Update UI
-    updateEditAttributesList();
-    updateEditGenerateButtonState();
-}
-
-// Update the attributes list UI in edit form
-function updateEditAttributesList() {
-    const attributesList = document.getElementById('edit-attributes-list');
-    if (!attributesList) return;
-    
-    if (window.editProductAttributes.length === 0) {
-        attributesList.innerHTML = `
-            <tr>
-                <td colspan="3" class="text-center py-3 text-muted">
-                    <i class="fas fa-info-circle me-1"></i> No attributes defined yet
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    attributesList.innerHTML = '';
-    
-    window.editProductAttributes.forEach((attr, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="fw-medium">${attr.type}</td>
-            <td>${attr.values.join(', ')}</td>
-            <td>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditProductAttribute(${index})">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </td>
-        `;
-        attributesList.appendChild(row);
-    });
-}
-
-// Remove a product attribute in edit form
-function removeEditProductAttribute(index) {
-    window.editProductAttributes.splice(index, 1);
-    updateEditAttributesList();
-    updateEditGenerateButtonState();
-}
-
-// Update generate button state in edit form
-function updateEditGenerateButtonState() {
-    const generateBtn = document.getElementById('edit-generate-variants-btn');
-    if (!generateBtn) return;
-    
-    generateBtn.disabled = window.editProductAttributes.length < 1;
-    
-    // Update variants count preview
-    updateEditVariantsCount();
-}
-
-// Update variants count preview in edit form
-function updateEditVariantsCount() {
-    const countEl = document.getElementById('edit-variants-count');
-    if (!countEl) return;
-    
-    if (window.editProductAttributes.length === 0) {
-        countEl.textContent = '';
-        return;
-    }
-    
-    const count = window.editProductAttributes.reduce((acc, attr) => acc * attr.values.length, 1);
-    countEl.textContent = `Will generate ${count} variant${count !== 1 ? 's' : ''}`;
-}
-
-// Generate all possible variant combinations from attributes in edit form
-function generateEditProductVariants() {
-    if (window.editProductAttributes.length === 0) {
-        showAlert('Please add at least one attribute first', 'warning');
-        return;
-    }
-    
-    // Generate all possible combinations
-    window.editProductVariants = generateVariantCombinations(window.editProductAttributes);
-    
-    // Update the variants table
-    updateEditVariantsTable();
-    
-    // Update the hidden field for form submission
-    document.getElementById('edit-variants-json').value = JSON.stringify(window.editProductVariants);
-    
-    showAlert(`Generated ${window.editProductVariants.length} variants successfully`, 'success');
-}
-
-// Initialize variant management when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    initializeEditVariantManagement();
 });

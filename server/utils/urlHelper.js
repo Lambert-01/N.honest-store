@@ -25,7 +25,7 @@ function getBaseUrl() {
   }
   
   // For local development
-  const port = process.env.PORT || 5000;
+  const port = process.env.PORT || 3000;
   return `http://localhost:${port}`;
 }
 

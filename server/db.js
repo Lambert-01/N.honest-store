@@ -41,15 +41,15 @@ const connectDB = async () => {
 
     console.log('Connecting to MongoDB...');
     
-    // Increase timeouts for cPanel environment
+    // Modified connection options for cPanel environment
     const conn = await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
       socketTimeoutMS: 45000, // Increase socket timeout
       connectTimeoutMS: 30000, // Connection timeout
-      // Disable buffering to prevent timeout issues with operations
-      bufferCommands: false,
+      // CHANGED: Enable buffering to allow operations before connection is complete
+      bufferCommands: process.env.MONGOOSE_BUFFCOMMANDS === 'true',
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
@@ -65,7 +65,7 @@ const connectDB = async () => {
       console.error(`
 ==========================================================
 IMPORTANT: You need to whitelist your server IP address in MongoDB Atlas!
-Current server IP: ${process.env.SERVER_IP || 'Unknown - check your hosting provider'}
+Current server IP: ${process.env.SERVER_IP || '34.174.145.10'}
 Go to MongoDB Atlas > Network Access > Add IP Address
 ==========================================================
       `);
