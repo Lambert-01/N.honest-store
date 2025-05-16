@@ -349,7 +349,7 @@ connectDB()
     }
   })
   .then(() => {
-    const PORT = process.env.PORT || 5000;
+    const PORT = process.env.PORT || 3000;
     
     // Create placeholder image if it doesn't exist
     const placeholderPath = path.join(__dirname, '../images/placeholder.png');
