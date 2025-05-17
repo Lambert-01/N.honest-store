@@ -4,53 +4,53 @@ const Product = require('../models/Product');
 const Category = require('../models/Categories');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
 const { ensureAbsoluteUrl, transformItemUrls, BASE_URL } = require('../utils/urlHelper');
+const { uploadProductImage, uploadCategoryImage, useCloudinary } = require('../utils/multer');
 
 // Configure Multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '../../uploads/products');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-            console.log(`Created upload directory: ${uploadDir}`);
-        }
-        console.log(`Using upload directory for ${file.originalname}: ${uploadDir}`);
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        // Generate unique filename with timestamp and original extension
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-        console.log(`Generated filename for ${file.originalname}: ${uniqueName}`);
-        cb(null, uniqueName);
-    }
-});
+// const storage = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//         const uploadDir = path.join(__dirname, '../../uploads/products');
+//         if (!fs.existsSync(uploadDir)) {
+//             fs.mkdirSync(uploadDir, { recursive: true });
+//             console.log(`Created upload directory: ${uploadDir}`);
+//         }
+//         console.log(`Using upload directory for ${file.originalname}: ${uploadDir}`);
+//         cb(null, uploadDir);
+//     },
+//     filename: (req, file, cb) => {
+//         // Generate unique filename with timestamp and original extension
+//         const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+//         console.log(`Generated filename for ${file.originalname}: ${uniqueName}`);
+//         cb(null, uniqueName);
+//     }
+// });
 
 // Filter to allow only image files
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+// const fileFilter = (req, file, cb) => {
+//     const allowedTypes = /jpeg|jpg|png|gif|webp/;
+//     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+//     const mimetype = allowedTypes.test(file.mimetype);
     
-    console.log(`Checking file: ${file.originalname}, mimetype: ${file.mimetype}`);
+//     console.log(`Checking file: ${file.originalname}, mimetype: ${file.mimetype}`);
     
-    if (extname && mimetype) {
-        console.log(`Accepted file: ${file.originalname}`);
-        return cb(null, true);
-    } else {
-        console.log(`Rejected file: ${file.originalname}`);
-        cb(new Error('Only image files are allowed!'), false);
-    }
-};
+//     if (extname && mimetype) {
+//         console.log(`Accepted file: ${file.originalname}`);
+//         return cb(null, true);
+//     } else {
+//         console.log(`Rejected file: ${file.originalname}`);
+//         cb(new Error('Only image files are allowed!'), false);
+//     }
+// };
 
 // Configure multer upload
-const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 2 * 1024 * 1024 // 2MB limit
-    }
-});
+// const upload = multer({
+//     storage: storage,
+//     fileFilter: fileFilter,
+//     limits: {
+//         fileSize: 2 * 1024 * 1024 // 2MB limit
+//     }
+// });
 
 // Category Routes
 router.get('/categories', async (req, res) => {
@@ -264,23 +264,23 @@ router.get('/products/:id', async (req, res) => {
     }
 });
 
-// Check if product SKU exists
-router.get('/products/check-sku', async (req, res) => {
+// Check if product name exists
+router.get('/products/check-name', async (req, res) => {
     try {
-        const { sku } = req.query;
+        const { name } = req.query;
         
-        if (!sku) {
-            return res.status(400).json({ message: 'SKU parameter is required' });
+        if (!name) {
+            return res.status(400).json({ message: 'Name parameter is required' });
         }
         
-        const product = await Product.findOne({ sku: sku });
+        const product = await Product.findOne({ name: name });
         res.json({ exists: !!product });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-router.post('/products', upload.single('featuredImage'), async (req, res) => {
+router.post('/products', uploadProductImage.single('featuredImage'), async (req, res) => {
     try {
         console.log('=== PRODUCT CREATION START ===');
         console.log('Request headers:', req.headers);
@@ -295,7 +295,7 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
         }
         
         // Validate required fields
-        const requiredFields = ['name', 'sku', 'price', 'costPrice', 'category'];
+        const requiredFields = ['name', 'price', 'costPrice', 'category'];
         const missingFields = {};
         
         requiredFields.forEach(field => {
@@ -313,22 +313,9 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
             });
         }
         
-        // Check if product with same SKU already exists
-        const existingSku = await Product.findOne({ sku: req.body.sku });
-        if (existingSku) {
-            console.log('SKU already exists:', req.body.sku);
-            return res.status(400).json({
-                message: 'Product with this SKU already exists',
-                errors: {
-                    sku: 'Product with this SKU already exists'
-                }
-            });
-        }
-        
         // Create product object with explicit type conversion
         const product = new Product({
             name: String(req.body.name),
-            sku: String(req.body.sku),
             description: req.body.description ? String(req.body.description) : '',
             category: req.body.category,
             price: parseFloat(req.body.price),
@@ -339,7 +326,6 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
         
         console.log('Created product object:', {
             name: product.name,
-            sku: product.sku,
             category: product.category,
             price: product.price,
             costPrice: product.costPrice
@@ -405,7 +391,6 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
                             const mappedVariant = {
                                 name: variant.name || '',
                                 combination: variant.combination || [],
-                                sku: variant.sku || '',
                                 price: parseFloat(variant.price) || product.price,
                                 stock: parseInt(variant.stock, 10) || 0
                             };
@@ -433,10 +418,16 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
         
         // Handle uploaded image if present
         if (req.file) {
-            console.log('Processing uploaded image:', req.file.filename);
-            const imagePath = `/uploads/products/${req.file.filename}`;
-            product.featuredImage = imagePath;
-            console.log('Featured image path stored:', imagePath);
+            if (useCloudinary) {
+                // For Cloudinary, use the secure URL provided by Cloudinary
+                product.featuredImage = req.file.secure_url;
+                console.log('Cloudinary image URL saved:', product.featuredImage);
+            } else {
+                // For local storage, use the relative path
+                const imagePath = `/uploads/products/${req.file.filename}`;
+                product.featuredImage = imagePath;
+                console.log('Local image path saved:', imagePath);
+            }
         }
         
         // Save product to database
@@ -457,8 +448,8 @@ router.post('/products', upload.single('featuredImage'), async (req, res) => {
         console.error('=== PRODUCT CREATION ERROR ===');
         console.error(error);
         
-        // Clean up uploaded file if there was an error
-        if (req.file) {
+        // Clean up uploaded file if there was an error and we're using local storage
+        if (req.file && !useCloudinary) {
             try {
                 const filePath = path.join(__dirname, '../..', `/uploads/products/${req.file.filename}`);
                 if (fs.existsSync(filePath)) {

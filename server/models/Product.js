@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { isCloudinaryUrl } = require('../utils/urlHelper');
 
 // Define the variant schema
 const variantSchema = new mongoose.Schema({
@@ -9,9 +10,6 @@ const variantSchema = new mongoose.Schema({
     combination: {
         type: Array,
         default: []
-    },
-    sku: {
-        type: String
     },
     price: {
         type: Number,
@@ -29,9 +27,6 @@ const productSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true
-    },
-    sku: {
-        type: String
     },
     description: {
         type: String
@@ -91,8 +86,8 @@ productSchema.methods.isInStock = function() {
 productSchema.methods.getImageUrl = function() {
     if (!this.featuredImage) return null;
     
-    // Check if already a full URL
-    if (this.featuredImage.startsWith('http')) {
+    // Check if already a full URL or Cloudinary URL
+    if (this.featuredImage.startsWith('http') || isCloudinaryUrl(this.featuredImage)) {
         return this.featuredImage;
     }
     
@@ -137,9 +132,8 @@ productSchema.pre('save', function(next) {
                 if (variant.combination && Array.isArray(variant.combination)) {
                     console.log(`Variant has combination array with ${variant.combination.length} items`);
                     return {
-                        name: variant.name || `Variant ${variant.sku || ''}`,
+                        name: variant.name || 'Unnamed Variant',
                         combination: variant.combination,
-                        sku: variant.sku || `${this.sku}-variant`,
                         price: parseFloat(variant.price) || this.price,
                         stock: parseInt(variant.stock, 10) || 0
                     };
@@ -150,7 +144,6 @@ productSchema.pre('save', function(next) {
                     return {
                         name: `${variant.type}: ${variant.value}`,
                         combination: [{ attribute: variant.type, value: variant.value }],
-                        sku: variant.sku || `${this.sku}-${variant.value.replace(/\s+/g, '-')}`,
                         price: parseFloat(variant.price) || this.price,
                         stock: parseInt(variant.stock, 10) || 0
                     };
@@ -161,7 +154,6 @@ productSchema.pre('save', function(next) {
                     return {
                         name: variant.name,
                         combination: [],
-                        sku: variant.sku || `${this.sku}-simple`,
                         price: parseFloat(variant.price) || this.price,
                         stock: parseInt(variant.stock, 10) || 0
                     };
@@ -184,19 +176,21 @@ productSchema.pre('save', function(next) {
 
 // Add a pre-save hook to normalize image paths
 productSchema.pre('save', function(next) {
-    // Ensure featuredImage starts with /uploads/ if it exists
+    // Skip normalization for Cloudinary URLs
     if (this.featuredImage && typeof this.featuredImage === 'string') {
-        // Remove any domain prefixes
-        if (this.featuredImage.includes('http')) {
-            this.featuredImage = this.featuredImage.replace(/^https?:\/\/[^\/]+/, '');
-        }
-        
-        // Make sure path starts with /uploads/
-        if (!this.featuredImage.startsWith('/uploads/')) {
-            if (this.featuredImage.startsWith('uploads/')) {
-                this.featuredImage = '/' + this.featuredImage;
-            } else if (!this.featuredImage.startsWith('/')) {
-                this.featuredImage = '/uploads/products/' + this.featuredImage;
+        // If it's a Cloudinary URL, keep it as is
+        if (isCloudinaryUrl(this.featuredImage)) {
+            console.log('Cloudinary URL detected, keeping as is:', this.featuredImage);
+        } 
+        // Otherwise normalize local file paths
+        else if (!this.featuredImage.startsWith('http')) {
+            // Make sure path starts with /uploads/
+            if (!this.featuredImage.startsWith('/uploads/')) {
+                if (this.featuredImage.startsWith('uploads/')) {
+                    this.featuredImage = '/' + this.featuredImage;
+                } else if (!this.featuredImage.startsWith('/')) {
+                    this.featuredImage = '/uploads/products/' + this.featuredImage;
+                }
             }
         }
     }
@@ -206,7 +200,12 @@ productSchema.pre('save', function(next) {
         this.images = this.images.map(imagePath => {
             if (!imagePath) return imagePath;
             
-            // Remove any domain prefixes
+            // Skip Cloudinary URLs
+            if (isCloudinaryUrl(imagePath)) {
+                return imagePath;
+            }
+            
+            // Remove any domain prefixes for local files
             if (imagePath.includes('http')) {
                 imagePath = imagePath.replace(/^https?:\/\/[^\/]+/, '');
             }
@@ -256,12 +255,26 @@ productSchema.statics.dropSkuIndex = async function() {
       (index.key && index.key.sku)
     );
     
+    // Look for the variants.sku index
+    const variantSkuIndex = indexes.find(index => 
+      index.name === 'variants.sku_1' || 
+      (index.key && index.key['variants.sku'])
+    );
+    
     if (skuIndex) {
       console.log('Found SKU index, dropping it...');
       await this.collection.dropIndex(skuIndex.name);
       console.log('SKU index dropped successfully');
     } else {
       console.log('No SKU index found, nothing to drop');
+    }
+    
+    if (variantSkuIndex) {
+      console.log('Found variants.sku index, dropping it...');
+      await this.collection.dropIndex(variantSkuIndex.name);
+      console.log('variants.sku index dropped successfully');
+    } else {
+      console.log('No variants.sku index found, nothing to drop');
     }
     
     return true;
@@ -279,12 +292,12 @@ const Product = mongoose.model('Product', productSchema);
     try {
         const dropped = await Product.dropSkuIndex();
         if (dropped) {
-            console.log('SKU index dropped successfully');
+            console.log('SKU indexes dropped successfully');
         } else {
-            console.log('Failed to drop SKU index');
+            console.log('Failed to drop SKU indexes');
         }
     } catch (error) {
-        console.error('Error dropping SKU index:', error);
+        console.error('Error dropping SKU indexes:', error);
     }
 })();
 

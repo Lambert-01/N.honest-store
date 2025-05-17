@@ -10,7 +10,7 @@ const connectDB = async () => {
     // If not found in env vars, try to read from atlas.txt file (for cPanel deployment)
     if (!mongoURI) {
       try {
-        const atlasPath = path.join(__dirname, '../atlas.txt');
+        const atlasPath = path.joi(__dirname, '../atlas.txt');
         if (fs.existsSync(atlasPath)) {
           const fileContent = fs.readFileSync(atlasPath, 'utf8');
           const lines = fileContent.split('\n');

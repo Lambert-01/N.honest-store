@@ -1,56 +1,56 @@
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Categories');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { auth } = require('./auth'); // Import the auth middleware
 const { ensureAbsoluteUrl, transformItemUrls } = require('../utils/urlHelper');
+const { uploadCategoryImage, handleMulterError, useCloudinary } = require('../utils/multer');
 
 // Get base URL from environment or default to localhost:5000
 const BASE_URL = ''; // Just use relative path
 
 // Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '../../uploads/categories');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-            console.log(`Created upload directory: ${uploadDir}`);
-        }
-        console.log(`Using upload directory: ${uploadDir}`);
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-        console.log(`Generated filename for category image: ${uniqueName}`);
-        cb(null, uniqueName);
-    }
-});
+// const storage = multer.diskStorage({
+//     destination: (req, file, cb) => {
+//         const uploadDir = path.join(__dirname, '../../uploads/categories');
+//         if (!fs.existsSync(uploadDir)) {
+//             fs.mkdirSync(uploadDir, { recursive: true });
+//             console.log(`Created upload directory: ${uploadDir}`);
+//         }
+//         console.log(`Using upload directory: ${uploadDir}`);
+//         cb(null, uploadDir);
+//     },
+//     filename: (req, file, cb) => {
+//         const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+//         console.log(`Generated filename for category image: ${uniqueName}`);
+//         cb(null, uniqueName);
+//     }
+// });
 
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+// const fileFilter = (req, file, cb) => {
+//     const allowedTypes = /jpeg|jpg|png|gif|webp/;
+//     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+//     const mimetype = allowedTypes.test(file.mimetype);
     
-    console.log(`Validating file: ${file.originalname}, mimetype: ${file.mimetype}`);
+//     console.log(`Validating file: ${file.originalname}, mimetype: ${file.mimetype}`);
     
-    if (extname && mimetype) {
-        console.log(`File accepted: ${file.originalname}`);
-        return cb(null, true);
-    } else {
-        console.log(`File rejected: ${file.originalname}, invalid type`);
-        cb(new Error('Only image files are allowed!'), false);
-    }
-};
+//     if (extname && mimetype) {
+//         console.log(`File accepted: ${file.originalname}`);
+//         return cb(null, true);
+//     } else {
+//         console.log(`File rejected: ${file.originalname}, invalid type`);
+//         cb(new Error('Only image files are allowed!'), false);
+//     }
+// };
 
-const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 2 * 1024 * 1024 // 2MB
-    }
-});
+// const upload = multer({
+//     storage: storage,
+//     fileFilter: fileFilter,
+//     limits: {
+//         fileSize: 2 * 1024 * 1024 // 2MB
+//     }
+// });
 
 // GET all categories
 router.get('/', async (req, res, next) => {
@@ -98,7 +98,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST create new category
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', uploadCategoryImage.single('image'), async (req, res) => {
     try {
         console.log('\n=== CATEGORY CREATION START ===');
         console.log('Request headers:', req.headers);
@@ -143,16 +143,23 @@ router.post('/', upload.single('image'), async (req, res) => {
         // Prepare image path if file was uploaded
         let imagePath = null;
         if (req.file) {
-            imagePath = `/uploads/categories/${req.file.filename}`;
-            console.log('Image path:', imagePath);
-            
-            // Verify the file was actually saved
-            const fullPath = path.join(__dirname, '../../uploads/categories', req.file.filename);
-            const fileExists = fs.existsSync(fullPath);
-            console.log(`Checking if file exists at ${fullPath}: ${fileExists}`);
-            
-            if (!fileExists) {
-                console.error('Warning: File was processed but not found on disk');
+            if (useCloudinary) {
+                // For Cloudinary, the path is in req.file.path for local uploads, but in req.file.secure_url for Cloudinary
+                imagePath = req.file.secure_url || req.file.path;
+                console.log('Cloudinary image URL:', imagePath);
+            } else {
+                // For local storage, use the relative path
+                imagePath = `/uploads/categories/${req.file.filename}`;
+                console.log('Local image path:', imagePath);
+                
+                // Verify the file was actually saved
+                const fullPath = path.join(__dirname, '../../uploads/categories', req.file.filename);
+                const fileExists = fs.existsSync(fullPath);
+                console.log(`Checking if file exists at ${fullPath}: ${fileExists}`);
+                
+                if (!fileExists) {
+                    console.error('Warning: File was processed but not found on disk');
+                }
             }
         }
         
@@ -162,14 +169,17 @@ router.post('/', upload.single('image'), async (req, res) => {
                 name: name.trim(),
                 description: description.trim(),
                 status,
-                image: imagePath
+                image: imagePath,
+                // Always set a slug explicitly to avoid null slugs
+                slug: `${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-6)}`
             });
             
             console.log('Saving category with data:', {
                 name: category.name,
                 description: category.description,
                 status: category.status,
-                image: category.image
+                image: category.image,
+                slug: category.slug
             });
             
             const savedCategory = await category.save();
@@ -230,8 +240,8 @@ router.post('/', upload.single('image'), async (req, res) => {
         console.error('=== CATEGORY CREATION ERROR ===');
         console.error(error);
         
-        // Clean up any uploaded file if there was an error
-        if (req.file) {
+        // Clean up any uploaded file if there was an error and we're using local storage
+        if (req.file && !useCloudinary) {
             try {
                 const filePath = path.join(__dirname, '../../uploads/categories', req.file.filename);
                 if (fs.existsSync(filePath)) {
@@ -258,44 +268,44 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // PUT update category
-router.put('/:id', (req, res, next) => {
-    upload(req, res, async (err) => {
-        if (err) {
-            return next(err);
+router.put('/:id', uploadCategoryImage.single('image'), async (req, res, next) => {
+    try {
+        const categoryId = req.params.id;
+        const { name, description, status } = req.body;
+        
+        // Find the category
+        const category = await Category.findById(categoryId);
+        if (!category) {
+            return res.status(404).json({
+                success: false,
+                message: 'Category not found'
+            });
         }
-
-        try {
-            const categoryId = req.params.id;
-            const { name, description, status } = req.body;
+        
+        // Check if new name already exists (excluding current category)
+        if (name && name !== category.name) {
+            const existingCategory = await Category.findOne({
+                name: { $regex: new RegExp(`^${name}$`, 'i') },
+                _id: { $ne: categoryId }
+            });
             
-            // Find the category
-            const category = await Category.findById(categoryId);
-            if (!category) {
-                return res.status(404).json({
+            if (existingCategory) {
+                return res.status(400).json({
                     success: false,
-                    message: 'Category not found'
+                    message: 'Category name already exists'
                 });
             }
-            
-            // Check if new name already exists (excluding current category)
-            if (name && name !== category.name) {
-                const existingCategory = await Category.findOne({
-                    name: { $regex: new RegExp(`^${name}$`, 'i') },
-                    _id: { $ne: categoryId }
-                });
-                
-                if (existingCategory) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Category name already exists'
-                    });
-                }
-            }
-            
-            // Handle image
-            let image = category.image;
-            if (req.file) {
-                // Delete old image
+        }
+        
+        // Handle image
+        let image = category.image;
+        if (req.file) {
+            if (useCloudinary) {
+                // For Cloudinary, use the secure URL
+                image = req.file.secure_url;
+                console.log('Updated with Cloudinary image:', image);
+            } else {
+                // For local storage, delete old image and use new path
                 if (category.image) {
                     const oldImagePath = path.join(__dirname, '../..', category.image);
                     if (fs.existsSync(oldImagePath)) {
@@ -304,33 +314,37 @@ router.put('/:id', (req, res, next) => {
                 }
                 image = `/uploads/categories/${req.file.filename}`;
             }
-            
-            // Update category
-            category.name = name || category.name;
-            category.description = description || category.description;
-            category.image = image;
-            category.status = status || category.status;
-            category.updatedAt = Date.now();
-            
-            // Save updated category
-            const updatedCategory = await category.save();
-            
-            // Transform URLs using our helper function
-            const transformedCategory = transformItemUrls(updatedCategory);
-            
-            res.json({
-                success: true,
-                message: 'Category updated successfully',
-                category: transformedCategory
-            });
-        } catch (error) {
-            // Clean up uploaded file if there was an error
-            if (req.file) {
-                fs.unlinkSync(req.file.path);
-            }
-            next(error);
         }
-    });
+        
+        // Update category
+        category.name = name || category.name;
+        category.description = description || category.description;
+        category.image = image;
+        category.status = status || category.status;
+        category.updatedAt = Date.now();
+        
+        // Save updated category
+        const updatedCategory = await category.save();
+        
+        // Transform URLs using our helper function
+        const transformedCategory = transformItemUrls(updatedCategory);
+        
+        res.json({
+            success: true,
+            message: 'Category updated successfully',
+            category: transformedCategory
+        });
+    } catch (error) {
+        // Clean up uploaded file if there was an error and we're using local storage
+        if (req.file && !useCloudinary) {
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch (e) {
+                console.error('Error deleting file:', e);
+            }
+        }
+        next(error);
+    }
 });
 
 // DELETE category
@@ -345,8 +359,8 @@ router.delete('/:id', async (req, res, next) => {
             });
         }
         
-        // Delete category image if exists
-        if (category.image) {
+        // Delete category image if exists locally
+        if (category.image && !useCloudinary && !category.image.includes('cloudinary')) {
             const imagePath = path.join(__dirname, '../..', category.image);
             if (fs.existsSync(imagePath)) {
                 fs.unlinkSync(imagePath);

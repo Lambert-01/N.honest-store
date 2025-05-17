@@ -30,6 +30,18 @@ function getBaseUrl() {
 }
 
 /**
+ * Checks if a URL is from Cloudinary
+ * @param {string} url - The URL to check
+ * @returns {boolean} True if the URL is from Cloudinary
+ */
+function isCloudinaryUrl(url) {
+  return url && (
+    url.includes('cloudinary.com') || 
+    url.includes('res.cloudinary.com')
+  );
+}
+
+/**
  * Ensures a URL is absolute by adding the base URL if needed
  * @param {string} url - The URL to check and possibly transform
  * @returns {string} An absolute URL
@@ -37,8 +49,8 @@ function getBaseUrl() {
 function ensureAbsoluteUrl(url) {
   if (!url) return '';
   
-  // If it's already an absolute URL, return it as is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  // If it's already an absolute URL (including Cloudinary URLs), return it as is
+  if (url.startsWith('http://') || url.startsWith('https://') || isCloudinaryUrl(url)) {
     return url;
   }
   
@@ -64,17 +76,25 @@ function transformItemUrls(item) {
   
   // Handle featured image (for products)
   if (transformed.featuredImage) {
-    transformed.featuredImage = ensureAbsoluteUrl(transformed.featuredImage);
+    // Don't modify Cloudinary URLs
+    if (!isCloudinaryUrl(transformed.featuredImage)) {
+      transformed.featuredImage = ensureAbsoluteUrl(transformed.featuredImage);
+    }
   }
   
   // Handle regular image (for categories)
   if (transformed.image) {
-    transformed.image = ensureAbsoluteUrl(transformed.image);
+    // Don't modify Cloudinary URLs
+    if (!isCloudinaryUrl(transformed.image)) {
+      transformed.image = ensureAbsoluteUrl(transformed.image);
+    }
   }
   
   // Handle multiple images array (for products)
   if (transformed.images && Array.isArray(transformed.images)) {
-    transformed.images = transformed.images.map(img => ensureAbsoluteUrl(img));
+    transformed.images = transformed.images.map(img => 
+      isCloudinaryUrl(img) ? img : ensureAbsoluteUrl(img)
+    );
   }
   
   return transformed;
@@ -83,5 +103,6 @@ function transformItemUrls(item) {
 module.exports = {
   getBaseUrl,
   ensureAbsoluteUrl,
-  transformItemUrls
+  transformItemUrls,
+  isCloudinaryUrl
 };

@@ -319,36 +319,40 @@ app.use((req, res) => {
     res.status(404).send('Page not found');
 });
 
-// DB Connection & Server Start
-connectDB()
-  .then(connection => {
-    if (connection) {
-      console.log('MongoDB connection established successfully');
+// Connect to MongoDB
+const startServer = async () => {
+  try {
+    await connectDB();
+    console.log('MongoDB Connected...');
+    
+    // Fix any existing categories with null slugs
+    try {
+      const Category = require('./models/Categories');
+      console.log('Attempting to fix categories with null slugs...');
+      const fixedCount = await Category.fixNullSlugs();
+      console.log(`Fixed ${fixedCount} categories with null slugs`);
+    } catch (slugError) {
+      console.error('Error fixing category slugs:', slugError);
+    }
+    
+    // Attempt to drop SKU index from products collection
+    try {
+      console.log('Attempting to drop SKU index from products collection...');
+      const db = mongoose.connection.db;
+      const collection = db.collection('products');
+      const indexes = await collection.indexes();
+      const skuIndex = indexes.find(index => index.key && index.key.sku);
       
-      // Try to drop the SKU index but don't let it block the application
-      try {
-        const Product = require('./models/Product');
-        Product.dropSkuIndex()
-          .then(() => console.log('SKU index dropped successfully'))
-          .catch(err => {
-            console.warn('Warning: Could not drop SKU index, but continuing anyway:', err.message);
-            // This is non-critical, so we can continue
-          });
-      } catch (error) {
-        console.warn('Warning: Error in SKU index dropping setup, but continuing anyway:', error.message);
+      if (skuIndex) {
+        await collection.dropIndex(skuIndex.name);
+        console.log('Successfully dropped SKU index from products collection');
+      } else {
+        console.log('No SKU index found in products collection');
       }
-    } else {
-      console.warn('Running without MongoDB connection - limited functionality available');
+    } catch (error) {
+      console.error('Error dropping SKU index:', error);
     }
-  })
-  .catch(err => {
-    console.error('Failed to establish MongoDB connection:', err.message);
-    // Don't exit in production, allow the app to start with limited functionality
-    if (process.env.NODE_ENV !== 'production') {
-      process.exit(1);
-    }
-  })
-  .then(() => {
+    
     const PORT = process.env.PORT || 3000;
     
     // Create placeholder image if it doesn't exist
@@ -374,6 +378,15 @@ connectDB()
     app.listen(PORT, () => {
         console.log(`✅ Server running on http://localhost:${PORT}`);
     });
-  });
+  } catch (err) {
+    console.error('Failed to connect to MongoDB:', err.message);
+    // Don't exit in production, allow the app to start with limited functionality
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
+  }
+};
+
+startServer();
 
 module.exports = app;

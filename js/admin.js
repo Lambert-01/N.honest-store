@@ -95,6 +95,12 @@ window.fixImageUrl = function(url) {
         return url;
     }
     
+    // Check for Cloudinary URLs and return them unchanged
+    if (url.includes('cloudinary.com') || url.includes('res.cloudinary.com')) {
+        console.log('Detected Cloudinary URL, returning as-is:', url);
+        return url;
+    }
+    
     // If the URL is already absolute and valid, return it
     if (url.match(/^https?:\/\/.+/)) {
         return url;
@@ -148,6 +154,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Add to failed images map to prevent retry loops
             failedImages.set(src, true);
+            
+            // Skip Cloudinary URLs - they should work as-is
+            if (src.includes('cloudinary.com') || src.includes('res.cloudinary.com')) {
+                console.log('Cloudinary image failed to load, using placeholder:', src);
+                e.target.src = 'images/placeholder.png';
+                e.target.classList.add('placeholder-image');
+                return;
+            }
             
             // For product/category images, try different URL formats
             if (src.includes('/uploads/')) {
@@ -728,7 +742,6 @@ function setupProductFormHandler() {
             // Check for variants-json first (new format)
             const variantsJsonInput = document.getElementById('variants-json');
             if (variantsJsonInput && variantsJsonInput.value) {
-                console.log('Found variants-json input, using its value');
                 formData.set('variants', variantsJsonInput.value);
                 console.log('Set variants from variants-json input:', variantsJsonInput.value.substring(0, 100) + '...');
             } 
@@ -1733,9 +1746,6 @@ class ProductManager {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.loadProducts());
         }
-
-        // Set up bulk action handlers
-        this.setupBulkActions();
 
         // NOTE: We removed the form submission handler as it's now handled by setupProductFormHandler
     }
@@ -3938,22 +3948,15 @@ function generateProductVariants() {
     }
     
     // Get base product details
-    const baseSku = document.getElementById('sku')?.value || '';
-    const basePrice = parseFloat(document.getElementById('price')?.value || 0);
+    const basePrice = parseFloat(document.getElementById('price').value) || 0;
     
     // Generate combinations
     productVariants = generateVariantCombinations(productAttributes);
     
-    // Add SKU, price and stock to each variant
+    // Add price and stock to each variant
     productVariants = productVariants.map((variant, index) => {
-        // Create a SKU suffix from variant
-        const skuSuffix = variant.combination
-            .map(item => item.value.substring(0, 2).toUpperCase())
-            .join('-');
-        
         return {
             ...variant,
-            sku: `${baseSku}-${skuSuffix}`,
             price: basePrice,
             stock: 0
         };
