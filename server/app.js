@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const connectDB = require('./db');
 const { router: authRouter, auth } = require('./routes/auth');
+const { router: customerAuthRouter, customerAuth } = require('./routes/customerAuth');
 const categoriesRoutes = require('./routes/categories');
 const productsRoutes = require('./routes/products');
 const ordersRoutes = require('./routes/orders');
@@ -91,6 +92,27 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Serve static files from various directories
+app.use(express.static(path.join(__dirname, '../public')));
+app.use('/css', express.static(path.join(__dirname, '../css')));
+app.use('/js', express.static(path.join(__dirname, '../js')));
+app.use('/images', express.static(path.join(__dirname, '../images')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Serve admin files
+app.use('/admin', express.static(path.join(__dirname, '../admin')));
+
+// Admin routes
+app.use('/login.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin/login.html'));
+});
+app.use('/signup.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin/signup.html'));
+});
+app.use('/admin.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin/admin.html'));
+});
+
 // Configure Express to serve static files from uploads folder with proper debug info
 app.use('/uploads', (req, res, next) => {
   console.log(`Accessing uploads file: ${req.path}`);
@@ -131,8 +153,10 @@ app.use('/uploads', (req, res, next) => {
   }
 }));
 
-// Configure Express to serve static files from the root directory
-app.use(express.static(path.join(__dirname, '../')));
+// Redirect root to index.html in public
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // For specific product images
 app.use('/uploads/products', express.static(path.join(__dirname, '../uploads/products'), {
@@ -191,33 +215,47 @@ app.use('/uploads/*', (req, res, next) => {
 // === STATIC FILE HANDLING WITH CARE ===
 // Main site route
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../index.html'));
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Login route
+// Login routes
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '../login.html'));
+    res.sendFile(path.join(__dirname, '../admin/login.html'));
 });
 
-// Signup route
-app.get('/signup', (req, res) => {
-    res.sendFile(path.join(__dirname, '../signup.html'));
+app.get('/client-login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/client-login.html'));
 });
 
-// Admin panel route (protected)
+app.get('/client-signup', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/client-signup.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/reset-password.html'));
+});
+
+// Verify email route
+app.get('/verify-email', (req, res) => {
+    // This route will be handled by the API, just redirect to it
+    res.redirect(`/api/customer/verify-email?token=${req.query.token}`);
+});
+
+// Admin routes
 app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, '../admin.html'));
+    res.sendFile(path.join(__dirname, '../admin/admin.html'));
+});
+
+app.get('/signup', (req, res) => {
+    res.sendFile(path.join(__dirname, '../admin/signup.html'));
 });
 
 // API Routes - Order matters! Put specific routes before general ones
 app.use('/api/auth', authRouter);
-
-// Protected API routes - require authentication - These should come BEFORE the general API route
+app.use('/api/customer', customerAuthRouter);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
-
-// Register general API router - This should come AFTER specific routes
 app.use('/api', apiRoutes);
 
 // Simple ping endpoint for connectivity checks
@@ -272,6 +310,8 @@ app.use((err, req, res, next) => {
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../')));
+app.use('/public', express.static(path.join(__dirname, '../public')));
+app.use('/admin', express.static(path.join(__dirname, '../admin')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Serve static assets explicitly to ensure they have proper content types

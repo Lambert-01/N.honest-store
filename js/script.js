@@ -1,25 +1,7 @@
-// Get the base URL dynamically
-const getBaseUrl = () => {
-  if (window.location.hostname.includes('localhost')) {
-    return 'http://localhost:5000'; // Development backend
-  } else {
-    return 'https://n-honest.onrender.com'; // Production backend
-  }
-};
-
-// API endpoints
-const API = {
-  products: `${getBaseUrl()}/api/products`,
-  categories: `${getBaseUrl()}/api/categories`,
-  orders: `${getBaseUrl()}/api/orders`,
-  payments: `${getBaseUrl()}/api/payments`
-};
-
-
 // Global Variables
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 let currentPage = 1;
-const productsPerPage = 8;
+const productsPerPage = 15; // 5 rows of 3 products each
 let totalProducts = 0;
 let currentCategory = '';
 let currentSort = '';
@@ -474,7 +456,7 @@ async function loadProducts() {
     toggleProductStates(false, false, true);
     
     // Build the API URL with query parameters for filtering
-    let apiUrl = API.products;
+    let apiUrl = '/api/products';
     
     // Add query parameters array
     const queryParams = [];
@@ -482,7 +464,7 @@ async function loadProducts() {
     // If a category is selected, use the category-specific endpoint
     if (currentCategory) {
       console.log(`Category filter active with ID: "${currentCategory}"`);
-      apiUrl = `${getBaseUrl()}/api/products/category/${currentCategory}`;
+      apiUrl = `/api/products/category/${currentCategory}`;
       console.log(`Using category-specific endpoint: ${apiUrl}`);
       
       // Add pagination to category endpoint
@@ -666,7 +648,7 @@ function createProductCard(product) {
   const isOutOfStock = (product.stock <= 0);
   
   return `
-    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
       <div class="product-card h-100 position-relative overflow-hidden shadow-sm rounded-4 border">
         ${discountHTML}
         <div class="position-absolute top-0 end-0 p-2">
@@ -701,6 +683,17 @@ function createProductCard(product) {
             </div>
             <span class="rating-count small text-muted">(${product.reviews || Math.floor(Math.random() * 50) + 5})</span>
           </div>
+          
+          ${product.variants && product.variants.length > 0 ? `
+          <div class="product-variants mb-2">
+            <div class="small text-muted mb-1">Available Options:</div>
+            <div class="variants-container d-flex flex-wrap gap-1">
+              ${product.variants.slice(0, 3).map(variant => `
+                <span class="badge bg-light text-dark border">${variant.name}</span>
+              `).join('')}
+              ${product.variants.length > 3 ? `<span class="badge bg-secondary">+${product.variants.length - 3} more</span>` : ''}
+            </div>
+          </div>` : ''}
           
           <div class="product-actions d-flex justify-content-between align-items-center">
             <div class="quantity-selector d-flex align-items-center border rounded">
@@ -1174,7 +1167,7 @@ async function processMobileMoneyPayment() {
 
  try {
   // Send payment request to backend
-  const response = await fetch(`${API.payments}/create-payment`, {
+  const response = await fetch('/api/payments/create-payment', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1306,7 +1299,7 @@ async function saveOrderToDatabase() {
 
   try {
     // In a real app, you would send this to your backend API
-    const response = await fetch(API.orders, {
+    const response = await fetch('/api/orders', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1333,58 +1326,198 @@ function completeOrder() {
   console.log('Order completed');
 }
 
-// Initialize checkout process when DOM is loaded
-document.addEventListener('DOMContentLoaded', setupCheckoutProcess);
-
-// Show quick view modal for a product
+// Show Quick View Modal
 function showQuickView(product) {
-  // Get modal elements
-  const quickViewModal = document.getElementById('quickViewModal');
-  const quickViewTitle = document.getElementById('quick-view-title');
-  const quickViewImage = document.getElementById('quick-view-image');
-  const quickViewPrice = document.getElementById('quick-view-price');
-  const quickViewOriginalPrice = document.getElementById('quick-view-original-price');
-  const quickViewRating = document.getElementById('quick-view-rating');
-  const quickViewInnerStars = quickViewRating.querySelector('.stars-inner');
-  const quickViewReviews = document.getElementById('quick-view-reviews');
-  const quickViewStock = document.getElementById('quick-view-stock');
-  const quickViewDescription = document.getElementById('quick-view-description');
-  const quickViewVariants = document.getElementById('quick-view-variants');
-  const quickViewQuantity = document.getElementById('quick-view-quantity');
-  const quickViewDecrease = document.getElementById('quick-view-decrease');
-  const quickViewIncrease = document.getElementById('quick-view-increase');
-  const quickViewAddToCart = document.getElementById('quick-view-add-to-cart');
+  console.log('Quick view for product:', product);
   
-  // Set basic product details
-  quickViewTitle.textContent = product.name;
-  quickViewImage.src = product.image || 'images/placeholder.png';
-  quickViewImage.alt = product.name;
-  
-  // Set price
-  quickViewPrice.textContent = `RWF ${product.price.toLocaleString()}`;
-  
-  // Set original price if available
-  if (product.originalPrice && product.originalPrice > product.price) {
-    quickViewOriginalPrice.textContent = `RWF ${product.originalPrice.toLocaleString()}`;
-    quickViewOriginalPrice.style.display = 'inline';
-  } else {
-    quickViewOriginalPrice.style.display = 'none';
+  // Create modal if it doesn't exist
+  let quickViewModal = document.getElementById('quickViewModal');
+  if (!quickViewModal) {
+    const modalHTML = `
+      <div class="modal fade" id="quickViewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Product Details</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="quickViewContent"></div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    quickViewModal = document.getElementById('quickViewModal');
   }
   
-  // Set rating and reviews
-  const rating = product.rating || 4;
-  quickViewInnerStars.style.width = `${rating * 20}%`;
-  quickViewReviews.textContent = `(${product.reviews || Math.floor(Math.random() * 50) + 5} reviews)`;
+  // Get modal content container
+  const quickViewContent = document.getElementById('quickViewContent');
   
-  // Set stock status
-  quickViewStock.innerHTML = getStockStatus(product.stock);
+  // Default image if product image is missing
+  const productImage = product.image || product.featuredImage || 'images/placeholder.png';
   
-  // Set max quantity based on stock
-  quickViewQuantity.max = product.stock || 10;
-  quickViewQuantity.value = 1;
+  // Determine if item is out of stock
+  const isOutOfStock = (product.stock <= 0);
   
-  // Set description
-  quickViewDescription.textContent = product.description || 'No description available for this product.';
+  // Create discount tag HTML if there's a discount
+  const discountHTML = calculateDiscountHTML(product);
+  
+  // Generate variants HTML
+  let variantsHTML = '';
+  if (product.variants && product.variants.length > 0) {
+    variantsHTML = `
+      <div class="product-variants mb-3">
+        <h6 class="fw-bold mb-2">Available Options</h6>
+        <div class="variants-container">
+          <div class="row g-2">
+            ${product.variants.map(variant => `
+              <div class="col-md-6">
+                <div class="variant-item p-2 border rounded d-flex justify-content-between align-items-center">
+                  <div>
+                    <span class="variant-name">${variant.name}</span>
+                    ${variant.combination && variant.combination.length > 0 ? 
+                      `<small class="d-block text-muted">${variant.combination.join(' / ')}</small>` : ''}
+                  </div>
+                  <div class="variant-price fw-bold">RWF ${variant.price.toLocaleString()}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Populate modal content
+  quickViewContent.innerHTML = `
+    <div class="row">
+      <div class="col-md-6">
+        <div class="product-image-container position-relative">
+          ${discountHTML}
+          <img src="${productImage}" class="img-fluid rounded" alt="${product.name}">
+        </div>
+        ${product.images && product.images.length > 1 ? `
+          <div class="product-thumbnails d-flex mt-2 gap-2 overflow-auto">
+            ${product.images.map(img => `
+              <div class="thumbnail-item">
+                <img src="${img}" class="img-thumbnail" alt="${product.name}" style="width: 70px; height: 70px; object-fit: cover; cursor: pointer;">
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+      <div class="col-md-6">
+        <div class="product-category small text-muted mb-1">${product.category ? product.category.name : 'Uncategorized'}</div>
+        <h3 class="product-title h4 mb-2">${product.name}</h3>
+        
+        <div class="product-rating mb-3">
+          <div class="stars-outer">
+            <div class="stars-inner" style="width: ${(product.rating || 4) * 20}%"></div>
+          </div>
+          <span class="rating-count small text-muted">(${product.reviews || Math.floor(Math.random() * 50) + 5} reviews)</span>
+        </div>
+        
+        <div class="product-price mb-3">
+          <span class="fw-bold fs-4">RWF ${product.price.toLocaleString()}</span>
+          ${product.originalPrice ? `<span class="text-decoration-line-through text-muted ms-2">RWF ${product.originalPrice.toLocaleString()}</span>` : ''}
+        </div>
+        
+        <div class="product-description mb-3">
+          <p>${product.description || 'No description available.'}</p>
+        </div>
+        
+        ${variantsHTML}
+        
+        <div class="product-actions">
+          <div class="row g-2 align-items-center">
+            <div class="col-auto">
+              <div class="quantity-selector d-flex align-items-center border rounded">
+                <button class="btn btn-sm btn-quantity" data-action="decrease" ${isOutOfStock ? 'disabled' : ''}>-</button>
+                <input type="number" class="form-control form-control-sm text-center border-0 product-quantity" value="1" min="1" max="${product.stock || 10}" style="width: 50px" ${isOutOfStock ? 'disabled' : ''}>
+                <button class="btn btn-sm btn-quantity" data-action="increase" ${isOutOfStock ? 'disabled' : ''}>+</button>
+              </div>
+            </div>
+            <div class="col">
+              <button class="btn ${isOutOfStock ? 'btn-secondary' : 'btn-primary'} w-100 add-to-cart-btn" data-product-id="${product._id}" ${isOutOfStock ? 'disabled' : ''}>
+                <i class="fas ${isOutOfStock ? 'fa-ban' : 'fa-shopping-cart'} me-2"></i> ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+              </button>
+            </div>
+          </div>
+          
+          <div class="d-flex justify-content-between mt-3">
+            <button class="btn btn-outline-secondary btn-sm">
+              <i class="far fa-heart me-1"></i> Add to Wishlist
+            </button>
+            <button class="btn btn-outline-secondary btn-sm">
+              <i class="fas fa-share-alt me-1"></i> Share
+            </button>
+          </div>
+        </div>
+        
+        <div class="product-meta mt-4 pt-3 border-top">
+          <div class="row">
+            <div class="col-6">
+              <small class="text-muted">SKU: </small>
+              <small>${product.sku || 'N/A'}</small>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">Stock: </small>
+              <small>${product.stock || 0} units</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Initialize modal and show it
+  const quickViewModalObj = new bootstrap.Modal(quickViewModal);
+  quickViewModalObj.show();
+  
+  // Add event listeners for thumbnails
+  const thumbnails = quickViewModal.querySelectorAll('.thumbnail-item img');
+  const mainImage = quickViewModal.querySelector('.product-image-container img');
+  
+  thumbnails.forEach(thumb => {
+    thumb.addEventListener('click', function() {
+      mainImage.src = this.src;
+    });
+  });
+  
+  // Add event listeners for quantity buttons
+  const decreaseBtn = quickViewModal.querySelector('[data-action="decrease"]');
+  const increaseBtn = quickViewModal.querySelector('[data-action="increase"]');
+  const quantityInput = quickViewModal.querySelector('.product-quantity');
+  
+  if (decreaseBtn && increaseBtn && quantityInput) {
+    decreaseBtn.addEventListener('click', function() {
+      let quantity = parseInt(quantityInput.value);
+      if (quantity > 1) {
+        quantityInput.value = --quantity;
+      }
+    });
+    
+    increaseBtn.addEventListener('click', function() {
+      let quantity = parseInt(quantityInput.value);
+      const max = parseInt(quantityInput.max);
+      if (quantity < max) {
+        quantityInput.value = ++quantity;
+      }
+    });
+  }
+  
+  // Add event listener for add to cart button
+  const addToCartBtn = quickViewModal.querySelector('.add-to-cart-btn');
+  if (addToCartBtn) {
+    addToCartBtn.addEventListener('click', function() {
+      const quantity = parseInt(quantityInput.value);
+      addToCart(product, null, quantity);
+      showToast(`${product.name} added to cart`);
+      
+      // Close modal after adding to cart
+      modal.hide();
+    });
+  }
   
   // Handle variants if any
   if (product.variants && product.variants.length > 0) {
@@ -1583,8 +1716,8 @@ function showQuickView(product) {
         quickViewAddToCart.classList.remove('btn-success');
     
     // Close the modal
-    const modal = bootstrap.Modal.getInstance(quickViewModal);
-    modal.hide();
+    const quickViewModalInstance = bootstrap.Modal.getInstance(quickViewModal);
+    quickViewModalInstance.hide();
       }, 1500);
       } else {
       // Show error message
@@ -1601,7 +1734,7 @@ function showQuickView(product) {
 async function loadCategories() {
   try {
     console.log('=== LOADING CATEGORIES ===');
-    const response = await fetch(API.categories);
+    const response = await fetch('/api/categories');
     if (!response.ok) {
       console.error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
