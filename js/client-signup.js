@@ -108,13 +108,41 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error || 'Registration failed');
                 }
                 
+                // Send welcome email using EmailJS if needed
+                if (data.useClientEmail) {
+                    try {
+                        // Use email parameters from server if available, or create default ones
+                        const emailParams = data.emailParams || {
+                            to_name: firstName + ' ' + lastName,
+                            to_email: email,
+                            subject: 'Welcome to N.honest Supermarket!',
+                            message: 'Thank you for creating an account with N.honest Supermarket. Your account has been successfully created and you can now log in to start shopping!'
+                        };
+                        
+                        // Send the email using EmailJS configuration utility
+                        window.emailConfig.sendEmail(emailParams)
+                            .then(function(response) {
+                                console.log('Email sent successfully:', response);
+                            })
+                            .catch(function(error) {
+                                console.error('Email sending failed:', error);
+                            });
+                    } catch (emailError) {
+                        console.error('Error sending welcome email:', emailError);
+                    }
+                }
+                
                 // Store success message for login page
                 sessionStorage.setItem('customerLoginMessage', 'success:' + data.message);
                 
-                // Create success alert
+                // Create enhanced success alert
                 const successAlert = document.createElement('div');
                 successAlert.className = 'alert alert-success';
-                successAlert.textContent = data.message;
+                successAlert.innerHTML = `<strong>Success!</strong> ${data.message} <br>
+                    Your account has been created with the following details:<br>
+                    Name: ${firstName} ${lastName}<br>
+                    Email: ${email}<br>
+                    A welcome email has been sent to your address.`;
                 
                 // Replace error alert with success alert
                 if (errorAlert) {
@@ -122,6 +150,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     signupForm.prepend(successAlert);
                 }
+                
+                // Log success message to console for confirmation
+                console.log('✅ Signup successful! Customer details saved to MongoDB:');
+                console.log(`Name: ${firstName} ${lastName}`);
+                console.log(`Email: ${email}`);
+                console.log(`Phone: ${phone}`);
+                console.log('Customer ID:', data.customer?._id || 'Not available');
                 
                 // Disable form fields
                 const formInputs = signupForm.querySelectorAll('input, button[type="submit"]');

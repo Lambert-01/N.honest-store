@@ -7,9 +7,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="format-detection" content="telephone=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="author" content="">
     <meta name="keywords" content="supermarket, grocery, online shopping, Rwanda, Kigali, food delivery">
     <meta name="description" content="N.Honest Supermarket - Your trusted grocery partner in Rwanda. Fresh products, quick delivery, competitive prices.">
+    <!-- Using EmailJS for email notifications -->
+    <meta name="emailjs-service-id" content="service_3hekbvk">
+    <meta name="emailjs-template-id" content="template_zpxvfqs">
+    <meta name="emailjs-public-key" content="WOcO2ZGCFwjylrI2f">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
@@ -1147,6 +1152,13 @@
 <script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/script.js"></script>
+    
+<!-- EmailJS SDK -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<!-- EmailJS Configuration -->
+<script type="text/javascript" src="js/emailConfig.js"></script>
+<!-- Email Authentication -->
+<script type="text/javascript" src="js/email-auth.js"></script>
 
 <!-- Product Quick View Modal -->
 <div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
@@ -1238,8 +1250,24 @@
 
             <div class="alert alert-danger d-none" id="login-error"></div>
             <div class="alert alert-success d-none" id="login-success"></div>
+            <div id="login-alerts"></div>
+            <div class="alert alert-warning d-none" id="login-verification-reminder">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle me-3 fs-4"></i>
+                <div>
+                  <h5 class="mb-1">Email Verification Required</h5>
+                  <p class="mb-0">Your account needs to be verified before you can log in. Please check your email for a verification link.</p>
+                  <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-primary" id="login-resend-verification-btn">
+                      <i class="fas fa-paper-plane me-1"></i> Resend Verification Email
+                    </button>
+                    <input type="hidden" id="verification-email" value="">
+                  </div>
+                </div>
+              </div>
+            </div>
             
-            <form id="modal-login-form">
+            <form id="login-form">
               <div class="mb-3">
                 <label for="login-email" class="form-label">Email</label>
                 <div class="input-group">
@@ -1273,9 +1301,9 @@
               </div>
               
               <div class="d-grid gap-2">
-                <button type="button" class="btn btn-outline-secondary" id="google-signin-btn">
-                  <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google logo" width="18" height="18" class="me-2">
-                  Sign in with Google
+                <button type="button" class="btn btn-outline-primary" id="email-signin-btn">
+                  <i class="fas fa-envelope me-2"></i>
+                  Sign in with Email
                 </button>
               </div>
             </form>
@@ -1316,16 +1344,33 @@
 
             <div class="alert alert-danger d-none" id="signup-error"></div>
             <div class="alert alert-success d-none" id="signup-success"></div>
+            <div class="alert alert-info d-none" id="verification-reminder">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-envelope-open-text me-3 fs-4"></i>
+                <div>
+                  <h5 class="mb-1">Please Verify Your Email</h5>
+                  <p class="mb-0">We've sent a verification link to your Gmail account. Please check your inbox and click the link to verify your email address.</p>
+                  <div class="mt-2">
+                    <a href="https://mail.google.com/mail/" target="_blank" class="btn btn-sm btn-primary">
+                      <i class="fab fa-google me-1"></i> Open Gmail
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="resend-verification-btn">
+                      <i class="fas fa-paper-plane me-1"></i> Resend Email
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
             
-            <form id="modal-signup-form">
+            <form id="signup-form">
               <div class="row mb-3">
                 <div class="col">
-                  <label for="signup-firstname" class="form-label">First Name</label>
-                  <input type="text" class="form-control" id="signup-firstname" name="firstName" required>
+                  <label for="signup-firstName" class="form-label">First Name</label>
+                  <input type="text" class="form-control" id="signup-firstName" name="firstName" required>
                 </div>
                 <div class="col">
-                  <label for="signup-lastname" class="form-label">Last Name</label>
-                  <input type="text" class="form-control" id="signup-lastname" name="lastName" required>
+                  <label for="signup-lastName" class="form-label">Last Name</label>
+                  <input type="text" class="form-control" id="signup-lastName" name="lastName" required>
                 </div>
               </div>
               <div class="mb-3">
@@ -1387,8 +1432,8 @@
           <!-- My Account Tab -->
           <div class="tab-pane fade" id="account-tab-pane" role="tabpanel" aria-labelledby="account-tab" tabindex="0">
             <div class="text-center mb-4">
-              <div class="avatar-circle mx-auto mb-3">
-                <span class="avatar-initials" id="user-initials">JD</span>
+              <div class="profile-image-container mx-auto mb-3">
+                <img src="https://ui-avatars.com/api/?name=N+Honest&background=random&color=fff&size=200" id="user-profile-image" class="rounded-circle" style="width: 100px; height: 100px; object-fit: cover; border: 3px solid #4CAF50;" alt="Profile Image">
               </div>
               <h5 class="modal-title" id="user-full-name">John Doe</h5>
               <p class="text-muted" id="user-email">john.doe@example.com</p>
@@ -1434,7 +1479,7 @@
             </div>
 
             <div class="d-grid gap-2">
-              <button type="button" class="btn btn-outline-danger" id="logout-btn">
+              <button type="button" class="btn btn-outline-danger" id="logout-button">
                 <i class="fas fa-sign-out-alt me-2"></i>Logout
               </button>
             </div>

@@ -187,6 +187,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Clear any failed login attempts
                 localStorage.removeItem(SESSION_CONFIG.attemptsKey);
                 
+                // Send login notification email using EmailJS
+                try {
+                    const customer = data.customer;
+                    const emailParams = {
+                        to_name: customer.firstName + ' ' + customer.lastName,
+                        to_email: customer.email,
+                        message: 'You have successfully logged in to your N.honest Supermarket account. If this was not you, please contact us immediately.'
+                    };
+                    
+                    // Send the email using EmailJS configuration utility
+                    window.emailConfig.sendEmail(emailParams)
+                        .then(function(response) {
+                            console.log('Login notification email sent successfully:', response);
+                        })
+                        .catch(function(error) {
+                            console.error('Login notification email sending failed:', error);
+                        });
+                } catch (emailError) {
+                    console.error('Error sending login notification email:', emailError);
+                }
+                
                 // Show success message
                 showSuccessMessage('Login successful! Redirecting...');
                 

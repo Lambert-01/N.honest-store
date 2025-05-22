@@ -21,17 +21,15 @@ const customerSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: function() {
-            return !this.googleId; // Password is required only if not using Google Sign-In
-        }
-    },
-    googleId: {
-        type: String,
-        sparse: true,
-        unique: true
+        required: true
     },
     picture: {
-        type: String
+        type: String,
+        default: function() {
+            // Generate a profile image URL based on the user's email using Gravatar or UI Avatars
+            const emailHash = require('crypto').createHash('md5').update(this.email.toLowerCase().trim()).digest('hex');
+            return `https://www.gravatar.com/avatar/${emailHash}?d=https://ui-avatars.com/api/?name=${encodeURIComponent(this.firstName + '+' + this.lastName)}&background=random&color=fff&size=200`;
+        }
     },
     phone: {
         type: String,
@@ -47,6 +45,24 @@ const customerSchema = new mongoose.Schema({
     isVerified: {
         type: Boolean,
         default: false
+    },
+    emailPreferences: {
+        welcomeEmail: {
+            type: Boolean,
+            default: true
+        },
+        loginNotifications: {
+            type: Boolean,
+            default: true
+        },
+        marketingEmails: {
+            type: Boolean,
+            default: true
+        },
+        orderConfirmations: {
+            type: Boolean,
+            default: true
+        }
     },
     verificationToken: {
         type: String

@@ -394,7 +394,7 @@ const startServer = async () => {
     }
     
     const PORT = process.env.PORT || 3000;
-    const HOST = process.env.HOST || '0.0.0.0';
+    
     // Create placeholder image if it doesn't exist
     const placeholderPath = path.join(__dirname, '../images/placeholder.png');
     if (!fs.existsSync(placeholderPath)) {
@@ -416,7 +416,7 @@ const startServer = async () => {
     }
     
     app.listen(PORT, () => {
-        console.log(`✅ Server running on http://${HOST}:${PORT}`);
+        console.log(`✅ Server running on http://localhost:${PORT}`);
     });
   } catch (err) {
     console.error('Failed to connect to MongoDB:', err.message);
