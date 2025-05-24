@@ -84,11 +84,17 @@ createUploadDirs();
 
 // Middleware
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' ? 'https://n-honest.onrender.com' : true,
+    origin: process.env.NODE_ENV === 'production' ? ['https://nhonestsupermarket.com', 'https://www.nhonestsupermarket.com'] : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Log all API requests in production to help debug
+app.use('/api', (req, res, next) => {
+    console.log(`${req.method} ${req.originalUrl}`);
+    next();
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

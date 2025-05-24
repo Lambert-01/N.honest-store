@@ -5,11 +5,16 @@
 
 // Function to handle Google Sign-In callback
 function handleGoogleSignIn(response) {
+    console.log('Google Sign-In response received:', response);
     // Get the ID token from the response
     const credential = response.credential;
     
+    // Determine the API URL based on environment
+    const apiUrl = getApiUrl();
+    console.log('Using API URL for Google auth:', apiUrl);
+    
     // Send the token to your backend for verification
-    fetch('/api/customer/google/login', {
+    fetch(`${apiUrl}/api/customer/google/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -52,6 +57,17 @@ function handleGoogleSignIn(response) {
             errorAlert.style.display = 'block';
         }
     });
+}
+
+// Function to determine the API URL based on environment
+function getApiUrl() {
+    // Check if we're running on production domain
+    const hostname = window.location.hostname;
+    if (hostname === 'nhonestsupermarket.com' || hostname === 'www.nhonestsupermarket.com') {
+        return 'https://nhonestsupermarket.com';
+    }
+    // Default to local development
+    return '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -207,12 +223,19 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
             
             try {
-                const response = await fetch('/api/customer/login', {
+                // Get the API URL based on environment
+                const apiUrl = getApiUrl();
+                console.log('Using API URL for login:', apiUrl);
+                
+                const response = await fetch(`${apiUrl}/api/customer/login`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
                 });
                 
                 const data = await response.json();
@@ -311,7 +334,11 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
             
             try {
-                const response = await fetch('/api/customer/forgot-password', {
+                // Get the API URL based on environment
+                const apiUrl = getApiUrl();
+                console.log('Using API URL for forgot password:', apiUrl);
+                
+                const response = await fetch(`${apiUrl}/api/customer/forgot-password`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -364,7 +391,11 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
             
             try {
-                const response = await fetch('/api/customer/resend-verification', {
+                // Get the API URL based on environment
+                const apiUrl = getApiUrl();
+                console.log('Using API URL for resend verification:', apiUrl);
+                
+                const response = await fetch(`${apiUrl}/api/customer/resend-verification`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

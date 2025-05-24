@@ -3,13 +3,29 @@
  * Handles customer registration with the API and Google OAuth
  */
 
+// Function to determine the API URL based on environment
+function getApiUrl() {
+    // Check if we're running on production domain
+    const hostname = window.location.hostname;
+    if (hostname === 'nhonestsupermarket.com' || hostname === 'www.nhonestsupermarket.com') {
+        return 'https://nhonestsupermarket.com';
+    }
+    // Default to local development
+    return '';
+}
+
 // Function to handle Google Sign-Up callback
 function handleGoogleSignUp(response) {
+    console.log('Google Sign-Up response received:', response);
     // Get the ID token from the response
     const credential = response.credential;
     
+    // Determine the API URL based on environment
+    const apiUrl = getApiUrl();
+    console.log('Using API URL for Google auth:', apiUrl);
+    
     // Send the token to your backend for verification and account creation
-    fetch('/api/customer/google/signup', {
+    fetch(`${apiUrl}/api/customer/google/signup`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -147,7 +163,11 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating Account...';
             
             try {
-                const response = await fetch('/api/customer/signup', {
+                // Get the API URL based on environment
+                const apiUrl = getApiUrl();
+                console.log('Using API URL for signup:', apiUrl);
+                
+                const response = await fetch(`${apiUrl}/api/customer/signup`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -156,8 +176,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         firstName,
                         lastName,
                         email,
-                        password,
-                        phone
+                        phone,
+                        password
                     })
                 });
                 
