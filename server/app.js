@@ -92,7 +92,16 @@ app.use(cors({
 
 // Log all API requests in production to help debug
 app.use('/api', (req, res, next) => {
-    console.log(`${req.method} ${req.originalUrl}`);
+    console.log(`API Request: ${req.method} ${req.originalUrl}`);
+    console.log('Request Body:', JSON.stringify(req.body));
+    console.log('Request Headers:', JSON.stringify(req.headers));
+    next();
+});
+
+// Add a specific logging middleware for Google auth routes
+app.use('/api/customer/google', (req, res, next) => {
+    console.log(`Google Auth Request: ${req.method} ${req.originalUrl}`);
+    console.log('Google Auth Body:', JSON.stringify(req.body));
     next();
 });
 
@@ -258,9 +267,12 @@ app.get('/signup', (req, res) => {
 });
 
 // API Routes - Order matters! Put specific routes before general ones
+// Register Google auth routes first to ensure they take precedence
+app.use('/api/customer/google', googleAuthRoutes);
+
+// Register other API routes
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerAuthRouter);
-app.use('/api/customer/google', googleAuthRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);

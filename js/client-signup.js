@@ -7,8 +7,12 @@
 function getApiUrl() {
     // Check if we're running on production domain
     const hostname = window.location.hostname;
+    console.log('Current hostname:', hostname);
+    
     if (hostname === 'nhonestsupermarket.com' || hostname === 'www.nhonestsupermarket.com') {
-        return 'https://nhonestsupermarket.com';
+        // For production, we don't need the domain prefix since we're on the same domain
+        // This avoids CORS issues
+        return '';
     }
     // Default to local development
     return '';
