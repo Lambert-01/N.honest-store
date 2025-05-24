@@ -169,8 +169,115 @@ const getEmailJSParams = (customer, emailType) => {
     return params;
 };
 
+/**
+ * Send an invoice email to a customer
+ * @param {Object} order - Order object with customer and items information
+ * @param {String} invoiceHtml - HTML content of the invoice
+ * @returns {Promise} - Promise resolving to email info or error
+ */
+const sendInvoiceEmail = async (order, invoiceHtml) => {
+    console.log('Attempting to send invoice email for order:', order.reference);
+    
+    // Validate inputs
+    if (!order || !order.customer || !order.customer.email) {
+        console.error('Invalid order data: Missing customer email');
+        throw new Error('Invalid order data: Missing customer email');
+    }
+    
+    // Get customer name (fallback to email if no name available)
+    const customerName = order.customer.fullName || 
+                       `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim() || 
+                       order.customer.email.split('@')[0];
+    
+    // Format date properly
+    const orderDate = order.date ? new Date(order.date).toLocaleDateString() : 
+                     new Date().toLocaleDateString();
+    
+    // Format total amount with proper currency
+    const totalAmount = typeof order.total === 'number' ? 
+                       `RWF ${order.total.toFixed(2)}` : 
+                       order.total || 'See invoice details';
+    
+    console.log(`Preparing invoice email for ${order.customer.email}`);
+    
+    const emailOptions = {
+        to: order.customer.email,
+        subject: `Your N.Honest Invoice #${order.reference}`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center;">
+                    <h1>N.Honest Supermarket</h1>
+                    <h2>Invoice #${order.reference}</h2>
+                </div>
+                
+                <div style="padding: 20px; border: 1px solid #ddd; border-top: none;">
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <h3 style="color: #4CAF50; margin-top: 0;">Order Confirmation</h3>
+                        <p>Dear <strong>${customerName}</strong>,</p>
+                        <p>Thank you for shopping with N.Honest Supermarket. Your order has been received and is being processed.</p>
+                    </div>
+                    
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <h3 style="color: #4CAF50; margin-top: 0;">Order Summary</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Order Number:</strong></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${order.orderNumber || order.reference}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Order Date:</strong></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${orderDate}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Total Amount:</strong></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${totalAmount}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Payment Status:</strong></td>
+                                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${order.paymentStatus || 'Pending'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <p>Please find your detailed invoice below. You can make payment using the instructions provided in the invoice.</p>
+                        <p>If you have any questions about your order, please contact our customer service:</p>
+                        <p>Email: <a href="mailto:support@nhonest.com">support@nhonest.com</a> | Phone: <a href="tel:+250788633739">+250 788 633 739</a></p>
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: center;">
+                        <p style="color: #6c757d; font-size: 14px;">Thank you for choosing N.Honest Supermarket!</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                ${invoiceHtml}
+            </div>
+        `
+    };
+    
+    try {
+        console.log('Sending invoice email...');
+        const result = await sendEmail(emailOptions);
+        console.log('Invoice email sent successfully:', result);
+        return result;
+    } catch (error) {
+        console.error('Failed to send invoice email:', error);
+        
+        // Try fallback to EmailJS if server-side email fails
+        console.log('Attempting fallback to client-side EmailJS...');
+        return {
+            success: false,
+            error: error.message,
+            useClientFallback: true
+        };
+    }
+};
+
 module.exports = {
     sendEmail,
     sendVerificationEmail,
-    getEmailJSParams
+    getEmailJSParams,
+    sendInvoiceEmail
 };

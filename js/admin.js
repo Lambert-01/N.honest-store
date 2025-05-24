@@ -3826,9 +3826,13 @@ let productVariants = [];
 function initializeVariantManagement() {
     // Add attribute button event listener
     document.getElementById('add-attribute-btn')?.addEventListener('click', addProductAttribute);
+    document.getElementById('edit-add-attribute-btn')?.addEventListener('click', addEditProductAttribute);
     
     // Generate variants button event listener
     document.getElementById('generate-variants-btn')?.addEventListener('click', generateProductVariants);
+    document.getElementById('edit-generate-variants-btn')?.addEventListener('click', generateEditProductVariants);
+    
+    console.log('Variant management initialized for both add and edit forms');
 }
 
 // Add a product attribute

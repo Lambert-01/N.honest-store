@@ -1,7 +1,58 @@
 /**
  * N.Honest Customer Login Form Handler
- * Handles customer authentication with the API
+ * Handles customer authentication with the API and Google OAuth
  */
+
+// Function to handle Google Sign-In callback
+function handleGoogleSignIn(response) {
+    // Get the ID token from the response
+    const credential = response.credential;
+    
+    // Send the token to your backend for verification
+    fetch('/api/customer/google/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ credential })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Google authentication failed');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Store authentication data
+        localStorage.setItem('customerToken', data.token);
+        localStorage.setItem('customer', JSON.stringify(data.customer));
+        localStorage.setItem('customerLastActivity', Date.now().toString());
+        
+        // Show success message
+        const successAlert = document.getElementById('success-alert');
+        if (successAlert) {
+            successAlert.textContent = 'Login successful! Redirecting...';
+            successAlert.style.display = 'block';
+        }
+        
+        // Redirect to store page after a short delay
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+    })
+    .catch(error => {
+        console.error('Google auth error:', error);
+        
+        // Show error message
+        const errorAlert = document.getElementById('error-alert');
+        if (errorAlert) {
+            errorAlert.textContent = error.message;
+            errorAlert.style.display = 'block';
+        }
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('login-form');

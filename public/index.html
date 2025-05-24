@@ -302,12 +302,40 @@
       <!-- User Icons -->
           <div class="col-lg-3 col-md-2 col-6 text-end">
             <ul class="list-unstyled d-flex justify-content-end m-0 gap-1">
-          <li>
-                <a href="#" class="btn btn-light rounded-circle p-2" data-bs-toggle="modal" data-bs-target="#accountModal" title="My Account" id="accountButton">
-              <i class="fas fa-user"></i>
-              <span class="account-status-indicator d-none position-absolute top-0 start-100 translate-middle bg-success border border-light rounded-circle" style="width: 10px; height: 10px;"></span>
-            </a>
-          </li>
+          <li class="dropdown">
+    <a class="btn btn-light rounded-circle p-2 dropdown-toggle" href="#" role="button" id="profileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="fas fa-user"></i>
+      <span class="account-status-indicator d-none position-absolute top-0 start-100 translate-middle bg-success border border-light rounded-circle" style="width: 10px; height: 10px;"></span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+      <li class="dropdown-header">
+        <div class="d-flex align-items-center">
+          <img id="profileImage" src="" alt="Profile Picture" class="rounded-circle me-3" style="width: 40px; height: 40px;">
+          <div>
+            <h6 id="profileName" class="mb-0">Guest</h6>
+            <small id="profileEmail" class="text-muted">Not logged in</small>
+          </div>
+        </div>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+      <li id="profileMenu">
+        <a class="dropdown-item" href="client-login.html"><i class="fas fa-user me-2"></i> Sign In</a>
+      </li>
+      <li id="ordersMenu" style="display: none;">
+        <a class="dropdown-item" href="#"><i class="fas fa-box me-2"></i> My Orders</a>
+      </li>
+      <li id="wishlistMenu" style="display: none;">
+        <a class="dropdown-item" href="#"><i class="fas fa-heart me-2"></i> Wishlist</a>
+      </li>
+      <li id="addressesMenu" style="display: none;">
+        <a class="dropdown-item" href="#"><i class="fas fa-map-marker-alt me-2"></i> Addresses</a>
+      </li>
+      <li><hr class="dropdown-divider"></li>
+      <li id="logoutMenu" style="display: none;">
+        <a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
+      </li>
+    </ul>
+  </li>
           <li>
                 <a href="#" class="btn btn-light rounded-circle p-2" id="wishlist-button" title="Wishlist">
               <i class="fas fa-heart"></i>
@@ -805,14 +833,19 @@
       </div>
       <div class="modal-body">
         <div class="checkout-steps">
-          <!-- Step 1: Delivery Information -->
-          <div class="checkout-step active" id="step-delivery">
-            <h6 class="fw-bold mb-3">Delivery Information</h6>
-            <form id="delivery-form">
+          <!-- Step 1: Customer Information -->
+          <div class="checkout-step active" id="step-customer-info">
+            <h6 class="fw-bold mb-3">Your Information</h6>
+            <form id="customer-info-form">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label for="fullName" class="form-label">Full Name</label>
                   <input type="text" class="form-control" id="fullName" placeholder="Enter your full name" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="customerEmail" class="form-label">Email Address</label>
+                  <input type="email" class="form-control" id="customerEmail" placeholder="your@email.com" required>
+                  <small class="text-muted">Your invoice will be sent to this email</small>
                 </div>
                 <div class="col-md-6">
                   <label for="phoneNumber" class="form-label">Phone Number</label>
@@ -821,47 +854,73 @@
                     <input type="tel" class="form-control" id="phoneNumber" placeholder="78XXXXXXX" required>
                   </div>
                 </div>
+                <div class="col-md-6">
+                  <label for="companyName" class="form-label">Company Name (Optional)</label>
+                  <input type="text" class="form-control" id="companyName" placeholder="Your company name">
+                </div>
+              </div>
+              <div class="d-flex justify-content-end mt-4">
+                <button type="button" class="btn btn-primary next-step" data-step="delivery" id="continue-to-delivery-btn">
+                  Continue to Delivery <i class="fas fa-arrow-right ms-2"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Step 2: Delivery Information -->
+          <div class="checkout-step" id="step-delivery" style="display: none;">
+            <h6 class="fw-bold mb-3">Delivery Information</h6>
+            <form id="delivery-form">
+              <div class="row g-3">
                 <div class="col-12">
                   <label for="address" class="form-label">Delivery Address</label>
                   <textarea class="form-control" id="address" rows="3" placeholder="Enter your exact delivery address" required></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label for="city" class="form-label">City/District</label>
+                  <input type="text" class="form-control" id="city" placeholder="e.g., Kigali, Musanze" required>
+                </div>
+                <div class="col-md-6">
+                  <label for="sector" class="form-label">Sector</label>
+                  <input type="text" class="form-control" id="sector" placeholder="Your sector" required>
                 </div>
                 <div class="col-12">
                   <label for="deliveryNotes" class="form-label">Delivery Notes (Optional)</label>
                   <textarea class="form-control" id="deliveryNotes" rows="2" placeholder="Any special instructions for delivery"></textarea>
                 </div>
               </div>
-              <div class="d-flex justify-content-end mt-4">
-                <button type="button" class="btn btn-primary next-step" data-step="payment">
-                  Continue to Payment <i class="fas fa-arrow-right ms-2"></i>
+              <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-outline-secondary prev-step" data-step="customer-info">
+                  <i class="fas fa-arrow-left me-2"></i> Back
+                </button>
+                <button type="button" class="btn btn-primary next-step" data-step="review">
+                  Review Order <i class="fas fa-arrow-right ms-2"></i>
                 </button>
               </div>
             </form>
           </div>
           
-          <!-- Step 2: Payment Method -->
-          <div class="checkout-step" id="step-payment" style="display: none;">
-            <h6 class="fw-bold mb-3">Choose Payment Method</h6>
-            <div class="payment-methods">
-              <div class="form-check payment-method-option mb-3 border rounded p-3">
-                <input class="form-check-input" type="radio" name="paymentMethod" id="mobileMoney" value="mobileMoney" checked>
-                <label class="form-check-label d-flex align-items-center" for="mobileMoney">
-                  <img src="images/MoMo.jpg" alt="Mobile Money" class="payment-icon me-3" style="height: 40px;">
-                  <div>
-                    <span class="d-block fw-bold">Mobile Money</span>
-                    <small class="text-muted">Pay via MTN Mobile Money or Airtel Money</small>
-                  </div>
-                </label>
+          <!-- Step 3: Order Review -->
+          <div class="checkout-step" id="step-review" style="display: none;">
+            <h6 class="fw-bold mb-3">Review Your Order</h6>
+            
+            <div class="customer-info-summary border rounded p-3 mb-4">
+              <h6 class="fw-bold mb-3">Your Information</h6>
+              <div class="row mb-2">
+                <div class="col-4 text-muted">Name:</div>
+                <div class="col-8 fw-semibold" id="summary-name"></div>
               </div>
-              
-              <div class="form-check payment-method-option mb-3 border rounded p-3">
-                <input class="form-check-input" type="radio" name="paymentMethod" id="visaCard" value="visaCard">
-                <label class="form-check-label d-flex align-items-center" for="visaCard">
-                  <img src="images/219_visa.jpg" alt="Visa Card" class="payment-icon me-3" style="height: 30px;">
-                  <div>
-                    <span class="d-block fw-bold">Visa/Mastercard</span>
-                    <small class="text-muted">Pay with your Visa or Mastercard</small>
-                  </div>
-                </label>
+              <div class="row mb-2">
+                <div class="col-4 text-muted">Email:</div>
+                <div class="col-8" id="summary-email"></div>
+              </div>
+              <div class="row mb-2">
+                <div class="col-4 text-muted">Phone:</div>
+                <div class="col-8" id="summary-phone"></div>
+              </div>
+              <div class="row mb-2">
+                <div class="col-4 text-muted">Address:</div>
+                <div class="col-8" id="summary-address"></div>
               </div>
             </div>
             
@@ -873,18 +932,14 @@
               </div>
               <div class="d-flex justify-content-between mb-2">
                 <span>Delivery Fee:</span>
-                <span id="modal-delivery" class="fw-semibold">RWF 0.00</span>
-              </div>
-              <div class="d-flex justify-content-between mb-2">
-                <span>Tax (10%):</span>
-                <span id="modal-tax" class="fw-semibold">RWF 0.00</span>
+                <span id="modal-delivery" class="fw-semibold">RWF 1,500.00</span>
               </div>
               <div class="d-flex justify-content-between fw-bold fs-5">
                 <span>Total:</span>
                 <span id="modal-total" class="text-success">RWF 0.00</span>
               </div>
               <div class="mt-3 small text-muted">
-                <i class="fas fa-info-circle me-1"></i> Free delivery on orders over RWF 5,000
+                <i class="fas fa-info-circle me-1"></i> Free delivery on orders over RWF 1,500
               </div>
             </div>
             
@@ -893,120 +948,103 @@
                 <i class="fas fa-arrow-left me-2"></i> Back
               </button>
               <button type="button" class="btn btn-primary next-step" data-step="confirm">
-                Continue <i class="fas fa-arrow-right ms-2"></i>
+                Confirm Order <i class="fas fa-arrow-right ms-2"></i>
               </button>
             </div>
           </div>
           
-          <!-- Step 3: Payment Details -->
+          <!-- Step 3: Order Confirmation -->
           <div class="checkout-step" id="step-confirm" style="display: none;">
-            <div id="mobile-money-payment" class="payment-details">
-              <h6 class="fw-bold mb-3">Mobile Money Payment</h6>
-              <div class="alert alert-info" role="alert">
+            <div class="text-center mb-4">
+              <div class="alert alert-info">
                 <i class="fas fa-info-circle me-2"></i>
-                You will receive a payment request on your phone. Please enter your phone number below.
+                <strong>Invoice Payment:</strong> An invoice will be sent to your email with payment instructions.
               </div>
-              
-              <form id="momo-payment-form">
-                <div class="mb-3">
-                  <label for="momoPhoneNumber" class="form-label">Mobile Number</label>
-                  <div class="input-group">
-                    <span class="input-group-text">+250</span>
-                    <input type="tel" class="form-control" id="momoPhoneNumber" placeholder="78XXXXXXX" required>
-                  </div>
-                  <small class="text-muted">We support MTN and Airtel Mobile Money</small>
-                </div>
-                
-                <div class="d-flex justify-content-between mt-4">
-                  <button type="button" class="btn btn-outline-secondary prev-step" data-step="payment">
-                    <i class="fas fa-arrow-left me-2"></i> Back
-                  </button>
-                  <button type="button" class="btn btn-success" id="process-payment-btn">
-                    <i class="fas fa-mobile-alt me-2"></i> Request Payment
-                  </button>
-                </div>
-              </form>
+              <div id="login-required-alert" class="alert alert-warning mt-3" style="display: none;">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Login Required:</strong> Please log in to complete your order.
+                <button id="checkout-login-btn" class="btn btn-sm btn-primary ms-2">Login Now</button>
+              </div>
             </div>
             
-            <div id="card-payment" class="payment-details" style="display: none;">
-              <h6 class="fw-bold mb-3">Card Payment</h6>
+            <div class="border rounded p-4 mb-4 bg-light">
+              <h6 class="fw-bold mb-3">Payment Options</h6>
+              <p>You will receive an invoice with the following payment options:</p>
               
-              <form id="card-payment-form">
-                <div class="mb-3">
-                  <label for="cardNumber" class="form-label">Card Number</label>
-                  <input type="text" class="form-control" id="cardNumber" placeholder="1234 5678 9012 3456" required>
+              <div class="d-flex align-items-center mb-3 p-3 border rounded bg-white">
+                <img src="images/MoMo.jpg" alt="Mobile Money" class="me-3" style="height: 40px;">
+                <div>
+                  <h6 class="mb-0">Mobile Money</h6>
+                  <small class="text-muted">Pay via MTN Mobile Money or Airtel Money</small>
                 </div>
-                
-                <div class="row g-3 mb-3">
-                  <div class="col-md-6">
-                    <label for="cardExpiry" class="form-label">Expiry Date</label>
-                    <input type="text" class="form-control" id="cardExpiry" placeholder="MM/YY" required>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="cardCvv" class="form-label">CVV</label>
-                    <input type="text" class="form-control" id="cardCvv" placeholder="123" required>
-                  </div>
+              </div>
+              
+              <div class="d-flex align-items-center mb-3 p-3 border rounded bg-white">
+                <img src="images/219_visa.jpg" alt="Bank Transfer" class="me-3" style="height: 30px;">
+                <div>
+                  <h6 class="mb-0">Bank Transfer</h6>
+                  <small class="text-muted">Make a direct bank transfer</small>
                 </div>
-                
-                <div class="mb-3">
-                  <label for="cardName" class="form-label">Name on Card</label>
-                  <input type="text" class="form-control" id="cardName" placeholder="As shown on card" required>
-                </div>
-                
-                <div class="d-flex justify-content-between mt-4">
-                  <button type="button" class="btn btn-outline-secondary prev-step" data-step="payment">
-                    <i class="fas fa-arrow-left me-2"></i> Back
-                  </button>
-                  <button type="button" class="btn btn-primary" id="process-card-payment">
-                    <i class="fas fa-credit-card me-2"></i> Pay Now
-                  </button>
-                </div>
-              </form>
+              </div>
+              
+              <div class="alert alert-warning mt-3 mb-0">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <small>Your order will be processed after payment confirmation.</small>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+              <button type="button" class="btn btn-outline-secondary prev-step" data-step="review">
+                <i class="fas fa-arrow-left me-2"></i> Back
+              </button>
+              <button type="button" class="btn btn-success" id="place-order-btn">
+                <i class="fas fa-check me-2"></i> Place Order
+              </button>
             </div>
           </div>
           
-          <!-- Payment Processing -->
-          <div class="checkout-step" id="step-processing" style="display: none;">
-            <div class="text-center py-5">
-              <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
-                <span class="visually-hidden">Processing...</span>
-              </div>
-              <h5 class="fw-bold mb-2">Processing Your Payment</h5>
-              <p class="text-muted">Please wait while we process your payment...</p>
-              <div class="progress mt-4" style="height: 6px;">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 75%"></div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Payment Complete -->
+          <!-- Step 4: Order Complete -->
           <div class="checkout-step" id="step-complete" style="display: none;">
             <div class="text-center py-4">
-              <div class="payment-success-icon mb-3">
-                <i class="fas fa-check-circle text-success fa-4x"></i>
+              <div class="order-success-icon mb-4">
+                <i class="fas fa-check-circle text-success fa-5x"></i>
               </div>
-              <h4 class="fw-bold mb-3">Payment Successful!</h4>
-              <p class="mb-4">Thank you for your order. We'll notify you when your items are on the way.</p>
+              <h4 class="fw-bold mb-3">Order Placed Successfully!</h4>
+              <p class="mb-4">Thank you for your order. An invoice has been sent to <span id="order-email" class="fw-bold"></span>.</p>
               
-              <div class="order-summary border rounded p-3 mb-4 mx-auto" style="max-width: 400px;">
+              <div class="order-details border rounded p-4 mb-4 mx-auto" style="max-width: 500px;">
                 <h6 class="fw-bold mb-3">Order Details</h6>
-                <div class="d-flex justify-content-between mb-2">
-                  <span>Order Number:</span>
-                  <span class="fw-bold" id="order-reference">ORD-${Math.floor(100000 + Math.random() * 900000)}</span>
+                <div class="row mb-2">
+                  <div class="col-5 text-muted">Order Number:</div>
+                  <div class="col-7 fw-bold" id="order-reference"></div>
                 </div>
-                <div class="d-flex justify-content-between mb-2">
-                  <span>Total Paid:</span>
-                  <span class="fw-bold" id="order-total">RWF 0.00</span>
+                <div class="row mb-2">
+                  <div class="col-5 text-muted">Date:</div>
+                  <div class="col-7" id="order-date"></div>
                 </div>
-                <div class="d-flex justify-content-between mb-2">
-                  <span>Delivery To:</span>
-                  <span class="text-end" id="order-address">Not specified</span>
+                <div class="row mb-2">
+                  <div class="col-5 text-muted">Total Amount:</div>
+                  <div class="col-7 fw-bold text-success" id="order-total"></div>
+                </div>
+                <div class="row mb-2">
+                  <div class="col-5 text-muted">Delivery Address:</div>
+                  <div class="col-7" id="order-address"></div>
                 </div>
               </div>
               
-              <button type="button" class="btn btn-primary px-4" data-bs-dismiss="modal" id="complete-order-btn">
-                <i class="fas fa-shopping-bag me-2"></i> Continue Shopping
-              </button>
+              <div class="alert alert-info mb-4">
+                <i class="fas fa-envelope me-2"></i>
+                An invoice with payment instructions has been sent to <span id="invoice-email" class="fw-bold"></span>
+              </div>
+              
+              <div class="d-grid gap-2 col-md-6 mx-auto">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                  <i class="fas fa-shopping-cart me-2"></i> Continue Shopping
+                </button>
+                <a href="#" class="btn btn-outline-secondary" id="view-orders-btn">
+                  <i class="fas fa-box me-2"></i> View My Orders
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -1014,8 +1052,14 @@
     </div>
   </div>
 </div>
-    
-
+                <button class="btn btn-primary d-none" id="signupBtn">
+                    <i class="fas fa-user-plus me-1"></i>Sign Up
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+          
 
 <!-- Modern Footer -->
 <footer class="footer pt-5 pb-4 bg-dark text-white footer-animate">

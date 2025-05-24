@@ -1,5 +1,99 @@
 /* N.honest Supermarket Styles */
 
+/* Navbar Profile Styles */
+.navbar-profile {
+    position: relative;
+    cursor: pointer;
+}
+
+.navbar-profile img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--bs-primary);
+}
+
+.navbar-profile .profile-name {
+    display: none;
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+.navbar-profile:hover .profile-name {
+    display: inline-block;
+}
+
+/* Profile Dropdown */
+.profile-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    min-width: 200px;
+    padding: 8px 0;
+    margin-top: 8px;
+    z-index: 1000;
+    display: none;
+}
+
+.navbar-profile:hover .profile-dropdown {
+    display: block;
+}
+
+.profile-dropdown .profile-header {
+    padding: 12px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.profile-dropdown .profile-header img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--bs-primary);
+}
+
+.profile-dropdown .profile-header .profile-info {
+    margin-left: 12px;
+}
+
+.profile-dropdown .profile-header h6 {
+    margin: 0;
+    font-size: 14px;
+    color: #333;
+}
+
+.profile-dropdown .profile-header small {
+    color: #666;
+    font-size: 12px;
+}
+
+.profile-dropdown .dropdown-item {
+    padding: 8px 12px;
+    color: #333;
+    transition: background-color 0.2s;
+}
+
+.profile-dropdown .dropdown-item:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    color: var(--bs-primary);
+}
+
+.profile-dropdown .dropdown-item i {
+    margin-right: 8px;
+    width: 20px;
+    text-align: center;
+}
+
+.profile-dropdown .dropdown-divider {
+    margin: 4px 0;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
 /* Cart styles */
 #offcanvasCart {
   width: 400px;

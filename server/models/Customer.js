@@ -23,6 +23,11 @@ const customerSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    googleId: {
+        type: String,
+        sparse: true,
+        index: true
+    },
     picture: {
         type: String,
         default: function() {
@@ -31,17 +36,25 @@ const customerSchema = new mongoose.Schema({
             return `https://www.gravatar.com/avatar/${emailHash}?d=https://ui-avatars.com/api/?name=${encodeURIComponent(this.firstName + '+' + this.lastName)}&background=random&color=fff&size=200`;
         }
     },
+    profilePicture: {
+        type: String,
+        default: null
+    },
     phone: {
         type: String,
         trim: true
     },
-    address: {
+    addresses: [{
         street: String,
         city: String,
         state: String,
         zip: String,
-        country: String
-    },
+        country: String,
+        isDefault: {
+            type: Boolean,
+            default: false
+        }
+    }],
     isVerified: {
         type: Boolean,
         default: false
@@ -82,6 +95,16 @@ const customerSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    cart: {
+        items: [{
+            productId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Product'
+            },
+            quantity: Number
+        }],
+        total: Number
     }
 }, {
     timestamps: true

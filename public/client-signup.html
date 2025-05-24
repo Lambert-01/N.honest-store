@@ -11,6 +11,8 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <!-- EmailJS Configuration -->
     <script type="text/javascript" src="../js/emailConfig.js"></script>
+    <!-- Google Sign-In API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="login-container signup-container">
@@ -68,6 +70,27 @@
                 <a href="/client-login" class="btn btn-outline-secondary">
                     <i class="fas fa-sign-in-alt me-2"></i>Already have an account? Login
                 </a>
+                
+                <div class="separator my-3">OR</div>
+                
+                <!-- Google Sign-In Button -->
+                <div id="g_id_onload"
+                     data-client_id="914503703808-tu23o5a8ta4ukhenpdqi1m2i9ag81hq0.apps.googleusercontent.com"
+                     data-context="signup"
+                     data-ux_mode="popup"
+                     data-callback="handleGoogleSignUp"
+                     data-auto_prompt="false">
+                </div>
+                
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="rectangular"
+                     data-theme="outline"
+                     data-text="signup_with"
+                     data-size="large"
+                     data-logo_alignment="center"
+                     data-width="100%">
+                </div>
             </div>
         </form>
         
@@ -112,5 +135,29 @@
     <!-- Load external JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/client-signup.js"></script>
+    
+    <style>
+        .separator {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        .separator::before,
+        .separator::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .separator::before {
+            margin-right: 1em;
+        }
+        
+        .separator::after {
+            margin-left: 1em;
+        }
+    </style>
 </body>
 </html>

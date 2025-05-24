@@ -1,7 +1,66 @@
 /**
  * N.Honest Customer Signup Form Handler
- * Handles customer registration with the API
+ * Handles customer registration with the API and Google OAuth
  */
+
+// Function to handle Google Sign-Up callback
+function handleGoogleSignUp(response) {
+    // Get the ID token from the response
+    const credential = response.credential;
+    
+    // Send the token to your backend for verification and account creation
+    fetch('/api/customer/google/signup', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ credential })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Google signup failed');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Create enhanced success alert
+        const errorAlert = document.getElementById('error-alert');
+        const successAlert = document.createElement('div');
+        successAlert.className = 'alert alert-success';
+        successAlert.innerHTML = `<strong>Success!</strong> ${data.message} <br>
+            Your account has been created with the following details:<br>
+            Name: ${data.customer.firstName} ${data.customer.lastName}<br>
+            Email: ${data.customer.email}<br>
+            A welcome email has been sent to your address.`;
+        
+        // Replace error alert with success alert
+        if (errorAlert) {
+            errorAlert.replaceWith(successAlert);
+        } else {
+            document.querySelector('.signup-container').prepend(successAlert);
+        }
+        
+        // Store success message for login page
+        sessionStorage.setItem('customerLoginMessage', 'success:' + data.message);
+        
+        // Redirect to login page after a delay
+        setTimeout(() => {
+            window.location.href = '/client-login.html';
+        }, 3000);
+    })
+    .catch(error => {
+        console.error('Google signup error:', error);
+        
+        // Show error message
+        const errorAlert = document.getElementById('error-alert');
+        if (errorAlert) {
+            errorAlert.textContent = error.message;
+            errorAlert.style.display = 'block';
+        }
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     const signupForm = document.getElementById('signup-form');

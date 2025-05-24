@@ -51,8 +51,103 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateCartDisplay();
   // Setup cart specific event listeners
   setupCartEventListeners();
+  // Initialize profile UI
+  initProfileUI();
   // Other initializations...
 });
+
+/**
+ * Initialize profile popup if user is logged in
+ */
+function updateProfileUI() {
+  // Get profile elements
+  const profileImage = document.getElementById('profileImage');
+  const profileName = document.getElementById('profileName');
+  const profileEmail = document.getElementById('profileEmail');
+  const profileMenu = document.getElementById('profileMenu');
+  const ordersMenu = document.getElementById('ordersMenu');
+  const wishlistMenu = document.getElementById('wishlistMenu');
+  const addressesMenu = document.getElementById('addressesMenu');
+  const logoutMenu = document.getElementById('logoutMenu');
+
+  // Check if user is logged in
+  const customerToken = localStorage.getItem('customerToken');
+  const customerDataStr = localStorage.getItem('customer');
+  
+  if (customerToken && customerDataStr) {
+    try {
+      const customerData = JSON.parse(customerDataStr);
+      
+      // Update profile information
+      profileImage.src = customerData.picture || customerData.profilePicture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(customerData.firstName + ' ' + customerData.lastName);
+      profileName.textContent = `${customerData.firstName} ${customerData.lastName}`;
+      profileEmail.textContent = customerData.email;
+      
+      // Show logged-in menu items and hide login button
+      profileMenu.style.display = 'none';
+      ordersMenu.style.display = 'block';
+      wishlistMenu.style.display = 'block';
+      addressesMenu.style.display = 'block';
+      logoutMenu.style.display = 'block';
+      
+      // Add event listener to logout button
+      document.querySelector('#logoutMenu a').addEventListener('click', function(e) {
+        e.preventDefault();
+        handleLogout();
+      });
+      
+    } catch (error) {
+      console.error('Error updating profile UI:', error);
+    }
+  } else {
+    // Show login button and hide logged-in menu items
+    profileImage.src = 'https://ui-avatars.com/api/?name=Guest';
+    profileName.textContent = 'Guest';
+    profileEmail.textContent = 'Not logged in';
+    profileMenu.style.display = 'block';
+    ordersMenu.style.display = 'none';
+    wishlistMenu.style.display = 'none';
+    addressesMenu.style.display = 'none';
+    logoutMenu.style.display = 'none';
+  }
+}
+
+function handleLogout() {
+  // Clear authentication data
+  localStorage.removeItem('customerToken');
+  localStorage.removeItem('customer');
+  
+  // Update profile UI
+  updateProfileUI();
+  
+  // Redirect to home or login page
+  window.location.href = '/';
+}
+
+// Call updateProfileUI when the page loads
+window.addEventListener('load', updateProfileUI);
+
+// Add event listener to profile dropdown
+const profileDropdown = document.getElementById('profileDropdown');
+if (profileDropdown) {
+  profileDropdown.addEventListener('click', function() {
+    // Update profile UI when dropdown is opened
+    updateProfileUI();
+  });
+}
+
+// Initialize profile UI when DOM is loaded
+function initProfileUI() {
+  // Update profile UI immediately
+  updateProfileUI();
+  
+  // Watch for changes in localStorage
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'customerToken' || e.key === 'customer') {
+      updateProfileUI();
+    }
+  });
+}
 
 // Initialize Category Carousel
 function initCategoryCarousel() {
@@ -1116,20 +1211,111 @@ function setupCheckoutProcess() {
     button.addEventListener('click', function () {
       const currentStep = this.closest('.checkout-step');
       const nextStepId = this.getAttribute('data-step');
-      const nextStep = document.getElementById(`step-${nextStepId}`);
-
-      if (this.getAttribute('data-step') === 'confirm') {
-        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-        document.getElementById('mobile-money-payment').style.display = paymentMethod === 'mobileMoney' ? 'block' : 'none';
-        document.getElementById('card-payment').style.display = paymentMethod === 'visaCard' ? 'block' : 'none';
+      const currentStepId = currentStep.id.replace('step-', '');
+      
+      // Validate current step before proceeding
+      if (!validateStep(currentStepId)) {
+        return; // Don't proceed if validation fails
       }
-
+      
+      const nextStep = document.getElementById(`step-${nextStepId}`);
+      
+      // If moving to review step, update the summary information
+      if (nextStepId === 'review') {
+        updateOrderSummary();
+      }
+      
+      // Clear any previous validation errors when moving to next step
+      clearValidationErrors(currentStep);
+      
       currentStep.classList.remove('active');
       currentStep.style.display = 'none';
       nextStep.classList.add('active');
       nextStep.style.display = 'block';
     });
   });
+  
+  // Function to validate each step
+  function validateStep(stepId) {
+    let isValid = true;
+    
+    if (stepId === 'customer-info') {
+      // Validate customer information step
+      const requiredFields = ['fullName', 'customerEmail', 'phoneNumber'];
+      requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field.value.trim()) {
+          markFieldAsInvalid(field, `${field.previousElementSibling.textContent} is required`);
+          isValid = false;
+        } else {
+          markFieldAsValid(field);
+        }
+      });
+      
+      // Validate email format
+      const emailField = document.getElementById('customerEmail');
+      if (emailField.value.trim() && !isValidEmail(emailField.value.trim())) {
+        markFieldAsInvalid(emailField, 'Please enter a valid email address');
+        isValid = false;
+      }
+      
+    } else if (stepId === 'delivery') {
+      // Validate delivery information step
+      const requiredFields = ['address', 'city', 'sector'];
+      requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (!field.value.trim()) {
+          markFieldAsInvalid(field, `${field.previousElementSibling.textContent} is required`);
+          isValid = false;
+        } else {
+          markFieldAsValid(field);
+        }
+      });
+    }
+    
+    if (!isValid) {
+      showToast('Please fill in all required fields', 'error');
+    }
+    
+    return isValid;
+  }
+  
+  // Helper function to validate email format
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+  
+  // Helper function to mark a field as invalid
+  function markFieldAsInvalid(field, message) {
+    field.classList.add('is-invalid');
+    field.classList.remove('is-valid');
+    
+    // Add or update error message
+    let errorDiv = field.nextElementSibling;
+    if (!errorDiv || !errorDiv.classList.contains('invalid-feedback')) {
+      errorDiv = document.createElement('div');
+      errorDiv.classList.add('invalid-feedback');
+      field.parentNode.insertBefore(errorDiv, field.nextSibling);
+    }
+    errorDiv.textContent = message;
+  }
+  
+  // Helper function to mark a field as valid
+  function markFieldAsValid(field) {
+    field.classList.remove('is-invalid');
+    field.classList.add('is-valid');
+  }
+  
+  // Helper function to clear validation errors
+  function clearValidationErrors(container) {
+    container.querySelectorAll('.is-invalid').forEach(field => {
+      field.classList.remove('is-invalid');
+    });
+    container.querySelectorAll('.invalid-feedback').forEach(feedback => {
+      feedback.remove();
+    });
+  }
 
   document.querySelectorAll('.prev-step').forEach(button => {
     button.addEventListener('click', function () {
@@ -1144,74 +1330,723 @@ function setupCheckoutProcess() {
     });
   });
 
-  // Process payment buttons
-  document.getElementById('process-payment-btn')?.addEventListener('click', processMobileMoneyPayment);
-  document.getElementById('process-card-payment')?.addEventListener('click', processCardPayment);
-  document.getElementById('complete-order-btn')?.addEventListener('click', completeOrder);
+  // Place order button
+  document.getElementById('place-order-btn')?.addEventListener('click', placeOrder);
+  
+  // Function to update order summary in the review step
+  function updateOrderSummary() {
+    // Get customer information
+    const fullName = document.getElementById('fullName').value;
+    const email = document.getElementById('customerEmail').value;
+    const phone = document.getElementById('phoneNumber').value;
+    const address = document.getElementById('address').value;
+    const city = document.getElementById('city').value;
+    const sector = document.getElementById('sector').value;
+    
+    // Update summary information
+    document.getElementById('summary-name').textContent = fullName;
+    document.getElementById('summary-email').textContent = email;
+    document.getElementById('summary-phone').textContent = `+250${phone}`;
+    document.getElementById('summary-address').textContent = `${address}, ${sector}, ${city}`;
+  }
 }
 
-async function processMobileMoneyPayment() {
-  const phoneNumber = document.getElementById('momoPhoneNumber').value;
+// Function to place order and send invoice
+async function placeOrder() {
+  // Show loading state
+  const placeOrderBtn = document.getElementById('place-order-btn');
+  const originalBtnText = placeOrderBtn.innerHTML;
+  placeOrderBtn.disabled = true;
+  placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
   
-  // Validate phone number format (Rwandan numbers)
-  if (!phoneNumber || !/^(78|79|72|73)\d{7}$/.test(phoneNumber)) {
-    showToast('Please enter a valid Rwandan phone number (e.g., 78XXXXXXX)', 'error');
-    return;
-  }
-
-  // Show processing step
-  document.getElementById('step-confirm').classList.remove('active');
-  document.getElementById('step-confirm').style.display = 'none';
-  document.getElementById('step-processing').classList.add('active');
-  document.getElementById('step-processing').style.display = 'block';
-
- try {
-  // Send payment request to backend
-  const response = await fetch('/api/payments/create-payment', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      clientId: 'user123', // Replace with actual user ID or generate dynamically
-      amount: parseFloat(document.getElementById('modal-total').textContent.replace('RWF ', '')),
-      phoneNumber: `+250${phoneNumber}`,
-      email: 'user@example.com', // Replace with actual user email
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  const paymentData = await response.json();
-  
-  
-
-  // Update order details
-  document.getElementById('order-reference').textContent = paymentData.referenceId;
-  document.getElementById('order-total').textContent = document.getElementById('modal-total').textContent;
-  document.getElementById('order-address').textContent = document.getElementById('address').value;
-
   try {
-    // Save order to database
-    await saveOrderToDatabase(paymentData.referenceId);
+    // Check if user is logged in
+    const customerToken = localStorage.getItem('customerToken');
+    const customerDataStr = localStorage.getItem('customer');
+    
+    if (!customerToken || !customerDataStr) {
+      // Show login required alert
+      const loginAlert = document.getElementById('login-required-alert');
+      if (loginAlert) {
+        loginAlert.style.display = 'block';
+        
+        // Add event listener to login button
+        const loginBtn = document.getElementById('checkout-login-btn');
+        if (loginBtn) {
+          loginBtn.addEventListener('click', function() {
+            // Open login modal
+            const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+            loginModal.show();
+            
+            // Close checkout modal
+            const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
+            if (checkoutModal) {
+              checkoutModal.hide();
+            }
+          });
+        }
+      }
+      
+      // Reset button state
+      placeOrderBtn.disabled = false;
+      placeOrderBtn.innerHTML = originalBtnText;
+      
+      return;
+    }
+    
+    // Validate all required fields are filled
+    const fullName = document.getElementById('fullName').value.trim();
+    const email = document.getElementById('customerEmail').value.trim();
+    const phone = document.getElementById('phoneNumber').value.trim();
+    const address = document.getElementById('address').value.trim();
+    const city = document.getElementById('city').value.trim();
+    const sector = document.getElementById('sector').value.trim();
+    const company = document.getElementById('companyName').value.trim() || '';
+    
+    // Check for empty required fields
+    const requiredFields = [
+      { id: 'fullName', value: fullName, label: 'Full Name' },
+      { id: 'customerEmail', value: email, label: 'Email' },
+      { id: 'phoneNumber', value: phone, label: 'Phone Number' },
+      { id: 'address', value: address, label: 'Address' },
+      { id: 'city', value: city, label: 'City/District' },
+      { id: 'sector', value: sector, label: 'Sector' }
+    ];
+    
+    const emptyFields = requiredFields.filter(field => !field.value);
+    
+    if (emptyFields.length > 0) {
+      // Highlight empty fields
+      emptyFields.forEach(field => {
+        const input = document.getElementById(field.id);
+        input.classList.add('is-invalid');
+        
+        // Create or update error message
+        let errorDiv = input.nextElementSibling;
+        if (!errorDiv || !errorDiv.classList.contains('invalid-feedback')) {
+          errorDiv = document.createElement('div');
+          errorDiv.classList.add('invalid-feedback');
+          input.parentNode.insertBefore(errorDiv, input.nextSibling);
+        }
+        errorDiv.textContent = `${field.label} is required`;
+      });
+      
+      // Show error toast
+      showToast(`Please fill in all required fields: ${emptyFields.map(f => f.label).join(', ')}`, 'error');
+      
+      // Reset button state
+      placeOrderBtn.disabled = false;
+      placeOrderBtn.innerHTML = originalBtnText;
+      
+      // Show the appropriate step with the first empty field
+      const firstEmptyField = emptyFields[0];
+      const firstEmptyFieldElement = document.getElementById(firstEmptyField.id);
+      const stepId = firstEmptyFieldElement.closest('.checkout-step').id.replace('step-', '');
+      
+      // Hide all steps
+      document.querySelectorAll('.checkout-step').forEach(step => {
+        step.classList.remove('active');
+        step.style.display = 'none';
+      });
+      
+      // Show the step with the first empty field
+      const targetStep = document.getElementById(`step-${stepId}`);
+      targetStep.classList.add('active');
+      targetStep.style.display = 'block';
+      
+      return;
+    }
+    
+    // Create customer data object with validated fields
+    const customerData = {
+      fullName,
+      email,
+      phone,
+      address,
+      city,
+      sector,
+      company
+    };
+    
+    // Calculate order totals
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    // Fixed delivery fee of 1500 RWF
+    const deliveryFee = 1500;
+    const total = subtotal + deliveryFee;
+    
+    // Create order object
+    const order = {
+      customer: customerData,
+      items: cart.map(item => ({
+        productId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        total: item.price * item.quantity,
+        image: item.image
+      })),
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      tax: 0, // No tax
+      total: total,
+      paymentMethod: 'invoice',
+      paymentStatus: 'pending',
+      status: 'pending'
+    };
+    
+    // Generate invoice HTML
+    const invoiceHtml = generateInvoiceHtml({
+      ...order,
+      reference: 'PENDING', // Will be replaced with actual reference from server
+      date: new Date()
+    });
+    
+    // Add invoice HTML to the order object
+    order.invoiceHtml = invoiceHtml;
+    
+    // First try server-side approach
+    try {
+      console.log('Submitting order to server:', order);
+      
+      // Get customer token if logged in
+      const customerToken = localStorage.getItem('customerToken');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add authorization header if customer is logged in
+      if (customerToken) {
+        headers['Authorization'] = `Bearer ${customerToken}`;
+      }
+      
+      // Send order to server API
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(order)
+      });
+      
+      const responseText = await response.text();
+      console.log('Server response:', responseText);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error(`Server error: Invalid response format`);
+      }
+      
+      if (!response.ok) {
+        console.error('Server error details:', result);
+        throw new Error(`Server error: ${response.status} - ${result.error || 'Unknown error'}`);
+      }
+      
+      console.log('Order saved successfully:', result);
+      
+      // Update order reference with the one from server
+      const orderReference = result.order.reference;
+      document.getElementById('order-reference').textContent = orderReference;
+      document.getElementById('order-date').textContent = new Date().toLocaleDateString();
+      
+      // Update customer email in complete step
+      document.getElementById('order-email').textContent = customerData.email;
+      
+      // Show success message
+      showToast(`Order placed successfully! Invoice sent to ${customerData.email}`, 'success');
+      
+    } catch (serverError) {
+      console.error('Server-side order processing failed:', serverError);
+      console.log('Falling back to client-side email sending...');
+      
+      // Fallback to client-side email sending with EmailJS
+      try {
+        // Generate a client-side reference if server failed
+        const orderReference = 'INV-' + Date.now().toString().slice(-6) + '-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        document.getElementById('order-reference').textContent = orderReference;
+        
+        // Update the invoice HTML with the generated reference
+        const updatedInvoiceHtml = generateInvoiceHtml({
+          ...order,
+          reference: orderReference,
+          date: new Date()
+        });
+        
+        // Send email using EmailJS
+        const emailParams = {
+          to_name: customerData.fullName,
+          to_email: customerData.email,
+          subject: `Your N.Honest Invoice #${orderReference}`,
+          message: 'Thank you for your order. Please find your invoice attached.',
+          invoice_html: updatedInvoiceHtml
+        };
+        
+        await emailjs.send('service_nhonest', 'template_invoice', emailParams);
+        showToast(`Order placed! Invoice sent to ${customerData.email}`, 'success');
+        
+      } catch (emailError) {
+        console.error('EmailJS fallback also failed:', emailError);
+        showToast('Failed to send invoice email. Please contact customer support.', 'error');
+      }
+    }
+    
+    // Update customer email in complete step
+    document.getElementById('order-email').textContent = customerData.email;
+    
+    // Show complete step
+    document.getElementById('step-confirm').classList.remove('active');
+    document.getElementById('step-confirm').style.display = 'none';
+    document.getElementById('step-complete').classList.add('active');
+    document.getElementById('step-complete').style.display = 'block';
+    
+    // Clear cart after successful order
+    clearCart();
+    updateCartDisplay();
+    
   } catch (error) {
-    console.error('Payment error:', error);
-
-    // Show error message to the user
-    showToast(error.message || 'Payment failed. Please try again.', 'error');
-
-    // Go back to the payment step
-    document.getElementById('step-processing').classList.remove('active');
-    document.getElementById('step-processing').style.display = 'none';
-    document.getElementById('step-confirm').classList.add('active');
-    document.getElementById('step-confirm').style.display = 'block';
+    console.error('Error placing order:', error);
+    showToast('Failed to place order. Please try again.', 'error');
+    
+    // Reset button state
+    placeOrderBtn.disabled = false;
+    placeOrderBtn.innerHTML = originalBtnText;
   }
-} catch (error) {
-  console.error('Error during payment processing:', error);
-  showToast('Payment failed. Please try again.', 'error');
 }
+
+// Function to save order to database
+async function saveOrderToDatabase(order) {
+  try {
+    // Get customer token if logged in
+    const customerToken = localStorage.getItem('customerToken');
+    
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    // Add authorization header if customer is logged in
+    if (customerToken) {
+      headers['Authorization'] = `Bearer ${customerToken}`;
+    }
+    
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(order)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to save order');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving order:', error);
+    throw error;
+  }
+}
+
+// Function to send invoice email
+async function sendInvoiceEmail(order) {
+  try {
+    // Create invoice HTML
+    const invoiceHtml = generateInvoiceHtml(order);
+    
+    // Send email with invoice
+    const emailData = {
+      to: order.customer.email,
+      subject: `N.honest Supermarket - Order #${order.reference}`,
+      html: invoiceHtml
+    };
+    
+    // Use EmailJS to send the email
+    const emailJSParams = {
+      to_email: order.customer.email,
+      to_name: order.customer.fullName,
+      subject: `N.honest Supermarket - Order #${order.reference}`,
+      message: 'Thank you for your order! Please find your invoice attached.',
+      order_ref: order.reference,
+      order_date: new Date(order.date).toLocaleDateString(),
+      order_total: `RWF ${order.total.toFixed(2)}`,
+      invoice_html: invoiceHtml
+    };
+    
+    // Send the email using EmailJS
+    if (window.emailConfig && typeof window.emailConfig.sendEmail === 'function') {
+      await window.emailConfig.sendEmail(emailJSParams);
+    } else {
+      console.warn('EmailJS configuration not found, falling back to server-side email');
+      
+      // Fallback to server-side email
+      const response = await fetch('/api/send-invoice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(emailData)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to send invoice email');
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error sending invoice email:', error);
+    // Don't throw error here to allow order completion even if email fails
+    return false;
+  }
+}
+
+// Function to generate invoice HTML
+function generateInvoiceHtml(order) {
+  console.log('Generating invoice HTML for order:', order);
+  const itemsHtml = order.items.map(item => `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #ddd;">${item.name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right;">RWF ${item.price.toFixed(2)}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #ddd; text-align: right;">RWF ${(item.price * item.quantity).toFixed(2)}</td>
+    </tr>
+  `).join('');
+  
+  const currentDate = new Date(order.date);
+  const formattedDate = currentDate.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  // Generate a due date 7 days from now
+  const dueDate = new Date(currentDate);
+  dueDate.setDate(dueDate.getDate() + 7);
+  const formattedDueDate = dueDate.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Invoice ${order.reference}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body { 
+          font-family: 'Poppins', Arial, sans-serif; 
+          line-height: 1.6; 
+          color: #333; 
+          background-color: #f9f9f9;
+          margin: 0;
+          padding: 0;
+        }
+        
+        .invoice-container {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 40px;
+          background-color: #fff;
+          box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .invoice-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 40px;
+          border-bottom: 2px solid #f0f0f0;
+          padding-bottom: 20px;
+        }
+        
+        .company-info {
+          flex: 1;
+        }
+        
+        .company-name {
+          color: #e63946;
+          font-size: 28px;
+          font-weight: 700;
+          margin: 0 0 5px 0;
+        }
+        
+        .company-details {
+          font-size: 14px;
+          color: #666;
+        }
+        
+        .invoice-info {
+          text-align: right;
+        }
+        
+        .invoice-title {
+          font-size: 40px;
+          font-weight: 700;
+          color: #e63946;
+          margin: 0 0 15px 0;
+          text-transform: uppercase;
+        }
+        
+        .invoice-details {
+          font-size: 14px;
+        }
+        
+        .invoice-details p {
+          margin: 5px 0;
+        }
+        
+        .invoice-details strong {
+          display: inline-block;
+          width: 100px;
+        }
+        
+        .customer-supplier-container {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 30px;
+        }
+        
+        .customer-details, .supplier-details {
+          flex: 1;
+          padding: 20px;
+          background-color: #f8f9fa;
+          border-radius: 5px;
+          margin: 0 10px;
+        }
+        
+        .customer-details h3, .supplier-details h3 {
+          margin-top: 0;
+          color: #e63946;
+          font-size: 18px;
+          border-bottom: 1px solid #ddd;
+          padding-bottom: 10px;
+        }
+        
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 30px;
+          border: 1px solid #ddd;
+        }
+        
+        th {
+          background-color: #e63946;
+          color: white;
+          font-weight: 600;
+          text-align: left;
+          padding: 12px;
+          font-size: 14px;
+        }
+        
+        td {
+          padding: 12px;
+          border-bottom: 1px solid #ddd;
+          font-size: 14px;
+        }
+        
+        .text-right {
+          text-align: right;
+        }
+        
+        .text-center {
+          text-align: center;
+        }
+        
+        .totals-table {
+          width: 350px;
+          margin-left: auto;
+          margin-right: 0;
+          border: none;
+        }
+        
+        .totals-table td {
+          border: none;
+          padding: 8px 12px;
+        }
+        
+        .totals-table .total-row td {
+          font-weight: 700;
+          font-size: 16px;
+          border-top: 2px solid #e63946;
+          color: #e63946;
+        }
+        
+        .payment-info {
+          background-color: #f8f9fa;
+          padding: 20px;
+          border-radius: 5px;
+          margin-top: 30px;
+          border-left: 4px solid #e63946;
+        }
+        
+        .payment-title {
+          font-weight: 600;
+          margin-bottom: 15px;
+          color: #e63946;
+          font-size: 18px;
+        }
+        
+        .payment-method {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 15px;
+        }
+        
+        .payment-method-item {
+          flex: 1;
+          padding: 15px;
+          background-color: white;
+          border-radius: 5px;
+          margin: 0 10px;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .payment-method-title {
+          font-weight: 600;
+          margin-bottom: 10px;
+          color: #333;
+        }
+        
+        .footer {
+          margin-top: 40px;
+          text-align: center;
+          font-size: 14px;
+          color: #666;
+          border-top: 1px solid #eee;
+          padding-top: 20px;
+        }
+        
+        .thank-you {
+          font-size: 20px;
+          font-weight: 600;
+          color: #e63946;
+          margin-bottom: 10px;
+        }
+        
+        .barcode {
+          text-align: center;
+          margin: 30px 0;
+          font-family: 'Courier New', monospace;
+          font-size: 14px;
+          letter-spacing: 2px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="invoice-container">
+        <!-- Invoice Header -->
+        <div class="invoice-header">
+          <div class="company-info">
+            <h1 class="company-name">N.honest Supermarket</h1>
+            <div class="company-details">
+              <p>Kigali, Rwanda</p>
+              <p>Tel: +250788633739</p>
+              <p>Email: info@nhonest.com</p>
+              <p>Web: www.nhonest.com</p>
+            </div>
+          </div>
+          <div class="invoice-info">
+            <h2 class="invoice-title">Invoice</h2>
+            <div class="invoice-details">
+              <p><strong>Invoice #:</strong> ${order.reference}</p>
+              <p><strong>Date:</strong> ${formattedDate}</p>
+              <p><strong>Due Date:</strong> ${formattedDueDate}</p>
+              <p><strong>Status:</strong> Pending Payment</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Customer & Supplier Details -->
+        <div class="customer-supplier-container">
+          <div class="customer-details">
+            <h3>Bill To:</h3>
+            <p><strong>Name:</strong> ${order.customer.fullName}</p>
+            <p><strong>Email:</strong> ${order.customer.email}</p>
+            <p><strong>Phone:</strong> ${order.customer.phone}</p>
+            <p><strong>Address:</strong> ${order.customer.address}, ${order.customer.sector}, ${order.customer.city}</p>
+            ${order.customer.company ? `<p><strong>Company:</strong> ${order.customer.company}</p>` : ''}
+          </div>
+          <div class="supplier-details">
+            <h3>From:</h3>
+            <p><strong>N.honest Supermarket Ltd</strong></p>
+            <p>KG 123 Street, Kigali</p>
+            <p>Rwanda</p>
+            <p>TIN: 123456789</p>
+            <p>Registration #: RW12345</p>
+          </div>
+        </div>
+        
+        <!-- Order Items -->
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40%;">Item Description</th>
+              <th style="width: 15%; text-align: center;">Quantity</th>
+              <th style="width: 20%; text-align: right;">Unit Price</th>
+              <th style="width: 25%; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        
+        <!-- Totals -->
+        <table class="totals-table">
+          <tr>
+            <td>Subtotal:</td>
+            <td class="text-right">RWF ${order.subtotal.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td>Delivery Fee:</td>
+            <td class="text-right">RWF ${order.deliveryFee.toFixed(2)}</td>
+          </tr>
+
+          <tr class="total-row">
+            <td>Total Due:</td>
+            <td class="text-right">RWF ${order.total.toFixed(2)}</td>
+          </tr>
+        </table>
+        
+        <!-- Payment Information -->
+        <div class="payment-info">
+          <h3 class="payment-title">Payment Instructions</h3>
+          <p>Please make payment within 7 days using one of the following methods:</p>
+          
+          <div class="payment-method">
+            <div class="payment-method-item">
+              <h4 class="payment-method-title">Mobile Money</h4>
+              <p>MTN: +250788633739</p>
+              <p>Airtel: +250733633739</p>
+            </div>
+            
+            <div class="payment-method-item">
+              <h4 class="payment-method-title">Bank Transfer</h4>
+              <p>Bank: Bank of Kigali</p>
+              <p>Account #: 00012345678</p>
+              <p>Account Name: N.honest Supermarket Ltd</p>
+            </div>
+          </div>
+          
+          <p><strong>Payment Reference:</strong> Please include your order number ${order.reference} as payment reference</p>
+        </div>
+        
+        <!-- Barcode -->
+        <div class="barcode">
+          *${order.reference}*
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+          <p class="thank-you">Thank you for shopping with N.honest Supermarket!</p>
+          <p>If you have any questions about this invoice, please contact our customer service:</p>
+          <p>Email: support@nhonest.com | Phone: +250788633739</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 }
 
 async function processCardPayment() {
@@ -2399,9 +3234,9 @@ function setupCartEventListeners() {
 function updateCheckoutModal() {
   // Calculate subtotal
   const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const tax = subtotal * 0.1; // 10% tax
-  let deliveryFee = subtotal < 5000 ? 1000 : 0;
-  const total = subtotal + tax + deliveryFee;
+  // Fixed delivery fee of 1500 RWF
+  const deliveryFee = 1500;
+  const total = subtotal + deliveryFee;
   
   // Format with thousand separators
   const formatPrice = (value) => {
@@ -2410,22 +3245,16 @@ function updateCheckoutModal() {
   
   // Update modal summary
   const modalSubtotal = document.getElementById('modal-subtotal');
-  const modalTax = document.getElementById('modal-tax');
   const modalTotal = document.getElementById('modal-total');
   const modalDelivery = document.getElementById('modal-delivery');
   
-  if (modalSubtotal && modalTax && modalTotal) {
+  if (modalSubtotal && modalTotal) {
     modalSubtotal.textContent = `RWF ${formatPrice(subtotal)}`;
     
     if (modalDelivery) {
-      if (deliveryFee > 0) {
-        modalDelivery.textContent = `RWF ${formatPrice(deliveryFee)}`;
-      } else {
-        modalDelivery.textContent = 'FREE';
-      }
+      modalDelivery.textContent = `RWF ${formatPrice(deliveryFee)}`;
     }
     
-    modalTax.textContent = `RWF ${formatPrice(tax)}`;
     modalTotal.textContent = `RWF ${formatPrice(total)}`;
     
     // Also update order total in complete step

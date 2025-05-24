@@ -5,9 +5,13 @@ const crypto = require('crypto');
 const Customer = require('../models/Customer');
 const verificationConfig = require('../config/verification');
 const { sendEmail, sendVerificationEmail, getEmailJSParams } = require('../utils/emailService');
+const { OAuth2Client } = require('google-auth-library');
 
 // In-memory token blacklist (in production, use Redis or another persistent store)
 const tokenBlacklist = new Set();
+
+// Initialize Google OAuth client
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Middleware to verify customer JWT token
 const customerAuth = async (req, res, next) => {
@@ -46,7 +50,7 @@ const customerAuth = async (req, res, next) => {
 // Customer signup route
 router.post('/signup', async (req, res) => {
     try {
-        const { firstName, lastName, email, password, phone } = req.body;
+        const { firstName, lastName, email, password, phone, profilePicture } = req.body;
 
         // Check if customer already exists
         const existingCustomer = await Customer.findOne({ email });
@@ -64,6 +68,7 @@ router.post('/signup', async (req, res) => {
             email, 
             password,
             phone,
+            profilePicture,
             // Auto-verify based on configuration
             isVerified: verificationConfig.autoVerifyAccounts,
             // Set default email preferences
@@ -89,7 +94,10 @@ router.post('/signup', async (req, res) => {
                         firstName: customer.firstName,
                         lastName: customer.lastName,
                         email: customer.email,
-                        picture: customer.picture
+                        picture: customer.profilePicture || customer.picture,
+                        token: jwt.sign({ _id: customer._id }, process.env.JWT_SECRET, {
+                            expiresIn: '7d'
+                        })
                     }
                 });
             } else if (emailResult.useClientFallback || emailResult.skipped) {
@@ -97,38 +105,238 @@ router.post('/signup', async (req, res) => {
                 const emailJSParams = getEmailJSParams(customer, 'welcome');
                 
                 res.status(201).json({
-                    message: 'Account created successfully! You will receive a welcome email shortly.',
-                    useClientEmail: true,
-                    emailParams: emailJSParams,
+                    message: 'Account created successfully! You will be redirected to login.',
                     customer: {
                         _id: customer._id,
                         firstName: customer.firstName,
                         lastName: customer.lastName,
                         email: customer.email,
-                        picture: customer.picture
-                    }
+                        picture: customer.profilePicture || customer.picture,
+                        token: jwt.sign({ _id: customer._id }, process.env.JWT_SECRET, {
+                            expiresIn: '7d'
+                        })
+                    },
+                    useClientEmail: true,
+                    emailJSParams
                 });
             }
         } catch (emailError) {
-            console.error('Failed to send verification email:', emailError);
-            
-            // Still return success but with a different message
+            console.error('Email sending failed:', emailError);
             res.status(201).json({
-                message: 'Account created successfully! Email verification is currently unavailable. You can log in and request verification later.',
-                emailError: true,
+                message: 'Account created successfully! Please check your email to verify your account.',
                 customer: {
                     _id: customer._id,
                     firstName: customer.firstName,
                     lastName: customer.lastName,
                     email: customer.email,
-                    picture: customer.picture
+                    picture: customer.profilePicture || customer.picture,
+                    token: jwt.sign({ _id: customer._id }, process.env.JWT_SECRET, {
+                        expiresIn: '7d'
+                    })
                 }
             });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Signup error:', error);
+        res.status(500).json({ error: 'Failed to create account' });
     }
 });
+
+// Login route
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const customer = await Customer.findOne({ email });
+
+        if (!customer) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const isMatch = await customer.comparePassword(password);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        if (!customer.isVerified) {
+            return res.status(401).json({
+                error: 'Account not verified',
+                verificationNeeded: true,
+                email: customer.email
+            });
+        }
+
+        // Update last login timestamp
+        customer.lastLogin = new Date();
+        await customer.save();
+
+        const token = jwt.sign({ _id: customer._id }, process.env.JWT_SECRET, {
+            expiresIn: '7d'
+        });
+
+        res.json({
+            message: 'Login successful',
+            customer: {
+                _id: customer._id,
+                firstName: customer.firstName,
+                lastName: customer.lastName,
+                email: customer.email,
+                picture: customer.profilePicture || customer.picture,
+                token,
+                addresses: customer.addresses,
+                cart: customer.cart
+            }
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Failed to login' });
+    }
+});
+
+// Get customer profile
+router.get('/me', customerAuth, async (req, res) => {
+    try {
+        const customer = await Customer.findById(req.customer._id).select('-password');
+        res.json({
+            customer: {
+                _id: customer._id,
+                firstName: customer.firstName,
+                lastName: customer.lastName,
+                email: customer.email,
+                picture: customer.profilePicture || customer.picture,
+                phone: customer.phone,
+                addresses: customer.addresses,
+                cart: customer.cart
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+});
+
+// Update profile
+router.patch('/me', customerAuth, async (req, res) => {
+    try {
+        const updates = req.body;
+        const allowedUpdates = ['firstName', 'lastName', 'phone', 'profilePicture', 'addresses'];
+        const updatesToApply = Object.keys(updates).filter(key => allowedUpdates.includes(key));
+
+        const customer = await Customer.findByIdAndUpdate(
+            req.customer._id,
+            { $set: updatesToApply.reduce((acc, key) => ({ ...acc, [key]: updates[key] }), {}) },
+            { new: true, runValidators: true }
+        );
+
+        if (!customer) {
+            return res.status(404).json({ error: 'Customer not found' });
+        }
+
+        res.json({
+            customer: {
+                _id: customer._id,
+                firstName: customer.firstName,
+                lastName: customer.lastName,
+                email: customer.email,
+                picture: customer.profilePicture || customer.picture,
+                phone: customer.phone,
+                addresses: customer.addresses,
+                cart: customer.cart
+            }
+        });
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to update profile' });
+    }
+});
+
+// Get customer addresses
+router.get('/addresses', customerAuth, async (req, res) => {
+    try {
+        const customer = await Customer.findById(req.customer._id).select('addresses');
+        res.json({ addresses: customer.addresses });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch addresses' });
+    }
+});
+
+// Add new address
+router.post('/addresses', customerAuth, async (req, res) => {
+    try {
+        const { street, city, state, zip, country, isDefault } = req.body;
+        const customer = await Customer.findByIdAndUpdate(
+            req.customer._id,
+            { $push: { addresses: { street, city, state, zip, country, isDefault } } },
+            { new: true }
+        );
+        res.json({ addresses: customer.addresses });
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to add address' });
+    }
+});
+
+// Update address
+router.put('/addresses/:addressId', customerAuth, async (req, res) => {
+    try {
+        const { street, city, state, zip, country, isDefault } = req.body;
+        const customer = await Customer.findOneAndUpdate(
+            { _id: req.customer._id, 'addresses._id': req.params.addressId },
+            { $set: { 'addresses.$': { street, city, state, zip, country, isDefault } } },
+            { new: true }
+        );
+        res.json({ addresses: customer.addresses });
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to update address' });
+    }
+});
+
+// Delete address
+router.delete('/addresses/:addressId', customerAuth, async (req, res) => {
+    try {
+        const customer = await Customer.findByIdAndUpdate(
+            req.customer._id,
+            { $pull: { addresses: { _id: req.params.addressId } } },
+            { new: true }
+        );
+        res.json({ addresses: customer.addresses });
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to delete address' });
+    }
+});
+
+// Logout route
+router.post('/logout', customerAuth, async (req, res) => {
+    try {
+        // Add token to blacklist
+        tokenBlacklist.add(req.token);
+        res.json({ message: 'Successfully logged out' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to logout' });
+    }
+});
+
+// Refresh token route
+router.post('/refresh-token', async (req, res) => {
+    try {
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        if (!token || tokenBlacklist.has(token)) {
+            return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const customer = await Customer.findById(decoded._id);
+        if (!customer) {
+            return res.status(401).json({ error: 'Customer not found' });
+        }
+
+        const newToken = jwt.sign({ _id: customer._id }, process.env.JWT_SECRET, {
+            expiresIn: '7d'
+        });
+
+        res.json({ token: newToken });
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+});
+
+module.exports = { router, customerAuth };
 
 // Email verification route
 router.get('/verify-email', async (req, res) => {

@@ -7,6 +7,7 @@ const fs = require('fs');
 const connectDB = require('./db');
 const { router: authRouter, auth } = require('./routes/auth');
 const { router: customerAuthRouter, customerAuth } = require('./routes/customerAuth');
+const googleAuthRoutes = require('./routes/googleAuth');
 const categoriesRoutes = require('./routes/categories');
 const productsRoutes = require('./routes/products');
 const ordersRoutes = require('./routes/orders');
@@ -253,6 +254,7 @@ app.get('/signup', (req, res) => {
 // API Routes - Order matters! Put specific routes before general ones
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerAuthRouter);
+app.use('/api/customer/google', googleAuthRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
