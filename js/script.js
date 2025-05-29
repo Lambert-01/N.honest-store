@@ -1450,51 +1450,67 @@ async function placeOrder() {
             date: new Date()
         };
 
-        // Send order to server
-        const response = await fetch('/api/orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${customerToken}`
-            },
-            body: JSON.stringify(order)
-        });
+        // Set timeout for the fetch request
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('Server returned non-JSON response');
+        try {
+            // Send order to server
+            const response = await fetch('/api/orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${customerToken}`
+                },
+                body: JSON.stringify(order),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeout);
+
+            // Check response status
+            if (!response.ok) {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Server error occurred');
+                } else {
+                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
+                }
+            }
+
+            // Parse response
+            const result = await response.json();
+            console.log('Order saved successfully:', result);
+
+            // Update UI with order reference
+            document.getElementById('order-reference').textContent = orderReference;
+            document.getElementById('order-date').textContent = new Date().toLocaleDateString();
+            document.getElementById('order-email').textContent = customerData.email;
+            
+            // Show complete step
+            document.getElementById('step-confirm').classList.remove('active');
+            document.getElementById('step-confirm').style.display = 'none';
+            document.getElementById('step-complete').classList.add('active');
+            document.getElementById('step-complete').style.display = 'block';
+            
+            // Clear cart
+            clearCart();
+            updateCartDisplay();
+            
+            // Show success message
+            showToast('Order placed successfully! Check your email for invoice.', 'success');
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new Error('Request timed out. Your order is being processed, but please check your email for confirmation.');
+            }
+            throw error;
         }
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Server error occurred');
-        }
-
-        const result = await response.json();
-        console.log('Order saved successfully:', result);
-
-        // Update UI with order reference
-        document.getElementById('order-reference').textContent = orderReference;
-        document.getElementById('order-date').textContent = new Date().toLocaleDateString();
-        document.getElementById('order-email').textContent = customerData.email;
-        
-        // Show complete step
-        document.getElementById('step-confirm').classList.remove('active');
-        document.getElementById('step-confirm').style.display = 'none';
-        document.getElementById('step-complete').classList.add('active');
-        document.getElementById('step-complete').style.display = 'block';
-        
-        // Clear cart
-        clearCart();
-        updateCartDisplay();
-        
-        // Show success message
-        showToast('Order placed successfully! Check your email for invoice.', 'success');
         
     } catch (error) {
         console.error('Error placing order:', error);
-        showToast('Failed to place order: ' + error.message, 'error');
+        showToast(error.message || 'Failed to place order. Please try again.', 'error');
         
         // Reset button state
         placeOrderBtn.disabled = false;

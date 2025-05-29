@@ -44,24 +44,35 @@ const createTransporter = () => {
         // Clean up app password by removing any whitespace
         const appPassword = process.env.EMAIL_APP_PASSWORD.replace(/\s+/g, '');
 
-        // Create configuration object
+        // Create configuration object with more secure settings for production
         const config = {
             service: 'gmail',
+            host: 'smtp.gmail.com', // Explicitly set host
+            port: 465, // Use SSL
+            secure: true, // Use SSL
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: appPassword
             },
             tls: {
-                rejectUnauthorized: true // Enforce SSL in production
+                rejectUnauthorized: true, // Enforce SSL in production
+                minVersion: "TLSv1.2"
             },
             debug: process.env.NODE_ENV !== 'production',
-            maxConnections: 5 // Limit concurrent connections
+            maxConnections: 5, // Limit concurrent connections
+            maxMessages: Infinity,
+            pool: true, // Use pooled connections
+            rateDelta: 1000, // Limit to 1 second between messages
+            rateLimit: 3 // Maximum 3 messages per rateDelta
         };
 
         console.log('Creating email transport with config:', {
             user: process.env.EMAIL_USER,
             service: 'gmail',
-            environment: process.env.NODE_ENV
+            environment: process.env.NODE_ENV,
+            host: config.host,
+            port: config.port,
+            secure: config.secure
         });
 
         // Create and verify the transporter
@@ -86,9 +97,9 @@ const createTransporter = () => {
 };
 
 /**
- * Send an email using Nodemailer
+ * Send an email using Nodemailer with retries
  */
-const sendEmail = async (options) => {
+const sendEmail = async (options, retries = 3) => {
     try {
         // Ensure we have a transporter
         if (!transporter) {
@@ -113,7 +124,9 @@ const sendEmail = async (options) => {
             attachments: options.attachments,
             headers: {
                 'X-Environment': process.env.NODE_ENV,
-                'X-Mailer': 'N.Honest Mailer'
+                'X-Mailer': 'N.Honest Mailer',
+                'X-Priority': '1', // High priority
+                'X-MSMail-Priority': 'High'
             }
         };
 
@@ -131,22 +144,20 @@ const sendEmail = async (options) => {
         // Check for specific Gmail errors
         if (error.code === 'EAUTH') {
             console.error('Authentication failed. Please check your Gmail credentials.');
-            // Reset transporter to force recreation
-            transporter = null;
+            transporter = null; // Reset transporter
         } else if (error.code === 'ESOCKET') {
             console.error('Network error occurred while sending email.');
-            // Reset transporter to force recreation
-            transporter = null;
+            transporter = null; // Reset transporter
         }
         
-        // Try to recreate transporter for next attempt
-        try {
-            transporter = await createTransporter();
-        } catch (transportError) {
-            console.error('Failed to recreate email transport:', transportError);
+        // Retry logic
+        if (retries > 0) {
+            console.log(`Retrying email send... (${retries} attempts remaining)`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            return sendEmail(options, retries - 1);
         }
         
-        throw new Error(`Failed to send email: ${error.message}`);
+        throw new Error(`Failed to send email after multiple attempts: ${error.message}`);
     }
 };
 
@@ -234,9 +245,9 @@ const getEmailJSParams = (customer, emailType) => {
 };
 
 /**
- * Send an invoice email
+ * Send an invoice email with retries
  */
-const sendInvoiceEmail = async (order) => {
+const sendInvoiceEmail = async (order, retries = 3) => {
     try {
         // Validate order data
         if (!order || !order.customer || !order.customer.email) {
@@ -273,7 +284,7 @@ const sendInvoiceEmail = async (order) => {
             </div>
         `;
 
-        // Send email to customer
+        // Send email to customer with retry logic
         const customerMailOptions = {
             to: order.customer.email,
             subject: `N.Honest - Order Confirmation #${order.reference || order.orderNumber}`,
@@ -303,10 +314,10 @@ const sendInvoiceEmail = async (order) => {
             }]
         };
 
-        // Send both emails
+        // Send both emails with retries
         const [customerEmailResult, companyEmailResult] = await Promise.all([
-            sendEmail(customerMailOptions),
-            sendEmail(companyMailOptions)
+            sendEmail(customerMailOptions, retries),
+            sendEmail(companyMailOptions, retries)
         ]);
 
         console.log('Invoice emails sent successfully:', {
@@ -323,6 +334,14 @@ const sendInvoiceEmail = async (order) => {
 
     } catch (error) {
         console.error('Failed to send invoice email:', error);
+        
+        // Retry logic for the entire invoice email process
+        if (retries > 0) {
+            console.log(`Retrying invoice email send... (${retries} attempts remaining)`);
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            return sendInvoiceEmail(order, retries - 1);
+        }
+        
         throw error;
     }
 };

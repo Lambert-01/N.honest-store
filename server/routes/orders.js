@@ -4,6 +4,7 @@ const Order = require('../models/orders');
 const { sendInvoiceEmail } = require('../utils/emailService');
 const crypto = require('crypto');
 const { auth } = require('./auth');
+const { customerAuth } = require('./customerAuth');
 
 // Generate order reference number
 function generateOrderReference() {
@@ -62,51 +63,76 @@ function generateBasicInvoiceHtml(order) {
     `;
 }
 
-// Handle order creation
-router.post('/', async (req, res) => {
-  try {
-        const orderData = req.body;
-    
-        // Generate order reference and order number
-        orderData.reference = generateOrderReference();
-        orderData.orderNumber = generateOrderNumber();
-        
-        // Create new order
-        const order = new Order(orderData);
-        const savedOrder = await order.save();
-        
-        console.log('Order saved successfully with ID:', savedOrder._id);
-        
-        // Generate invoice HTML
-        const invoiceHtml = generateBasicInvoiceHtml(savedOrder);
-        
-        try {
-            // Send invoice email
-            await sendInvoiceEmail(savedOrder, invoiceHtml);
-            console.log('Invoice email sent successfully');
-        } catch (emailError) {
-            console.error('Failed to send invoice email:', emailError);
-            // Don't fail the order creation if email fails
-            // But do return a warning in the response
-            return res.status(201).json({
-                success: true,
-                order: savedOrder,
-                warning: 'Order created successfully but failed to send invoice email'
+// Create a new order
+router.post('/', customerAuth, async (req, res) => {
+    try {
+        // Validate order data
+        if (!req.body.customer || !req.body.items || !req.body.total) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required order data'
+            });
+        }
+
+        // Create order first
+        const order = new Order({
+            ...req.body,
+            customer: {
+                ...req.body.customer,
+                userId: req.customer._id // Add authenticated customer ID
+            }
         });
-      }
-      
-        // Return success response
+
+        // Save order to database
+        const savedOrder = await order.save();
+        console.log('Order saved successfully:', savedOrder._id);
+
+        // Send response immediately
         res.status(201).json({
             success: true,
+            message: 'Order created successfully',
             order: savedOrder
         });
-        
+
+        // Send invoice email asynchronously
+        try {
+            sendInvoiceEmail(savedOrder)
+                .then(emailResult => {
+                    console.log('Invoice email sent successfully:', emailResult);
+                    // Update order with email status
+                    return Order.findByIdAndUpdate(savedOrder._id, {
+                        $set: {
+                            emailSent: true,
+                            emailSentAt: new Date()
+                        }
+                    });
+                })
+                .catch(emailError => {
+                    console.error('Failed to send invoice email:', emailError);
+                    // Log email failure but don't block order creation
+                    Order.findByIdAndUpdate(savedOrder._id, {
+                        $set: {
+                            emailError: emailError.message,
+                            emailErrorAt: new Date()
+                        }
+                    }).catch(updateError => {
+                        console.error('Failed to update order with email error:', updateError);
+                    });
+                });
+        } catch (emailError) {
+            console.error('Error initiating email send:', emailError);
+        }
+
     } catch (error) {
         console.error('Error creating order:', error);
-        res.status(500).json({
-          success: false,
-            error: 'Failed to create order: ' + error.message
-        });
+        // If response hasn't been sent yet
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                message: 'Failed to create order',
+                error: error.message
+            });
+        }
     }
 });
 
@@ -180,27 +206,29 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Get order by ID
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id).lean();
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
+router.get('/:id', customerAuth, async (req, res) => {
+    try {
+        const order = await Order.findOne({
+            _id: req.params.id,
+            'customer.userId': req.customer._id
+        });
+        
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        
+        res.json(order);
+    } catch (error) {
+        console.error('Error fetching order:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch order',
+            error: error.message
+        });
     }
-    
-    res.json({
-      success: true,
-      data: order
-    });
-  } catch (error) {
-    console.error('Error fetching order:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch order'
-    });
-  }
 });
 
 // Update order status
@@ -327,6 +355,49 @@ router.patch('/payment/:reference', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to update payment status' });
   }
+});
+
+// Resend invoice email
+router.post('/:id/resend-invoice', customerAuth, async (req, res) => {
+    try {
+        const order = await Order.findOne({
+            _id: req.params.id,
+            'customer.userId': req.customer._id
+        });
+        
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        // Send invoice email
+        const emailResult = await sendInvoiceEmail(order);
+        
+        // Update order with new email status
+        await Order.findByIdAndUpdate(order._id, {
+            $set: {
+                emailSent: true,
+                emailSentAt: new Date(),
+                emailError: null,
+                emailErrorAt: null
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Invoice email resent successfully',
+            result: emailResult
+        });
+    } catch (error) {
+        console.error('Error resending invoice:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to resend invoice',
+            error: error.message
+        });
+    }
 });
 
 module.exports = router;
