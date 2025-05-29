@@ -42,28 +42,28 @@ const createTransporter = () => {
         }
 
         // Clean up app password by removing any whitespace
-        const appPassword = process.env.EMAIL_APP_PASSWORD.replace(/\s+/g, '');
+        const appPassword = process.env.EMAIL_APP_PASSWORD.trim();
 
-        // Create configuration object with more secure settings for production
+        // Create configuration object with production settings
         const config = {
-    service: 'gmail',
-            host: 'smtp.gmail.com', // Explicitly set host
-            port: 465, // Use SSL
+            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
             secure: true, // Use SSL
-    auth: {
-        user: process.env.EMAIL_USER,
+            auth: {
+                user: process.env.EMAIL_USER,
                 pass: appPassword
             },
             tls: {
-                rejectUnauthorized: true, // Enforce SSL in production
+                rejectUnauthorized: true,
                 minVersion: "TLSv1.2"
             },
             debug: process.env.NODE_ENV !== 'production',
-            maxConnections: 5, // Limit concurrent connections
-            maxMessages: Infinity,
-            pool: true, // Use pooled connections
-            rateDelta: 1000, // Limit to 1 second between messages
-            rateLimit: 3 // Maximum 3 messages per rateDelta
+            pool: true,
+            maxConnections: 3,
+            maxMessages: 100,
+            rateDelta: 1000,
+            rateLimit: 3
         };
 
         console.log('Creating email transport with config:', {
@@ -78,14 +78,13 @@ const createTransporter = () => {
         // Create and verify the transporter
         const transport = nodemailer.createTransport(config);
         
-        // Verify the connection configuration
         return new Promise((resolve, reject) => {
             transport.verify((error, success) => {
                 if (error) {
                     console.error('Email transport verification failed:', error);
                     reject(error);
                 } else {
-                    console.log('Email transport is ready to send messages');
+                    console.log('Email transport verified successfully');
                     resolve(transport);
                 }
             });
@@ -102,30 +101,31 @@ const createTransporter = () => {
 const sendEmail = async (options, retries = 3) => {
     try {
         // Ensure we have a transporter
-    if (!transporter) {
+        if (!transporter) {
             transporter = await createTransporter();
         }
-    
+
         // Validate required fields
         if (!options.to || !options.subject || (!options.html && !options.text)) {
             throw new Error('Missing required email fields (to, subject, and html/text)');
-    }
-    
-    const mailOptions = {
+        }
+
+        const mailOptions = {
             from: {
                 name: 'N.Honest Supermarket',
                 address: process.env.EMAIL_USER
             },
-        to: options.to,
+            to: options.to,
             cc: options.cc,
-        subject: options.subject,
-        html: options.html,
+            subject: options.subject,
+            html: options.html,
             text: options.text || 'Please view this email in an HTML-compatible email client',
             attachments: options.attachments,
             headers: {
                 'X-Environment': process.env.NODE_ENV,
                 'X-Mailer': 'N.Honest Mailer',
-                'X-Priority': '1', // High priority
+                'Message-ID': `<${Date.now()}@nhonestsupermarket.com>`,
+                'X-Priority': '1',
                 'X-MSMail-Priority': 'High'
             }
         };
@@ -133,14 +133,14 @@ const sendEmail = async (options, retries = 3) => {
         console.log(`Attempting to send email to: ${options.to} (${process.env.NODE_ENV} environment)`);
 
         const info = await transporter.sendMail(mailOptions);
-                console.log('Email sent successfully:', info.messageId);
+        console.log('Email sent successfully:', info.messageId);
         return {
-                    success: true,
+            success: true,
             messageId: info.messageId
         };
     } catch (error) {
-                console.error('Error sending email:', error);
-        
+        console.error('Error sending email:', error);
+
         // Check for specific Gmail errors
         if (error.code === 'EAUTH') {
             console.error('Authentication failed. Please check your Gmail credentials.');
@@ -149,14 +149,14 @@ const sendEmail = async (options, retries = 3) => {
             console.error('Network error occurred while sending email.');
             transporter = null; // Reset transporter
         }
-        
+
         // Retry logic
         if (retries > 0) {
             console.log(`Retrying email send... (${retries} attempts remaining)`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
             return sendEmail(options, retries - 1);
         }
-        
+
         throw new Error(`Failed to send email after multiple attempts: ${error.message}`);
     }
 };
@@ -280,11 +280,11 @@ const sendInvoiceEmail = async (order, retries = 3) => {
                     </ol>
                 </div>
                 <p>If you have any questions, please contact us at:</p>
-                <p>Email: info@nhonestsupermarket.com<br>Phone: +250 788 633 739</p>
+                <p>Email: ${process.env.BUSINESS_EMAIL || 'info@nhonestsupermarket.com'}<br>Phone: +250 788 633 739</p>
             </div>
         `;
 
-        // Send email to customer with retry logic
+        // Send email to customer
         const customerMailOptions = {
             to: order.customer.email,
             subject: `N.Honest - Order Confirmation #${order.reference || order.orderNumber}`,
@@ -296,9 +296,9 @@ const sendInvoiceEmail = async (order, retries = 3) => {
             }]
         };
 
-        // Send email to company (for records)
-        const companyMailOptions = {
-            to: process.env.ADMIN_EMAIL || 'info@nhonestsupermarket.com',
+        // Send email to business
+        const businessMailOptions = {
+            to: process.env.BUSINESS_EMAIL || 'info@nhonestsupermarket.com',
             subject: `New Order Received - #${order.reference || order.orderNumber}`,
             html: `
                 <h2>New Order Received</h2>
@@ -314,31 +314,29 @@ const sendInvoiceEmail = async (order, retries = 3) => {
             }]
         };
 
-        // Send both emails with retries
-        const [customerEmailResult, companyEmailResult] = await Promise.all([
+        // Send both emails
+        const [customerEmailResult, businessEmailResult] = await Promise.all([
             sendEmail(customerMailOptions, retries),
-            sendEmail(companyMailOptions, retries)
+            sendEmail(businessMailOptions, retries)
         ]);
 
         console.log('Invoice emails sent successfully:', {
             customerEmail: customerEmailResult.messageId,
-            companyEmail: companyEmailResult.messageId,
-            environment: process.env.NODE_ENV
+            businessEmail: businessEmailResult.messageId
         });
 
         return {
             success: true,
             customerEmailId: customerEmailResult.messageId,
-            companyEmailId: companyEmailResult.messageId
+            businessEmailId: businessEmailResult.messageId
         };
 
     } catch (error) {
         console.error('Failed to send invoice email:', error);
         
-        // Retry logic for the entire invoice email process
         if (retries > 0) {
             console.log(`Retrying invoice email send... (${retries} attempts remaining)`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            await new Promise(resolve => setTimeout(resolve, 2000));
             return sendInvoiceEmail(order, retries - 1);
         }
         
