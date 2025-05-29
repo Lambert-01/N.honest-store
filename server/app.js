@@ -14,6 +14,7 @@ const ordersRoutes = require('./routes/orders');
 const apiRoutes = require('./routes/api');
 const { sendInvoiceEmail } = require('./utils/emailService');
 
+
 // Initialize Express app
 const app = express();
 
@@ -307,6 +308,22 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api', apiRoutes);
+
+// Add a route for sending invoice emails
+app.post('/api/send-invoice', async (req, res) => {
+    try {
+        const { order } = req.body;
+        if (!order) {
+            return res.status(400).json({ error: 'Order data is required' });
+        }
+
+        const result = await sendInvoiceEmail(order);
+        res.json({ success: true, result });
+    } catch (error) {
+        console.error('Error sending invoice:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // Simple ping endpoint for connectivity checks
 app.head('/api/ping', (req, res) => {

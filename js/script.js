@@ -1449,43 +1449,31 @@ async function placeOrder() {
             status: 'pending',
             date: new Date()
         };
-        
-        // Generate invoice HTML
-        const invoiceHtml = generateInvoiceHtml(order);
-        order.invoiceHtml = invoiceHtml;
-        
-        try {
-            // First try to save order to server
-            const response = await fetch('/api/orders', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${customerToken}`
-                },
-                body: JSON.stringify(order)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            console.log('Order saved successfully:', result);
-            
-        } catch (serverError) {
-            console.error('Server-side order processing failed:', serverError);
-            console.log('Falling back to client-side email sending...');
-            
-            // Send invoice email using EmailJS
-            try {
-                await window.emailConfig.sendInvoiceEmail(order);
-                showToast(`Order placed! Invoice sent to ${customerData.email}`, 'success');
-            } catch (emailError) {
-                console.error('Failed to send invoice email:', emailError);
-                showToast('Order placed but failed to send invoice email. Please contact support.', 'warning');
-            }
+
+        // Send order to server
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${customerToken}`
+            },
+            body: JSON.stringify(order)
+        });
+
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Server returned non-JSON response');
         }
-        
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Server error occurred');
+        }
+
+        const result = await response.json();
+        console.log('Order saved successfully:', result);
+
         // Update UI with order reference
         document.getElementById('order-reference').textContent = orderReference;
         document.getElementById('order-date').textContent = new Date().toLocaleDateString();
@@ -1501,9 +1489,12 @@ async function placeOrder() {
         clearCart();
         updateCartDisplay();
         
+        // Show success message
+        showToast('Order placed successfully! Check your email for invoice.', 'success');
+        
     } catch (error) {
         console.error('Error placing order:', error);
-        showToast('Failed to place order. Please try again.', 'error');
+        showToast('Failed to place order: ' + error.message, 'error');
         
         // Reset button state
         placeOrderBtn.disabled = false;

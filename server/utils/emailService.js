@@ -30,28 +30,60 @@ const createOAuth2Client = () => {
     );
 };
 
+// Initialize transporter as null
+let transporter = null;
+
 // Create reusable transporter object using SMTP
 const createTransporter = () => {
-    // Create configuration object
-    const config = {
-    service: 'gmail',
-    auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_APP_PASSWORD?.replace(/\s+/g, '') // Remove any spaces from app password
+    try {
+        // Validate required environment variables
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+            throw new Error('Missing email configuration. Check EMAIL_USER and EMAIL_APP_PASSWORD in environment variables.');
         }
-    };
 
-    console.log('Creating email transport with config:', {
-        user: process.env.EMAIL_USER,
-        service: 'gmail'
-    });
+        // Clean up app password by removing any whitespace
+        const appPassword = process.env.EMAIL_APP_PASSWORD.replace(/\s+/g, '');
 
-    // Create the transporter
-    return nodemailer.createTransport(config);
+        // Create configuration object
+        const config = {
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: appPassword
+            },
+            tls: {
+                rejectUnauthorized: true // Enforce SSL in production
+            },
+            debug: process.env.NODE_ENV !== 'production',
+            maxConnections: 5 // Limit concurrent connections
+        };
+
+        console.log('Creating email transport with config:', {
+            user: process.env.EMAIL_USER,
+            service: 'gmail',
+            environment: process.env.NODE_ENV
+        });
+
+        // Create and verify the transporter
+        const transport = nodemailer.createTransport(config);
+        
+        // Verify the connection configuration
+        return new Promise((resolve, reject) => {
+            transport.verify((error, success) => {
+                if (error) {
+                    console.error('Email transport verification failed:', error);
+                    reject(error);
+                } else {
+                    console.log('Email transport is ready to send messages');
+                    resolve(transport);
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Failed to create email transport:', error);
+        throw error;
+    }
 };
-
-// Initialize transporter
-let transporter = createTransporter();
 
 /**
  * Send an email using Nodemailer
@@ -59,35 +91,61 @@ let transporter = createTransporter();
 const sendEmail = async (options) => {
     try {
         // Ensure we have a transporter
-    if (!transporter) {
-            transporter = createTransporter();
-    }
+        if (!transporter) {
+            transporter = await createTransporter();
+        }
     
-    const mailOptions = {
+        // Validate required fields
+        if (!options.to || !options.subject || (!options.html && !options.text)) {
+            throw new Error('Missing required email fields (to, subject, and html/text)');
+        }
+    
+        const mailOptions = {
             from: {
                 name: 'N.Honest Supermarket',
                 address: process.env.EMAIL_USER
             },
-        to: options.to,
+            to: options.to,
             cc: options.cc,
-        subject: options.subject,
-        html: options.html,
+            subject: options.subject,
+            html: options.html,
             text: options.text || 'Please view this email in an HTML-compatible email client',
-            attachments: options.attachments
+            attachments: options.attachments,
+            headers: {
+                'X-Environment': process.env.NODE_ENV,
+                'X-Mailer': 'N.Honest Mailer'
+            }
         };
 
-        console.log('Attempting to send email to:', options.to);
+        console.log(`Attempting to send email to: ${options.to} (${process.env.NODE_ENV} environment)`);
 
         const info = await transporter.sendMail(mailOptions);
-                console.log('Email sent successfully:', info.messageId);
+        console.log('Email sent successfully:', info.messageId);
         return {
-                    success: true,
+            success: true,
             messageId: info.messageId
         };
     } catch (error) {
-                console.error('Error sending email:', error);
-        // Try to recreate transporter
-        transporter = createTransporter();
+        console.error('Error sending email:', error);
+        
+        // Check for specific Gmail errors
+        if (error.code === 'EAUTH') {
+            console.error('Authentication failed. Please check your Gmail credentials.');
+            // Reset transporter to force recreation
+            transporter = null;
+        } else if (error.code === 'ESOCKET') {
+            console.error('Network error occurred while sending email.');
+            // Reset transporter to force recreation
+            transporter = null;
+        }
+        
+        // Try to recreate transporter for next attempt
+        try {
+            transporter = await createTransporter();
+        } catch (transportError) {
+            console.error('Failed to recreate email transport:', transportError);
+        }
+        
         throw new Error(`Failed to send email: ${error.message}`);
     }
 };
@@ -178,67 +236,68 @@ const getEmailJSParams = (customer, emailType) => {
 /**
  * Send an invoice email
  */
-const sendInvoiceEmail = async (order, invoiceHtml) => {
+const sendInvoiceEmail = async (order) => {
     try {
+        // Validate order data
+        if (!order || !order.customer || !order.customer.email) {
+            throw new Error('Invalid order data: missing customer email');
+        }
+
         // Generate PDF
         const pdfBuffer = await generateInvoicePDF(order);
         
         // Create invoice email HTML
         const emailHtml = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1>Order Confirmation - #${order.orderNumber}</h1>
+                <h1>Order Confirmation - #${order.reference || order.orderNumber}</h1>
                 <p>Dear ${order.customer.fullName},</p>
-                <p>Thank you for your order. Please find your invoice attached.</p>
-                ${invoiceHtml}
-                <p>Payment Instructions:</p>
-                <ul>
-                    <li>MTN Mobile Money: Dial *182*8*1#</li>
-                    <li>Merchant code: 430020</li>
-                    <li>Amount: RWF ${order.total.toLocaleString()}</li>
-                </ul>
-                <p>If you have any questions, please contact us at info@nhonestsupermarket.com</p>
-            </div>
-        `;
-
-        // Create company copy email HTML
-        const companyEmailHtml = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1>New Order Received - #${order.orderNumber}</h1>
-                <p>A new order has been received from ${order.customer.fullName}</p>
-                <p>Customer Details:</p>
-                <ul>
-                    <li>Name: ${order.customer.fullName}</li>
-                    <li>Email: ${order.customer.email}</li>
-                    <li>Phone: ${order.customer.phone}</li>
-                    <li>Address: ${order.customer.address}</li>
-                    <li>City: ${order.customer.city}</li>
-                    <li>Sector: ${order.customer.sector}</li>
-                </ul>
-                ${invoiceHtml}
-                <p>Order Total: RWF ${order.total.toLocaleString()}</p>
-                <p>Payment Method: ${order.paymentMethod}</p>
+                <p>Thank you for your order with N.Honest Supermarket. Please find your invoice attached.</p>
+                <div style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px;">
+                    <h3>Order Summary</h3>
+                    <p><strong>Order Number:</strong> ${order.reference || order.orderNumber}</p>
+                    <p><strong>Order Date:</strong> ${new Date().toLocaleDateString()}</p>
+                    <p><strong>Total Amount:</strong> RWF ${order.total.toLocaleString()}</p>
+                </div>
+                <div style="background-color: #e9ecef; padding: 20px; margin: 20px 0; border-radius: 5px;">
+                    <h3>Payment Instructions</h3>
+                    <p><strong>MTN Mobile Money:</strong></p>
+                    <ol>
+                        <li>Dial *182*8*1#</li>
+                        <li>Enter merchant code: 430020</li>
+                        <li>Amount: RWF ${order.total.toLocaleString()}</li>
+                        <li>Reference: ${order.reference || order.orderNumber}</li>
+                    </ol>
+                </div>
+                <p>If you have any questions, please contact us at:</p>
+                <p>Email: info@nhonestsupermarket.com<br>Phone: +250 788 633 739</p>
             </div>
         `;
 
         // Send email to customer
         const customerMailOptions = {
             to: order.customer.email,
-            subject: `N.Honest - Order Confirmation #${order.orderNumber}`,
+            subject: `N.Honest - Order Confirmation #${order.reference || order.orderNumber}`,
             html: emailHtml,
             attachments: [{
-                filename: `invoice-${order.orderNumber}.pdf`,
+                filename: `invoice-${order.reference || order.orderNumber}.pdf`,
                 content: pdfBuffer,
                 contentType: 'application/pdf'
             }]
         };
 
-        // Send email to company
+        // Send email to company (for records)
         const companyMailOptions = {
-            to: 'info@nhonestsupermarket.com',
-            subject: `New Order Received - #${order.orderNumber}`,
-            html: companyEmailHtml,
+            to: process.env.ADMIN_EMAIL || 'info@nhonestsupermarket.com',
+            subject: `New Order Received - #${order.reference || order.orderNumber}`,
+            html: `
+                <h2>New Order Received</h2>
+                <p><strong>Customer:</strong> ${order.customer.fullName}</p>
+                <p><strong>Email:</strong> ${order.customer.email}</p>
+                <p><strong>Phone:</strong> ${order.customer.phone}</p>
+                <p><strong>Amount:</strong> RWF ${order.total.toLocaleString()}</p>
+            `,
             attachments: [{
-                filename: `invoice-${order.orderNumber}.pdf`,
+                filename: `invoice-${order.reference || order.orderNumber}.pdf`,
                 content: pdfBuffer,
                 contentType: 'application/pdf'
             }]
@@ -252,7 +311,8 @@ const sendInvoiceEmail = async (order, invoiceHtml) => {
 
         console.log('Invoice emails sent successfully:', {
             customerEmail: customerEmailResult.messageId,
-            companyEmail: companyEmailResult.messageId
+            companyEmail: companyEmailResult.messageId,
+            environment: process.env.NODE_ENV
         });
 
         return {
@@ -263,7 +323,7 @@ const sendInvoiceEmail = async (order, invoiceHtml) => {
 
     } catch (error) {
         console.error('Failed to send invoice email:', error);
-        throw new Error(`Failed to send invoice email: ${error.message}`);
+        throw error;
     }
 };
 
