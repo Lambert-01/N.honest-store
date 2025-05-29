@@ -96,10 +96,17 @@ createUploadDirs();
 
 // Middleware
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' ? ['https://nhonestsupermarket.com', 'https://www.nhonestsupermarket.com'] : true,
+    origin: process.env.NODE_ENV === 'production' 
+        ? [
+            'https://nhonestsupermarket.com', 
+            'https://www.nhonestsupermarket.com',
+            'http://nhonestsupermarket.com',
+            'http://www.nhonestsupermarket.com'
+        ] 
+        : true,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
 }));
 
 // Log all API requests in production to help debug

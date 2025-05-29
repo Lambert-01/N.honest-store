@@ -61,7 +61,7 @@ function generateBasicInvoiceHtml(order) {
     `;
 }
 
-// Create a new order - Removed authentication requirement
+// Create a new order - No authentication required
 router.post('/', async (req, res) => {
     try {
         console.log('Received order request:', req.body);
@@ -90,53 +90,44 @@ router.post('/', async (req, res) => {
         const savedOrder = await order.save();
         console.log('Order saved successfully:', savedOrder._id);
 
-        // Send response immediately
+        // Send invoice email asynchronously
+        try {
+            console.log('Attempting to send invoice email...');
+            const emailResult = await sendInvoiceEmail(savedOrder);
+            console.log('Invoice email sent successfully:', emailResult);
+            
+            // Update order with email status
+            await Order.findByIdAndUpdate(savedOrder._id, {
+                $set: {
+                    emailSent: true,
+                    emailSentAt: new Date()
+                }
+            });
+        } catch (emailError) {
+            console.error('Failed to send invoice email:', emailError);
+            // Log email failure but don't block order creation
+            await Order.findByIdAndUpdate(savedOrder._id, {
+                $set: {
+                    emailError: emailError.message,
+                    emailErrorAt: new Date()
+                }
+            });
+        }
+
+        // Send success response
         res.status(201).json({
             success: true,
             message: 'Order created successfully',
             order: savedOrder
         });
 
-        // Send invoice email asynchronously
-        try {
-            console.log('Attempting to send invoice email...');
-            sendInvoiceEmail(savedOrder)
-                .then(emailResult => {
-                    console.log('Invoice email sent successfully:', emailResult);
-                    // Update order with email status
-                    return Order.findByIdAndUpdate(savedOrder._id, {
-                        $set: {
-                            emailSent: true,
-                            emailSentAt: new Date()
-                        }
-                    });
-                })
-                .catch(emailError => {
-                    console.error('Failed to send invoice email:', emailError);
-                    // Log email failure but don't block order creation
-                    Order.findByIdAndUpdate(savedOrder._id, {
-                        $set: {
-                            emailError: emailError.message,
-                            emailErrorAt: new Date()
-                        }
-                    }).catch(updateError => {
-                        console.error('Failed to update order with email error:', updateError);
-                    });
-                });
-        } catch (emailError) {
-            console.error('Error initiating email send:', emailError);
-        }
-
     } catch (error) {
         console.error('Error creating order:', error);
-        // If response hasn't been sent yet
-        if (!res.headersSent) {
-            res.status(500).json({
-                success: false,
-                message: 'Failed to create order',
-                error: error.message
-            });
-        }
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create order',
+            error: error.message
+        });
     }
 });
 
