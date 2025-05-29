@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="base-url" content="https://nhonestsupermarket.com">
+  <title>N.Honest Admin Panel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/admin-notifications.css">
+  <!-- Add custom styles for product table -->
+  <style>
+    /* Product table styles */
+    .product-thumbnail {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      border: 1px solid #eee;
+    }
+    
+    .table-hover tbody tr:hover {
+      background-color: rgba(13, 110, 253, 0.05);
+    }
+    
+    .table th {
+      font-weight: 600;
+      border-top: none;
+      background-color: #f8f9fa;
+      white-space: nowrap;
+    }
+    
+    .table td {
+      vertical-align: middle;
+    }
+    
+    .badge {
+      font-weight: 500;
+      padding: 0.35em 0.65em;
+    }
+    
+    .badge.bg-info {
+      background-color: #0dcaf0 !important;
+    }
+    
+    .badge.bg-success {
+      background-color: #198754 !important;
+    }
+    
+    .badge.bg-warning {
+      background-color: #ffc107 !important;
+      color: #212529;
+    }
+    
+    .btn-group .btn {
+      border-radius: 4px;
+      margin: 0 2px;
+    }
+    
+    .product-image-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 62px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Authentication Check -->
+  <script>
+    // Simple authentication check
+    function checkAuth() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/login.html';
+        return false;
+      }
+      return true;
+    }
+    // Run auth check immediately
+    checkAuth();
+  </script>
+
+  <div id="alert-container"></div>
+  <!-- Loader -->
+  <div id="loader">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <div class="d-flex" id="wrapper">
+    <!-- Sidebar -->
+    <div class="bg-dark border-right" id="sidebar-wrapper">
+      <div class="sidebar-profile d-flex flex-column align-items-center py-4">
+        <img src="images/placeholder.png" alt="Admin" class="rounded-circle mb-2" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <span class="fw-bold text-white mt-2">N.HONEST</span>
+        <small class="text-muted">ADMIN</small>
+      </div>
+      <div class="list-group list-group-flush my-3">
+        <a href="#dashboard-section" data-section="dashboard-section" class="list-group-item list-group-item-action second-text fw-bold section-link active">
+          <i class="fas fa-tachometer-alt"></i>Dashboard
+        </a>
+        <a href="#products-section" data-section="products-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-box-open"></i>Products
+        </a>
+        <a href="#categories-section" data-section="categories-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-tags"></i>Categories
+        </a>
+        <a href="#orders-section" data-section="orders-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-shopping-cart"></i>Orders
+        </a>
+        <a href="#customers-section" data-section="customers-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-users"></i>Customers
+        </a>
+        <a href="#inventory-section" data-section="inventory-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-boxes"></i>Inventory
+        </a>
+        <a href="#reports-section" data-section="reports-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-chart-bar"></i>Reports
+        </a>
+        <a href="#settings-section" data-section="settings-section" class="list-group-item list-group-item-action second-text fw-bold section-link">
+          <i class="fas fa-cog"></i>Settings
+        </a>
+        <a href="#" class="list-group-item list-group-item-action text-danger fw-bold mt-auto" id="logout-btn">
+          <i class="fas fa-power-off"></i>Logout
+        </a>
+      </div>
+    </div>
+    <!-- Sidebar Overlay for mobile -->
+    <div id="sidebar-overlay"></div>
+
+    <!-- Page Content -->
+    <div id="page-content-wrapper">
+      <nav class="navbar navbar-expand-lg navbar-light bg-white py-2 px-4">
+        <div class="d-flex align-items-center">
+          <button class="btn btn-sm btn-light rounded-circle me-3 menu-animated" id="menu-toggle" aria-label="Toggle sidebar">
+            <span class="menu-icon-bar"></span>
+            <span class="menu-icon-bar"></span>
+            <span class="menu-icon-bar"></span>
+          </button>
+          <h2 class="fs-4 m-0 fw-bold" id="section-title">Dashboard</h2>
+        </div>
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+            <li class="nav-item dropdown me-3">
+              <a class="nav-link position-relative p-2" href="#" role="button" id="notification-bell">
+                <i class="fas fa-bell fs-5 text-muted"></i>
+                <span class="notification-badge">3</span>
+              </a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <img src="images/placeholder.png" alt="Admin" class="rounded-circle me-2" style="width: 36px; height: 36px; object-fit: cover; border: 2px solid #f8f9fa;">
+                <div>
+                  <span class="fw-bold text-dark">------</span>
+                  <small class="d-block text-muted">Administrator</small>
+                </div>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm" aria-labelledby="navbarDropdown">
+                <li><a class="dropdown-item" href="#" id="profile-dropdown-item" data-goto="profile"><i class="fas fa-user me-2 text-primary"></i>Profile</a></li>
+                <li><a class="dropdown-item" href="#" id="settings-dropdown-item" data-goto="settings"><i class="fas fa-cog me-2 text-secondary"></i>Settings</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" id="nav-logout-btn"><i class="fas fa-power-off me-2 text-danger"></i>Logout</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </nav>
+
+      <!-- Dashboard Section -->
+      <div class="container-fluid px-4 section-content active" id="dashboard-section">
+        <div class="row g-3 my-3">
+          <div class="col-md-3">
+            <div class="card dashboard-card revenue">
+              <div class="card-body">
+                <h5 class="card-title text-muted mb-0">Total Revenue</h5>
+                <h3 class="fw-bold">----</h3>
+                <p class="card-text text-success mb-0">
+                  <i class="fas fa-arrow-up me-1"></i>---% <span class="text-muted">vs last month</span>
+                </p>
+                <div class="icon">
+                  <i class="fas fa-money-bill-wave text-success"></i>
+                </div>
+                </div>
+                </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card dashboard-card orders">
+              <div class="card-body">
+                <h5 class="card-title text-muted mb-0">Total Orders</h5>
+                <h3 class="fw-bold">---</h3>
+                <p class="card-text text-info mb-0">
+                  <i class="fas fa-arrow-up me-1"></i>---% <span class="text-muted">vs last month</span>
+                </p>
+                <div class="icon">
+                  <i class="fas fa-shopping-cart text-info"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card dashboard-card customers">
+              <div class="card-body">
+                <h5 class="card-title text-muted mb-0">Customers</h5>
+                <h3 class="fw-bold">---</h3>
+                <p class="card-text text-warning mb-0">
+                  <i class="fas fa-arrow-up me-1"></i>---% <span class="text-muted">vs last month</span>
+                </p>
+                <div class="icon">
+                  <i class="fas fa-users text-warning"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card dashboard-card products">
+              <div class="card-body">
+                <h5 class="card-title text-muted mb-0">Products</h5>
+                <h3 class="fw-bold">----</h3>
+                <p class="card-text text-danger mb-0">
+                  <i class="fas fa-arrow-up me-1"></i>---% <span class="text-muted">vs last month</span>
+                </p>
+                <div class="icon">
+                  <i class="fas fa-box-open text-danger"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-8">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Sales Overview</h5>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="salesPeriodDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Select Period
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="salesPeriodDropdown">
+                    <li><a class="dropdown-item" href="#">Today</a></li>
+                    <li><a class="dropdown-item" href="#">Last 7 Days</a></li>
+                    <li><a class="dropdown-item" href="#">Last 30 Days</a></li>
+                    <li><a class="dropdown-item" href="#">This Month</a></li>
+                    <li><a class="dropdown-item" href="#">Last Month</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="card-body">
+                <canvas id="salesChart" height="250"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Top Categories</h5>
+              </div>
+              <div class="card-body">
+                <canvas id="categoryChart" height="250"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row mt-4">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Orders</h5>
+                <a href="#orders-section" class="btn btn-sm btn-primary">View All</a>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="recent-orders-table">
+                      <tr>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td><span class="badge bg-success">Delivered</span></td>
+                      </tr>
+                      <tr>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td><span class="badge bg-warning">Processing</span></td>
+                      </tr>
+                      <tr>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td><span class="badge bg-info">Shipped</span></td>
+                      </tr>
+                      <tr>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td><span class="badge bg-success">Delivered</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Low Stock Products</h5>
+                <a href="#inventory-section" class="btn btn-sm btn-primary">View All</a>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="low-stock-table">
+                      <tr>
+                        <td>-----</td>
+                        <td>-----</td>
+                        <td>-</td>
+                        <td><span class="badge bg-danger">Low Stock</span></td>
+                      </tr>
+                      <tr>
+                        <td>-----</td>
+                        <td>-----</td>
+                        <td>-</td>
+                        <td><span class="badge bg-warning">Running Low</span></td>
+                      </tr>
+                      <tr>
+                        <td>-----</td>
+                        <td>-----</td>
+                        <td>-</td>
+                        <td><span class="badge bg-warning">Running Low</span></td>
+                      </tr>
+                      <tr>
+                        <td>-----</td>
+                        <td>-----</td>
+                        <td>-</td>
+                        <td><span class="badge bg-warning">Running Low</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products Section -->
+      <div class="container-fluid px-4 section-content" id="products-section">
+        <!-- Products Section Header -->
+        <div class="row mb-4">
+          <div class="col-md-6">
+            <h1 class="h3">Products</h1>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <div class="btn-group" role="group">
+              <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                <i class="fas fa-plus me-1"></i> Add Product
+              </button>
+              <button class="btn btn-primary" id="refresh-products">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+              </button>
+              <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importProductsModal">
+                <i class="fas fa-file-import me-1"></i> Import
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="card mb-4 border-0 shadow-sm">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fas fa-search"></i></span>
+                  <input type="text" class="form-control" id="product-search" placeholder="Search products...">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <select class="form-select" id="category-filter">
+                  <option value="">All Categories</option>
+                </select>
+              </div>
+              <div class="col-md-4 text-end">
+                <div class="btn-group" role="group">
+                  <button id="bulk-actions" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                    Bulk Actions
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" id="bulk-activate"><i class="fas fa-check-circle me-2"></i>Activate Selected</a></li>
+                    <li><a class="dropdown-item" href="#" id="bulk-deactivate"><i class="fas fa-times-circle me-2"></i>Deactivate Selected</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="#" id="bulk-delete"><i class="fas fa-trash me-2"></i>Delete Selected</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 40px;">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="select-all-products">
+                  </div>
+                </th>
+                <th style="width: 70px;">Image</th>
+                <th>Product Details</th>
+                <th>Category</th>
+                <th style="width: 120px;">Price</th>
+                <th style="width: 90px;">Stock</th>
+                <th style="width: 90px;">Variants</th>
+                <th style="width: 90px;">Status</th>
+                <th style="width: 120px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="products-table-body">
+              <!-- Products will be dynamically loaded here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Add Product Modal -->
+      <div class="modal fade" id="addProductModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+          <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+              <h5 class="modal-title"><i class="fas fa-box me-2"></i>Add New Product</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="product-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                <input type="hidden" name="status" value="active">
+                <input type="hidden" id="variants-json" name="variants" value="[]">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
+                      <select class="form-select" id="category" name="category" required>
+                        <option value="">Select Category</option>
+                      </select>
+                      <div class="invalid-feedback">Please select a category</div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="name" class="form-label">Product Name <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="name" name="name" required>
+                      <div class="invalid-feedback">Please enter a product name</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="price" class="form-label">Price <span class="text-danger">*</span></label>
+                      <div class="input-group">
+                        <span class="input-group-text">RWF</span>
+                        <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" required>
+                        <div class="invalid-feedback">Please enter a valid price</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="costPrice" class="form-label">Cost Price <span class="text-danger">*</span></label>
+                      <div class="input-group">
+                        <span class="input-group-text">RWF</span>
+                        <input type="number" class="form-control" id="costPrice" name="costPrice" step="0.01" min="0" required>
+                        <div class="invalid-feedback">Please enter a valid cost price</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label for="stock" class="form-label">Stock <span class="text-danger">*</span></label>
+                      <input type="number" class="form-control" id="stock" name="stock" min="0" required>
+                      <div class="invalid-feedback">Please enter the stock quantity</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label for="description" class="form-label">Description</label>
+                  <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                </div>
+
+                <div class="mb-3">
+                  <label for="featuredImage" class="form-label">Product Image</label>
+                  <input type="file" class="form-control" id="featuredImage" name="featuredImage" accept="image/*" data-preview="product-preview-image">
+                  <div class="featured-image-preview mt-2 d-none text-center">
+                    <img id="product-preview-image" src="#" alt="Product Preview" class="img-thumbnail" style="max-height: 150px">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Product Variants</label>
+                  <div class="card mb-3">
+                    <div class="card-body">
+                      <div class="row mb-3">
+                        <div class="col-md-12">
+                          <h6 class="fw-bold">Add Variant Attributes</h6>
+                          <p class="text-muted small">Define product attributes like Size, Color, etc. and their possible values</p>
+                        </div>
+                        <div class="col-md-4">
+                          <label for="attribute-type" class="form-label">Attribute Type</label>
+                          <input type="text" class="form-control" id="attribute-type" placeholder="e.g., Size, Color, Flavor">
+                        </div>
+                        <div class="col-md-8">
+                          <label for="attribute-values" class="form-label">Attribute Values <span class="text-muted small">(comma separated)</span></label>
+                          <input type="text" class="form-control" id="attribute-values" placeholder="e.g., Small, Medium, Large">
+                        </div>
+                      </div>
+                      <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                        <button type="button" class="btn btn-outline-primary" id="add-attribute-btn">
+                          <i class="fas fa-plus-circle me-1"></i> Add Attribute
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Attribute List -->
+                  <div class="card mb-3">
+                    <div class="card-header bg-light">
+                      <h6 class="mb-0">Defined Attributes</h6>
+                    </div>
+                    <div class="card-body p-0">
+                      <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                          <tr>
+                            <th>Attribute</th>
+                            <th>Values</th>
+                            <th style="width: 80px">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody id="attributes-list">
+                          <!-- Product attributes will be listed here -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  
+                  <!-- Generate Variants Button -->
+                  <div class="mb-3">
+                    <button type="button" class="btn btn-primary" id="generate-variants-btn" disabled>
+                      <i class="fas fa-sync-alt me-1"></i> Generate Variants
+                    </button>
+                    <span class="text-muted ms-2 small" id="variants-count"></span>
+                  </div>
+                  
+                  <!-- Variants Table -->
+                  <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                      <h6 class="mb-0">Product Variants</h6>
+                      <span class="badge bg-primary" id="variants-count"></span>
+                    </div>
+                    <div class="card-body p-0">
+                      <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                          <thead class="table-light">
+                            <tr>
+                              <th style="width: 30%">Variant</th>
+                              <th style="width: 30%">Price</th>
+                              <th style="width: 20%">Stock</th>
+                              <th style="width: 20%" class="text-center">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody id="variants-list">
+                            <!-- Product variants will be listed here -->
+                            <tr id="no-variants-message">
+                              <td colspan="4" class="text-center py-3 text-muted">
+                                <i class="fas fa-info-circle me-1"></i> Add attributes and generate variants
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="text-end">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Add Product</button>
+                  <input type="hidden" id="variants-json" name="variants" value="[]">
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import Products Modal -->
+      <div class="modal fade" id="importProductsModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+              <h5 class="modal-title"><i class="fas fa-file-import me-2"></i>Import Products</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="import-form">
+                <div class="mb-3">
+                  <label class="form-label">Select File</label>
+                  <input type="file" class="form-control" accept=".csv,.xlsx" required>
+                  <small class="text-muted">Supported formats: CSV, Excel (.xlsx)</small>
+                </div>
+                <div class="mb-3">
+                  <a href="#" class="text-decoration-none">Download Template</a>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" form="import-form" class="btn btn-primary">
+                <i class="fas fa-upload me-1"></i>Import
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Product</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-product-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                    <input type="hidden" id="edit-product-id" name="productId">
+                    <input type="hidden" id="edit-variants-json" name="variants" value="[]">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-category" class="form-label">Category <span class="text-danger">*</span></label>
+                                <select class="form-select" id="edit-category" name="category" required>
+                                    <option value="">Select Category</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a category</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-name" class="form-label">Product Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit-name" name="name" required>
+                                <div class="invalid-feedback">Please enter a product name</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-price" class="form-label">Price <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">RWF</span>
+                                    <input type="number" class="form-control" id="edit-price" name="price" step="0.01" min="0" required>
+                                    <div class="invalid-feedback">Please enter a valid price</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-costPrice" class="form-label">Cost Price <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">RWF</span>
+                                    <input type="number" class="form-control" id="edit-costPrice" name="costPrice" step="0.01" min="0" required>
+                                    <div class="invalid-feedback">Please enter a valid cost price</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-stock" class="form-label">Stock <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="edit-stock" name="stock" min="0" required>
+                                <div class="invalid-feedback">Please enter the stock quantity</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit-status" class="form-label">Status <span class="text-danger">*</span></label>
+                                <select class="form-select" id="edit-status" name="status" required>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="draft">Draft</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a status</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-description" class="form-label">Description</label>
+                        <textarea class="form-control" id="edit-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-featuredImage" class="form-label">Product Image</label>
+                        <input type="file" class="form-control" id="edit-featuredImage" name="featuredImage" accept="image/*" data-preview="edit-product-preview-image">
+                        <div class="edit-featured-image-preview mt-2 text-center">
+                            <img id="edit-product-preview-image" src="#" alt="Product Preview" class="img-thumbnail" style="max-height: 150px; display: none;">
+                            <div id="current-product-image" class="mt-2">
+                                <p class="text-muted small">Current image will be displayed here</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Product Variants</label>
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <h6 class="fw-bold">Add Variant Attributes</h6>
+                                        <p class="text-muted small">Define product attributes like Size, Color, etc. and their possible values</p>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="edit-attribute-type" class="form-label">Attribute Type</label>
+                                        <input type="text" class="form-control" id="edit-attribute-type" placeholder="e.g., Size, Color, Flavor">
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label for="edit-attribute-values" class="form-label">Attribute Values <span class="text-muted small">(comma separated)</span></label>
+                                        <input type="text" class="form-control" id="edit-attribute-values" placeholder="e.g., Small, Medium, Large">
+                                    </div>
+                                </div>
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                                    <button type="button" class="btn btn-outline-primary" id="edit-add-attribute-btn">
+                                        <i class="fas fa-plus-circle me-1"></i> Add Attribute
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Attribute List -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Defined Attributes</h6>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Attribute</th>
+                                            <th>Values</th>
+                                            <th style="width: 80px">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="edit-attributes-list">
+                                        <!-- Product attributes will be listed here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Generate Variants Button -->
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-primary" id="edit-generate-variants-btn" disabled>
+                                <i class="fas fa-sync-alt me-1"></i> Generate Variants
+                            </button>
+                            <span class="text-muted ms-2 small" id="edit-variants-count"></span>
+                        </div>
+                        <!-- Variants Table -->
+                        <div class="card">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                              <h6 class="mb-0">Product Variants</h6>
+                              <span class="badge bg-primary" id="edit-variants-count"></span>
+                            </div>
+                            <div class="card-body p-0">
+                              <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0" id="edit-variants-table">
+                                  <thead class="table-light">
+                                    <tr>
+                                      <th style="width: 35%">Variant</th>
+                                      <th style="width: 30%">Price</th>
+                                      <th style="width: 25%">Stock</th>
+                                      <th style="width: 10%" class="text-center">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <!-- Product variants will be listed here -->
+                                    <tr id="edit-no-variants-message">
+                                      <td colspan="4" class="text-center py-3 text-muted">
+                                        <i class="fas fa-info-circle me-1"></i> Add attributes and generate variants
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </div>
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+      <!-- Categories Section -->
+      <div class="container-fluid px-4 section-content" id="categories-section">
+        <div class="row my-4">
+          <div class="col-lg-12">
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-gradient-primary text-white py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Category Management</h5>
+                  <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <i class="fas fa-plus-circle me-1"></i>Add New Category
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <!-- Alert Container -->
+                <div id="alert-container"></div>
+                
+                <!-- Search and Filter Bar -->
+                <div class="row mb-4">
+                  <div class="col-md-8">
+                    <div class="input-group">
+                      <span class="input-group-text bg-light">
+                        <i class="fas fa-search"></i>
+                      </span>
+                      <input type="text" class="form-control" id="category-search" placeholder="Search categories...">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="d-flex gap-2">
+                      <select class="form-select" id="category-status-filter">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                      <button class="btn btn-outline-primary" id="refresh-categories">
+                        <i class="fas fa-sync-alt"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Categories Table -->
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Products</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="categories-table-body">
+                      <!-- Categories will be dynamically loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Category Modal -->
+      <div class="modal fade" id="addCategoryModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+              <h5 class="modal-title"><i class="fas fa-tags me-2"></i>Add New Category</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="category-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                <div class="card shadow-sm mb-4">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Category Information</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required>
+                        <div class="invalid-feedback">Please enter a category name.</div>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Category Image</label>
+                        <div class="input-group mb-3">
+                          <input type="file" class="form-control" name="image" id="category-image" accept="image/*" data-preview="preview-image">
+                          <label class="input-group-text" for="category-image">Upload</label>
+                        </div>
+                        <div class="image-preview mt-2 text-center d-none">
+                          <img id="preview-image" src="#" alt="Preview" class="img-thumbnail" style="max-height: 150px">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status">
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card shadow-sm">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Actions</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex gap-2 justify-content-end">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Save Category
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Category Modal -->
+      <div class="modal fade" id="editCategoryModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+              <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Category</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="edit-category-form" class="needs-validation" novalidate enctype="multipart/form-data">
+                <input type="hidden" name="categoryId" id="edit-category-id">
+                <div class="card shadow-sm mb-4">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Category Information</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" id="edit-category-name" required>
+                        <div class="invalid-feedback">Please enter a category name.</div>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" id="edit-category-description" rows="3"></textarea>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label">Current Image</label>
+                        <div class="current-image-container text-center mb-3">
+                          <img id="current-category-image" src="#" alt="Category Image" class="img-thumbnail" style="max-height: 150px">
+                        </div>
+                        <label class="form-label">Update Image</label>
+                        <div class="input-group mb-3">
+                          <input type="file" class="form-control" name="image" id="edit-category-image" accept="image/*">
+                          <label class="input-group-text" for="edit-category-image">Upload</label>
+                        </div>
+                        <div class="edit-image-preview mt-2 text-center d-none">
+                          <img id="edit-preview-image" src="#" alt="Preview" class="img-thumbnail" style="max-height: 150px">
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status" id="edit-category-status">
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card shadow-sm">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0">Actions</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="d-flex gap-2 justify-content-end">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Update Category
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="container-fluid px-4 section-content" id="orders-section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0 text-gray-800">Orders Management</h1>
+            <button class="btn btn-outline-primary" type="button">
+                <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                  </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary me-4">Orders List</h6>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="orderFilterDropdown" data-bs-toggle="dropdown">
+                            All Orders
+                    </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" data-status="all">All Orders</a></li>
+                            <li><a class="dropdown-item" href="#" data-status="pending">Pending</a></li>
+                            <li><a class="dropdown-item" href="#" data-status="processing">Processing</a></li>
+                            <li><a class="dropdown-item" href="#" data-status="shipped">Shipped</a></li>
+                            <li><a class="dropdown-item" href="#" data-status="delivered">Delivered</a></li>
+                            <li><a class="dropdown-item" href="#" data-status="cancelled">Cancelled</a></li>
+                    </ul>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="order-search" placeholder="Search orders...">
+                    </div>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                                <th>Order #</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                        <th>Payment</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="orders-table-body">
+                            <!-- Orders will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div class="text-muted">
+                        Showing <span id="showing-orders">0-0</span> of <span id="total-orders">0</span> orders
+                  </div>
+                    <nav>
+                    <ul class="pagination mb-0">
+                            <!-- Pagination will be loaded here -->
+                    </ul>
+                  </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container-fluid px-4 section-content" id="customers-section">
+        <div class="row my-4">
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Customers</h5>
+                <div class="d-flex">
+                  <div class="input-group me-2">
+                    <input type="text" class="form-control" placeholder="Search customers..." id="customer-search">
+                    <button class="btn btn-outline-secondary" type="button">
+                      <i class="fas fa-search"></i>
+                    </button>
+                  </div>
+                  <button class="btn btn-outline-primary">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Orders</th>
+                        <th>Total Spent</th>
+                        <th>Last Order</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="customers-table-body">
+                      <!-- Customers will be dynamically loaded here -->
+                      <tr>
+                        <td>#C------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                        <td>--/--/----</td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>#C------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                        <td>--/--/----</td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>#C------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                        <td>--/--/----</td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                  <div>
+                    <span>Showing <span id="showing-customers">0</span> of <span id="total-customers">0</span> customers</span>
+                  </div>
+                  <nav aria-label="Customer pagination">
+                    <ul class="pagination mb-0">
+                      <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Previous">
+                          <span aria-hidden="true">&laquo;</span>
+                        </a>
+                      </li>
+                      <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                      <li class="page-item"><a class="page-link" href="#">2</a></li>
+                      <li class="page-item"><a class="page-link" href="#">3</a></li>
+                      <li class="page-item">
+                        <a class="page-link" href="#" aria-label="Next">
+                          <span aria-hidden="true">&raquo;</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container-fluid px-4 section-content" id="inventory-section">
+        <div class="row my-4">
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Inventory Management</h5>
+                <div class="d-flex">
+                  <div class="input-group me-2">
+                    <input type="text" class="form-control" placeholder="Search inventory..." id="inventory-search">
+                    <button class="btn btn-outline-secondary" type="button">
+                      <i class="fas fa-search"></i>
+                    </button>
+                  </div>
+                  <div class="dropdown me-2">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="inventoryFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                      Filter
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="inventoryFilterDropdown">
+                      <li><a class="dropdown-item" href="#">All Products</a></li>
+                      <li><a class="dropdown-item" href="#">Low Stock</a></li>
+                      <li><a class="dropdown-item" href="#">Out of Stock</a></li>
+                      <li><a class="dropdown-item" href="#">In Stock</a></li>
+                    </ul>
+                  </div>
+                  <button class="btn btn-outline-primary">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover table-striped">
+                    <thead>
+                      <tr>
+                        <th>Image</th>
+                        <th>Product Name</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Stock Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="inventory-table-body">
+                      <!-- Inventory items will be dynamically loaded here -->
+                      <tr>
+                        <td><div class="text-muted small">No image</div></td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td><span class="badge bg-danger">Low Stock</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><div class="text-muted small">No image</div></td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td><span class="badge bg-warning">Running Low</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><div class="text-muted small">No image</div></td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>------</td>
+                        <td>--</td>
+                        <td><span class="badge bg-success">In Stock</span></td>
+                        <td>
+                          <div class="btn-group">
+                            <button class="btn btn-sm btn-primary">
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                  <div>
+                    <span>Showing <span id="showing-inventory">0</span> of <span id="total-inventory">0</span> products</span>
+                  </div>
+                  <nav aria-label="Inventory pagination">
+                    <ul class="pagination mb-0">
+                      <li class="page-item disabled">
+                        <a class="page-link" href="#" aria-label="Previous">
+                          <span aria-hidden="true">&laquo;</span>
+                        </a>
+                      </li>
+                      <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                      <li class="page-item"><a class="page-link" href="#">2</a></li>
+                      <li class="page-item"><a class="page-link" href="#">3</a></li>
+                      <li class="page-item">
+                        <a class="page-link" href="#" aria-label="Next">
+                          <span aria-hidden="true">&raquo;</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container-fluid px-4 section-content" id="reports-section">
+        <div class="row my-4">
+          <div class="col-md-6 mb-4">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Sales Report</h5>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="salesReportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Select Period
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="salesReportDropdown">
+                    <li><a class="dropdown-item" href="#">Today</a></li>
+                    <li><a class="dropdown-item" href="#">Yesterday</a></li>
+                    <li><a class="dropdown-item" href="#">Last 7 Days</a></li>
+                    <li><a class="dropdown-item" href="#">Last 30 Days</a></li>
+                    <li><a class="dropdown-item" href="#">This Month</a></li>
+                    <li><a class="dropdown-item" href="#">Last Month</a></li>
+                    <li><a class="dropdown-item" href="#">Custom Range</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="card-body">
+                <canvas id="salesReportChart" height="300"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-4">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Revenue by Category</h5>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="revenueCategoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Select Period
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="revenueCategoryDropdown">
+                    <li><a class="dropdown-item" href="#">Last 7 Days</a></li>
+                    <li><a class="dropdown-item" href="#">Last 30 Days</a></li>
+                    <li><a class="dropdown-item" href="#">This Month</a></li>
+                    <li><a class="dropdown-item" href="#">Last Month</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="card-body">
+                <canvas id="revenueCategoryChart" height="300"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-4">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Top Selling Products</h5>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="topProductsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Select Period
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="topProductsDropdown">
+                    <li><a class="dropdown-item" href="#">Last 7 Days</a></li>
+                    <li><a class="dropdown-item" href="#">Last 30 Days</a></li>
+                    <li><a class="dropdown-item" href="#">This Month</a></li>
+                    <li><a class="dropdown-item" href="#">Last Month</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Quantity Sold</th>
+                        <th>Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody id="top-products-table">
+                      <!-- Top products will be dynamically loaded here -->
+                      <tr>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                      </tr>
+                      <tr>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                      </tr>
+                      <tr>
+                        <td>------</td>
+                        <td>--</td>
+                        <td>------ RWF</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-4">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Inventory Value Summary</h5>
+              </div>
+              <div class="card-body">
+                <canvas id="inventoryValueChart" height="300"></canvas>
+              </div>
+              <div class="card-footer">
+                <div class="row text-center">
+                  <div class="col-4">
+                    <h6 class="mb-0">Total Value</h6>
+                    <h5 class="mt-2 mb-0">------ RWF</h5>
+                  </div>
+                  <div class="col-4">
+                    <h6 class="mb-0">Low Stock Value</h6>
+                    <h5 class="mt-2 mb-0">------ RWF</h5>
+                  </div>
+                  <div class="col-4">
+                    <h6 class="mb-0">Out of Stock Items</h6>
+                    <h5 class="mt-2 mb-0">--</h5>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container-fluid px-4 section-content" id="settings-section">
+        <div class="row my-4">
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="settings-tabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="true">General</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">Profile</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab" aria-controls="security" aria-selected="false">Security</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="notifications-tab" data-bs-toggle="tab" data-bs-target="#notifications" type="button" role="tab" aria-controls="notifications" aria-selected="false">Notifications</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup" type="button" role="tab" aria-controls="backup" aria-selected="false">Backup</button>
+                  </li>
+                </ul>
+              </div>
+              <div class="card-body">
+                <div class="tab-content" id="settings-tab-content">
+                  <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+                    <h5 class="mb-4">Store Settings</h5>
+                    <form id="store-settings-form">
+                      <div class="row mb-3">
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label for="store-name" class="form-label">Store Name</label>
+                            <input type="text" class="form-control" id="store-name" value="N.Honest Supermarket">
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label for="store-email" class="form-label">Store Email</label>
+                            <input type="email" class="form-control" id="store-email" value="------">
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label for="store-phone" class="form-label">Store Phone</label>
+                            <input type="tel" class="form-control" id="store-phone" value="------">
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label for="currency" class="form-label">Currency</label>
+                            <select class="form-select" id="currency">
+                              <option value="RWF" selected>Rwandan Franc (RWF)</option>
+                              <option value="USD">US Dollar (USD)</option>
+                              <option value="EUR">Euro (EUR)</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div class="col-md-12">
+                          <div class="mb-3">
+                            <label for="store-address" class="form-label">Store Address</label>
+                            <textarea class="form-control" id="store-address" rows="2">------</textarea>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label for="store-logo" class="form-label">Store Logo</label>
+                            <input type="file" class="form-control" id="store-logo">
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="mb-3">
+                            <label for="tax-rate" class="form-label">Tax Rate (%)</label>
+                            <input type="number" class="form-control" id="tax-rate" value="18">
+                          </div>
+                        </div>
+                      </div>
+                      <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                  <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                    <h5 class="mb-4">Profile Settings</h5>
+                    <form id="profile-settings-form">
+                      <div class="row">
+                        <div class="col-md-2 mb-3">
+                          <img src="images/placeholder.png" alt="Profile" class="img-fluid rounded-circle" id="profile-image">
+                          <div class="mt-2">
+                            <input type="file" class="form-control form-control-sm" id="profile-image-upload">
+                          </div>
+                        </div>
+                        <div class="col-md-10">
+                          <div class="row">
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label for="first-name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="first-name" value="------">
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label for="last-name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="last-name" value="------">
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" value="------">
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="phone" value="------">
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label for="role" class="form-label">Role</label>
+                                <input type="text" class="form-control" id="role" value="Administrator" readonly>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="mb-3">
+                                <label for="joined-date" class="form-label">Joined Date</label>
+                                <input type="text" class="form-control" id="joined-date" value="--/--/----" readonly>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                  <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
+                    <h5 class="mb-4">Security Settings</h5>
+                    <form id="password-change-form">
+                      <input type="text" name="username" autocomplete="username" style="display:none">
+                      <div class="mb-3">
+                        <label for="current-password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="current-password" autocomplete="current-password" required>
+                      </div>
+                      <div class="mb-3">
+                        <label for="new-password" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="new-password" autocomplete="new-password" required>
+                      </div>
+                      <div class="mb-3">
+                        <label for="confirm-password" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirm-password" autocomplete="new-password" required>
+                      </div>
+                      <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                      </div>
+                    </form>
+                    <hr class="my-4">
+                    <h5 class="mb-4">Two-Factor Authentication</h5>
+                    <div class="form-check form-switch mb-3">
+                      <input class="form-check-input" type="checkbox" id="two-factor-auth">
+                      <label class="form-check-label" for="two-factor-auth">Enable Two-Factor Authentication</label>
+                    </div>
+                    <p class="text-muted">Add an extra layer of security to your account by enabling two-factor authentication.</p>
+                  </div>
+                  <div class="tab-pane fade" id="notifications" role="tabpanel" aria-labelledby="notifications-tab">
+                    <h5 class="mb-4">Notification Settings</h5>
+                    <form id="notification-settings-form">
+                      <div class="mb-4">
+                        <h6>Email Notifications</h6>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="email-new-order" checked>
+                          <label class="form-check-label" for="email-new-order">New Order</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="email-low-stock" checked>
+                          <label class="form-check-label" for="email-low-stock">Low Stock Alert</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="email-price-update">
+                          <label class="form-check-label" for="email-price-update">Price Updates</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="email-customer-review">
+                          <label class="form-check-label" for="email-customer-review">Customer Reviews</label>
+                        </div>
+                      </div>
+                      <div class="mb-4">
+                        <h6>System Notifications</h6>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="system-new-order" checked>
+                          <label class="form-check-label" for="system-new-order">New Order</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="system-low-stock" checked>
+                          <label class="form-check-label" for="system-low-stock">Low Stock Alert</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="system-price-update" checked>
+                          <label class="form-check-label" for="system-price-update">Price Updates</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="system-customer-review">
+                          <label class="form-check-label" for="system-customer-review">Customer Reviews</label>
+                        </div>
+                      </div>
+                      <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                  <div class="tab-pane fade" id="backup" role="tabpanel" aria-labelledby="backup-tab">
+                    <div class="row">
+                      <div class="col-md-6 mb-3">
+                        <div class="card">
+                          <div class="card-body">
+                            <h6 class="card-title">Backup Database</h6>
+                            <p class="text-muted">Create a backup of your store database including products, orders, customers, and settings.</p>
+                            <div class="d-grid">
+                              <button class="btn btn-primary" id="backup-db-btn">
+                                <i class="fas fa-download me-1"></i>Create Backup
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6 mb-3">
+                        <div class="card">
+                          <div class="card-body">
+                            <h6 class="card-title">Export Products</h6>
+                            <p class="text-muted">Export your product catalog as CSV or Excel file.</p>
+                            <div class="d-grid">
+                              <button class="btn btn-outline-primary" id="export-products-btn">
+                                <i class="fas fa-file-export me-1"></i>Export Products
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="card">
+                          <div class="card-body">
+                            <h6 class="card-title">Restore Database</h6>
+                            <p class="text-muted">Restore your database from a previous backup.</p>
+                            <div class="mb-3">
+                              <input type="file" class="form-control" id="restore-file" accept=".sql,.zip">
+                            </div>
+                            <div class="d-grid">
+                              <button class="btn btn-warning" id="restore-db-btn" disabled>
+                                <i class="fas fa-upload me-1"></i>Restore Backup
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="card">
+                          <div class="card-body">
+                            <h6 class="card-title">Import Products</h6>
+                            <p class="text-muted">Import products from CSV or Excel file.</p>
+                            <div class="mb-3">
+                              <input type="file" class="form-control" id="import-file" accept=".csv,.xlsx">
+                            </div>
+                            <div class="d-grid">
+                              <button class="btn btn-outline-warning" id="import-products-btn" disabled>
+                                <i class="fas fa-file-import me-1"></i>Import Products
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.0/dist/browser-image-compression.js"></script>
+
+<!-- Admin Panel Logic -->
+<script src="/js/admin.js"></script>
+<script src="/js/admin-notifications.js"></script>
+<script src="/js/admin-orders.js"></script>
+
+<!-- Initialize Admin Notifications -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the notification system
+    window.adminNotifications = new AdminNotifications();
+});
+</script>
+
+<!-- Notification Sound -->
+<audio id="notification-sound" preload="auto">
+  <source src="/sounds/notification.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Debug helper for forms -->
+<script>
+// Debug script to log form submissions
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Form debugging activated');
+
+    // Add form submission debug logging for all forms
+    document.querySelectorAll('form').forEach(form => {
+        const formId = form.id || 'unnamed-form';
+        console.log(`Registered form: ${formId}`);
+        
+        // Add debug event listener
+        form.addEventListener('submit', function(e) {
+            console.log(`Form submitted: ${formId}`);
+            
+            // Category form debugging
+            if (formId === 'category-form') {
+                const formData = new FormData(this);
+                console.log('Category form data:');
+                for (const [key, value] of formData.entries()) {
+                    if (value instanceof File) {
+                        console.log(`- ${key}: File "${value.name}" (${value.size} bytes, ${value.type})`);
+                    } else {
+                        console.log(`- ${key}: ${value}`);
+                    }
+                }
+            }
+        });
+    });
+});
+</script>
+
+<!-- Notification Slide Panel -->
+<div id="notification-panel" class="notification-panel">
+  <div class="notification-header d-flex justify-content-between align-items-center">
+    <span class="fw-bold">Notifications</span>
+    <button class="btn-close" id="close-notification-panel"></button>
+  </div>
+  <div class="notification-list" id="notification-list">
+    <!-- Notifications will be loaded here -->
+  </div>
+</div>
+</body>
+</html>

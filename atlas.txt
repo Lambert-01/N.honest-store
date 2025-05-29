@@ -1,0 +1,6 @@
+MONGODB_URI=mongodb+srv://nlambert01:Umuneke12345.@n-honest-cluster.tlxarx6.mongodb.net/?retryWrites=true&w=majority&appName=n-honest-cluster
+JWT_SECRET=N7ru53fDk9Z2xWqEgV8Bp6LmJ4Hs3PtY5Xc2A9RwK8Fn
+NODE_ENV=production
+PORT=10000
+MAX_FILE_SIZE=5242880
+UPLOAD_PATH=uploads
