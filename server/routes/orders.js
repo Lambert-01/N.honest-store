@@ -61,13 +61,14 @@ function generateBasicInvoiceHtml(order) {
     `;
 }
 
-// Create a new order
+// Create a new order - No authentication required
 router.post('/', async (req, res) => {
-    console.log('Received order request:', req.body);
+    console.log('Received order request');
     
     try {
         // Validate order data
         if (!req.body.customer || !req.body.items || !req.body.total) {
+            console.error('Missing required order data');
             return res.status(400).json({
                 success: false,
                 message: 'Missing required order data'
@@ -75,64 +76,49 @@ router.post('/', async (req, res) => {
         }
 
         // Create order first
-        const order = new Order({
+        const orderData = {
             ...req.body,
             reference: generateOrderReference(),
             orderNumber: generateOrderNumber(),
             status: 'pending',
             createdAt: new Date()
-        });
+        };
 
-        // Save order to database
-        console.log('Saving order to database...');
+        console.log('Creating order with data:', orderData);
+        const order = new Order(orderData);
         await order.save();
         console.log('Order saved successfully:', order._id);
 
-        // Send response immediately
-        res.status(200).json({
+        // Send invoice email asynchronously
+        console.log('Attempting to send invoice email');
+        try {
+            await sendInvoiceEmail(order);
+            console.log('Invoice email sent successfully');
+        } catch (emailError) {
+            // Log email error but don't fail the order
+            console.error('Failed to send invoice email:', emailError);
+            // Continue processing - we'll handle email retry logic separately
+        }
+
+        // Return success response
+        return res.status(200).json({
             success: true,
             message: 'Order created successfully',
             order: {
                 reference: order.reference,
                 orderNumber: order.orderNumber,
-                total: order.total
+                total: order.total,
+                status: order.status
             }
         });
 
-        // Send invoice email asynchronously
-        console.log('Sending invoice email asynchronously...');
-        sendInvoiceEmail(order)
-            .then(() => {
-                console.log('Invoice email sent successfully');
-                // Update order status
-                return Order.findByIdAndUpdate(order._id, { 
-                    $set: { 
-                        emailSent: true,
-                        emailSentAt: new Date()
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Error sending invoice email:', error);
-                // Log error but don't affect the order process
-                Order.findByIdAndUpdate(order._id, {
-                    $set: {
-                        emailError: error.message,
-                        emailErrorAt: new Date()
-                    }
-                }).catch(console.error);
-            });
-
     } catch (error) {
         console.error('Error processing order:', error);
-        // Only send error response if response hasn't been sent yet
-        if (!res.headersSent) {
-            res.status(500).json({
-                success: false,
-                message: 'Error processing order',
-                error: error.message
-            });
-        }
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to process order',
+            error: error.message
+        });
     }
 });
 

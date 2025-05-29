@@ -34,7 +34,7 @@ const createOAuth2Client = () => {
 let transporter = null;
 
 // Create reusable transporter object using SMTP
-const createTransporter = () => {
+const createTransporter = async () => {
     try {
         // Validate required environment variables
         if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
@@ -44,54 +44,87 @@ const createTransporter = () => {
         // Clean up app password by removing any whitespace
         const appPassword = process.env.EMAIL_APP_PASSWORD.trim();
 
-        // Create configuration object with production settings
-        const config = {
+        // Primary configuration (TLS)
+        const primaryConfig = {
             service: 'gmail',
             host: 'smtp.gmail.com',
-            port: 465,
-            secure: true, // Use SSL
+            port: 587,
+            secure: false,
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: appPassword
             },
             tls: {
                 rejectUnauthorized: true,
-                minVersion: "TLSv1.2"
+                minVersion: "TLSv1.2",
+                ciphers: 'HIGH',
+                timeout: 30000
             },
+            connectionTimeout: 30000,
+            greetingTimeout: 30000,
+            socketTimeout: 30000,
             debug: process.env.NODE_ENV !== 'production',
-            pool: true,
-            maxConnections: 3,
-            maxMessages: 100,
-            rateDelta: 1000,
-            rateLimit: 3
+            logger: process.env.NODE_ENV !== 'production'
+        };
+
+        // Fallback configuration (SSL)
+        const fallbackConfig = {
+            ...primaryConfig,
+            port: 465,
+            secure: true,
+            tls: {
+                ...primaryConfig.tls,
+                servername: 'smtp.gmail.com'
+            }
         };
 
         console.log('Creating email transport with config:', {
             user: process.env.EMAIL_USER,
             service: 'gmail',
             environment: process.env.NODE_ENV,
-            host: config.host,
-            port: config.port,
-            secure: config.secure
+            host: primaryConfig.host,
+            port: primaryConfig.port,
+            secure: primaryConfig.secure
         });
 
-        // Create and verify the transporter
-        const transport = nodemailer.createTransport(config);
-        
-        return new Promise((resolve, reject) => {
-            transport.verify((error, success) => {
-                if (error) {
-                    console.error('Email transport verification failed:', error);
-                    reject(error);
-                } else {
-                    console.log('Email transport verified successfully');
-                    resolve(transport);
-                }
-            });
-        });
+        // Try primary configuration first
+        try {
+            const transport = nodemailer.createTransport(primaryConfig);
+            await transport.verify();
+            console.log('Email transport verified successfully with primary config');
+            return transport;
+        } catch (primaryError) {
+            console.log('Primary config failed, trying fallback:', primaryError.message);
+            
+            // Try fallback configuration
+            try {
+                const transport = nodemailer.createTransport(fallbackConfig);
+                await transport.verify();
+                console.log('Email transport verified successfully with fallback config');
+                return transport;
+            } catch (fallbackError) {
+                console.error('Fallback config also failed:', fallbackError.message);
+                throw new Error('Both primary and fallback configurations failed');
+            }
+        }
     } catch (error) {
         console.error('Failed to create email transport:', error);
         throw error;
+    }
+};
+
+// Add a health check function
+const checkEmailService = async () => {
+    try {
+        const transport = await createTransporter();
+        await transport.verify();
+        return { status: 'healthy', message: 'Email service is working correctly' };
+    } catch (error) {
+        return { 
+            status: 'unhealthy', 
+            message: 'Email service is not working',
+            error: error.message 
+        };
     }
 };
 
@@ -105,10 +138,8 @@ const sendEmail = async (options, retries = 3) => {
             transporter = await createTransporter();
         }
 
-        // Validate required fields
-        if (!options.to || !options.subject || (!options.html && !options.text)) {
-            throw new Error('Missing required email fields (to, subject, and html/text)');
-        }
+        // Log email attempt
+        console.log(`Attempting to send email to ${options.to} with subject: ${options.subject}`);
 
         const mailOptions = {
             from: {
@@ -121,16 +152,10 @@ const sendEmail = async (options, retries = 3) => {
             html: options.html,
             text: options.text || 'Please view this email in an HTML-compatible email client',
             attachments: options.attachments,
-            headers: {
-                'X-Environment': process.env.NODE_ENV,
-                'X-Mailer': 'N.Honest Mailer',
-                'Message-ID': `<${Date.now()}@nhonestsupermarket.com>`,
-                'X-Priority': '1',
-                'X-MSMail-Priority': 'High'
-            }
+            pool: true, // Enable connection pooling
+            maxConnections: 5,
+            maxMessages: 100
         };
-
-        console.log(`Attempting to send email to: ${options.to} (${process.env.NODE_ENV} environment)`);
 
         const info = await transporter.sendMail(mailOptions);
         console.log('Email sent successfully:', info.messageId);
@@ -141,22 +166,22 @@ const sendEmail = async (options, retries = 3) => {
     } catch (error) {
         console.error('Error sending email:', error);
 
-        // Check for specific Gmail errors
-        if (error.code === 'EAUTH') {
-            console.error('Authentication failed. Please check your Gmail credentials.');
-            transporter = null; // Reset transporter
-        } else if (error.code === 'ESOCKET') {
-            console.error('Network error occurred while sending email.');
-            transporter = null; // Reset transporter
-        }
-
-        // Retry logic
         if (retries > 0) {
-            console.log(`Retrying email send... (${retries} attempts remaining)`);
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+            const backoffDelay = Math.pow(2, 4 - retries) * 1000; // Exponential backoff: 2, 4, 8 seconds
+            console.log(`Retrying email send in ${backoffDelay/1000} seconds... (${retries} attempts remaining)`);
+            
+            // Reset transporter on connection errors
+            if (error.code === 'ETIMEDOUT' || error.code === 'ECONNECTION' || error.code === 'EAUTH' || 
+                error.code === 'ESOCKET' || error.code === 'ECONNREFUSED') {
+                console.log('Connection error detected, resetting transporter...');
+                transporter = null;
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
             return sendEmail(options, retries - 1);
         }
 
+        // If we're out of retries, throw a more informative error
         throw new Error(`Failed to send email after multiple attempts: ${error.message}`);
     }
 };
@@ -249,14 +274,13 @@ const getEmailJSParams = (customer, emailType) => {
  */
 const sendInvoiceEmail = async (order, retries = 3) => {
     try {
-        // Validate order data
-        if (!order || !order.customer || !order.customer.email) {
-            throw new Error('Invalid order data: missing customer email');
-        }
+        console.log('Starting invoice email process for order:', order.reference || order.orderNumber);
 
         // Generate PDF
+        console.log('Generating PDF...');
         const pdfBuffer = await generateInvoicePDF(order);
-        
+        console.log('PDF generated successfully');
+
         // Create invoice email HTML
         const emailHtml = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -285,7 +309,8 @@ const sendInvoiceEmail = async (order, retries = 3) => {
         `;
 
         // Send email to customer
-        const customerMailOptions = {
+        console.log('Sending email to customer:', order.customer.email);
+        await sendEmail({
             to: order.customer.email,
             subject: `N.Honest - Order Confirmation #${order.reference || order.orderNumber}`,
             html: emailHtml,
@@ -294,10 +319,11 @@ const sendInvoiceEmail = async (order, retries = 3) => {
                 content: pdfBuffer,
                 contentType: 'application/pdf'
             }]
-        };
+        });
 
         // Send email to business
-        const businessMailOptions = {
+        console.log('Sending email to business');
+        await sendEmail({
             to: process.env.BUSINESS_EMAIL || 'info@nhonestsupermarket.com',
             subject: `New Order Received - #${order.reference || order.orderNumber}`,
             html: `
@@ -312,24 +338,10 @@ const sendInvoiceEmail = async (order, retries = 3) => {
                 content: pdfBuffer,
                 contentType: 'application/pdf'
             }]
-        };
-
-        // Send both emails
-        const [customerEmailResult, businessEmailResult] = await Promise.all([
-            sendEmail(customerMailOptions, retries),
-            sendEmail(businessMailOptions, retries)
-        ]);
-
-        console.log('Invoice emails sent successfully:', {
-            customerEmail: customerEmailResult.messageId,
-            businessEmail: businessEmailResult.messageId
         });
 
-        return {
-            success: true,
-            customerEmailId: customerEmailResult.messageId,
-            businessEmailId: businessEmailResult.messageId
-        };
+        console.log('All invoice emails sent successfully');
+        return { success: true };
 
     } catch (error) {
         console.error('Failed to send invoice email:', error);
@@ -348,5 +360,6 @@ module.exports = {
     sendEmail,
     sendVerificationEmail,
     sendInvoiceEmail,
-    getEmailJSParams
+    getEmailJSParams,
+    checkEmailService // Export the health check function
 };
