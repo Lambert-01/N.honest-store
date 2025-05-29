@@ -9,7 +9,7 @@ const { auth } = require('./auth');
 function generateOrderReference() {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 10000);
-    return `INV-${timestamp}-${random}`;
+  return `INV-${timestamp}-${random}`;
 }
 
 // Generate order number
@@ -64,9 +64,9 @@ function generateBasicInvoiceHtml(order) {
 
 // Handle order creation
 router.post('/', async (req, res) => {
-    try {
+  try {
         const orderData = req.body;
-        
+    
         // Generate order reference and order number
         orderData.reference = generateOrderReference();
         orderData.orderNumber = generateOrderNumber();
@@ -92,9 +92,9 @@ router.post('/', async (req, res) => {
                 success: true,
                 order: savedOrder,
                 warning: 'Order created successfully but failed to send invoice email'
-            });
-        }
-        
+        });
+      }
+      
         // Return success response
         res.status(201).json({
             success: true,
@@ -104,7 +104,7 @@ router.post('/', async (req, res) => {
     } catch (error) {
         console.error('Error creating order:', error);
         res.status(500).json({
-            success: false,
+          success: false,
             error: 'Failed to create order: ' + error.message
         });
     }
@@ -189,7 +189,7 @@ router.get('/:id', auth, async (req, res) => {
         error: 'Order not found'
       });
     }
-
+    
     res.json({
       success: true,
       data: order
@@ -223,7 +223,7 @@ router.patch('/:id/status', auth, async (req, res) => {
     res.json({
       success: true,
       data: order
-    });
+      });
   } catch (error) {
     console.error('Error updating order status:', error);
     res.status(500).json({
@@ -242,12 +242,12 @@ router.delete('/:id', auth, async (req, res) => {
         success: false,
         error: 'Order not found'
       });
-    }
-
+      }
+      
     res.json({
-      success: true,
+        success: true,
       message: 'Order deleted successfully'
-    });
+      });
   } catch (error) {
     console.error('Error deleting order:', error);
     res.status(500).json({

@@ -1385,264 +1385,130 @@ function setupCheckoutProcess() {
 
 // Function to place order and send invoice
 async function placeOrder() {
-  // Show loading state
-  const placeOrderBtn = document.getElementById('place-order-btn');
-  const originalBtnText = placeOrderBtn.innerHTML;
-  placeOrderBtn.disabled = true;
-  placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-  
-  try {
-    // Check if user is logged in
-    const customerToken = localStorage.getItem('customerToken');
-    const customerDataStr = localStorage.getItem('customer');
+    // Show loading state
+    const placeOrderBtn = document.getElementById('place-order-btn');
+    const originalBtnText = placeOrderBtn.innerHTML;
+    placeOrderBtn.disabled = true;
+    placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
     
-    if (!customerToken || !customerDataStr) {
-      // Show login required alert
-      const loginAlert = document.getElementById('login-required-alert');
-      if (loginAlert) {
-        loginAlert.style.display = 'block';
-        
-        // Add event listener to login button
-        const loginBtn = document.getElementById('checkout-login-btn');
-        if (loginBtn) {
-          loginBtn.addEventListener('click', function() {
-            // Open login modal
-            const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
-            loginModal.show();
-            
-            // Close checkout modal
-            const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
-            if (checkoutModal) {
-              checkoutModal.hide();
-            }
-          });
-        }
-      }
-      
-      // Reset button state
-      placeOrderBtn.disabled = false;
-      placeOrderBtn.innerHTML = originalBtnText;
-      
-      return;
-    }
-    
-    // Validate all required fields are filled
-    const fullName = document.getElementById('fullName').value.trim();
-    const email = document.getElementById('customerEmail').value.trim();
-    const phone = document.getElementById('phoneNumber').value.trim();
-    const address = document.getElementById('address').value.trim();
-    const city = document.getElementById('city').value.trim();
-    const sector = document.getElementById('sector').value.trim();
-    const company = document.getElementById('companyName').value.trim() || '';
-    
-    // Check for empty required fields
-    const requiredFields = [
-      { id: 'fullName', value: fullName, label: 'Full Name' },
-      { id: 'customerEmail', value: email, label: 'Email' },
-      { id: 'phoneNumber', value: phone, label: 'Phone Number' },
-      { id: 'address', value: address, label: 'Address' },
-      { id: 'city', value: city, label: 'City/District' },
-      { id: 'sector', value: sector, label: 'Sector' }
-    ];
-    
-    const emptyFields = requiredFields.filter(field => !field.value);
-    
-    if (emptyFields.length > 0) {
-      // Highlight empty fields
-      emptyFields.forEach(field => {
-        const input = document.getElementById(field.id);
-        input.classList.add('is-invalid');
-        
-        // Create or update error message
-        let errorDiv = input.nextElementSibling;
-        if (!errorDiv || !errorDiv.classList.contains('invalid-feedback')) {
-          errorDiv = document.createElement('div');
-          errorDiv.classList.add('invalid-feedback');
-          input.parentNode.insertBefore(errorDiv, input.nextSibling);
-        }
-        errorDiv.textContent = `${field.label} is required`;
-      });
-      
-      // Show error toast
-      showToast(`Please fill in all required fields: ${emptyFields.map(f => f.label).join(', ')}`, 'error');
-      
-      // Reset button state
-      placeOrderBtn.disabled = false;
-      placeOrderBtn.innerHTML = originalBtnText;
-      
-      // Show the appropriate step with the first empty field
-      const firstEmptyField = emptyFields[0];
-      const firstEmptyFieldElement = document.getElementById(firstEmptyField.id);
-      const stepId = firstEmptyFieldElement.closest('.checkout-step').id.replace('step-', '');
-      
-      // Hide all steps
-      document.querySelectorAll('.checkout-step').forEach(step => {
-        step.classList.remove('active');
-        step.style.display = 'none';
-      });
-      
-      // Show the step with the first empty field
-      const targetStep = document.getElementById(`step-${stepId}`);
-      targetStep.classList.add('active');
-      targetStep.style.display = 'block';
-      
-      return;
-    }
-    
-    // Create customer data object with validated fields
-    const customerData = {
-      fullName,
-      email,
-      phone,
-      address,
-      city,
-      sector,
-      company
-    };
-    
-    // Calculate order totals
-    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    // Fixed delivery fee of 1500 RWF
-    const deliveryFee = 1500;
-    const total = subtotal + deliveryFee;
-    
-    // Create order object
-    const order = {
-      customer: customerData,
-      items: cart.map(item => ({
-        productId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        total: item.price * item.quantity,
-        image: item.image
-      })),
-      subtotal: subtotal,
-      deliveryFee: deliveryFee,
-      tax: 0, // No tax
-      total: total,
-      paymentMethod: 'invoice',
-      paymentStatus: 'pending',
-      status: 'pending'
-    };
-    
-    // Generate invoice HTML
-    const invoiceHtml = generateInvoiceHtml({
-      ...order,
-      reference: 'PENDING', // Will be replaced with actual reference from server
-      date: new Date()
-    });
-    
-    // Add invoice HTML to the order object
-    order.invoiceHtml = invoiceHtml;
-    
-    // First try server-side approach
     try {
-      console.log('Submitting order to server:', order);
-      
-      // Get customer token if logged in
-      const customerToken = localStorage.getItem('customerToken');
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add authorization header if customer is logged in
-      if (customerToken) {
-        headers['Authorization'] = `Bearer ${customerToken}`;
-      }
-      
-      // Send order to server API
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(order)
-      });
-      
-      const responseText = await response.text();
-      console.log('Server response:', responseText);
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Failed to parse response as JSON:', e);
-        throw new Error(`Server error: Invalid response format`);
-      }
-      
-      if (!response.ok) {
-        console.error('Server error details:', result);
-        throw new Error(`Server error: ${response.status} - ${result.error || 'Unknown error'}`);
-      }
-      
-      console.log('Order saved successfully:', result);
-      
-      // Update order reference with the one from server
-      const orderReference = result.order.reference;
-      document.getElementById('order-reference').textContent = orderReference;
-      document.getElementById('order-date').textContent = new Date().toLocaleDateString();
-      
-      // Update customer email in complete step
-      document.getElementById('order-email').textContent = customerData.email;
-      
-      // Show success message
-      showToast(`Order placed successfully! Invoice sent to ${customerData.email}`, 'success');
-      
-    } catch (serverError) {
-      console.error('Server-side order processing failed:', serverError);
-      console.log('Falling back to client-side email sending...');
-      
-      // Fallback to client-side email sending with EmailJS
-      try {
-        // Generate a client-side reference if server failed
-        const orderReference = 'INV-' + Date.now().toString().slice(-6) + '-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        document.getElementById('order-reference').textContent = orderReference;
+        // Check if user is logged in
+        const customerToken = localStorage.getItem('customerToken');
+        const customerDataStr = localStorage.getItem('customer');
         
-        // Update the invoice HTML with the generated reference
-        const updatedInvoiceHtml = generateInvoiceHtml({
-          ...order,
-          reference: orderReference,
-          date: new Date()
-        });
+        if (!customerToken || !customerDataStr) {
+            // Show login required alert
+            const loginAlert = document.getElementById('login-required-alert');
+            if (loginAlert) {
+                loginAlert.style.display = 'block';
+            }
+            
+            // Reset button state
+            placeOrderBtn.disabled = false;
+            placeOrderBtn.innerHTML = originalBtnText;
+            return;
+        }
         
-        // Send email using EmailJS
-        const emailParams = {
-          to_name: customerData.fullName,
-          to_email: customerData.email,
-          subject: `Your N.Honest Invoice #${orderReference}`,
-          message: 'Thank you for your order. Please find your invoice attached.',
-          invoice_html: updatedInvoiceHtml
+        // Get form data
+        const customerData = {
+            fullName: document.getElementById('fullName').value.trim(),
+            email: document.getElementById('customerEmail').value.trim(),
+            phone: document.getElementById('phoneNumber').value.trim(),
+            address: document.getElementById('address').value.trim(),
+            city: document.getElementById('city').value.trim(),
+            sector: document.getElementById('sector').value.trim(),
+            company: document.getElementById('companyName')?.value.trim() || ''
         };
         
-        await emailjs.send('service_nhonest', 'template_invoice', emailParams);
-        showToast(`Order placed! Invoice sent to ${customerData.email}`, 'success');
+        // Calculate order totals
+        const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+        const deliveryFee = 1500;
+        const total = subtotal + deliveryFee;
         
-      } catch (emailError) {
-        console.error('EmailJS fallback also failed:', emailError);
-        showToast('Failed to send invoice email. Please contact customer support.', 'error');
-      }
+        // Generate order reference
+        const orderReference = 'INV-' + Date.now().toString().slice(-6) + '-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        
+        // Create order object
+        const order = {
+            reference: orderReference,
+            customer: customerData,
+            items: cart.map(item => ({
+                productId: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.price * item.quantity,
+                image: item.image
+            })),
+            subtotal: subtotal,
+            deliveryFee: deliveryFee,
+            tax: 0,
+            total: total,
+            paymentMethod: 'invoice',
+            paymentStatus: 'pending',
+            status: 'pending',
+            date: new Date()
+        };
+        
+        // Generate invoice HTML
+        const invoiceHtml = generateInvoiceHtml(order);
+        order.invoiceHtml = invoiceHtml;
+        
+        try {
+            // First try to save order to server
+            const response = await fetch('/api/orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${customerToken}`
+                },
+                body: JSON.stringify(order)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('Order saved successfully:', result);
+            
+        } catch (serverError) {
+            console.error('Server-side order processing failed:', serverError);
+            console.log('Falling back to client-side email sending...');
+            
+            // Send invoice email using EmailJS
+            try {
+                await window.emailConfig.sendInvoiceEmail(order);
+                showToast(`Order placed! Invoice sent to ${customerData.email}`, 'success');
+            } catch (emailError) {
+                console.error('Failed to send invoice email:', emailError);
+                showToast('Order placed but failed to send invoice email. Please contact support.', 'warning');
+            }
+        }
+        
+        // Update UI with order reference
+        document.getElementById('order-reference').textContent = orderReference;
+        document.getElementById('order-date').textContent = new Date().toLocaleDateString();
+        document.getElementById('order-email').textContent = customerData.email;
+        
+        // Show complete step
+        document.getElementById('step-confirm').classList.remove('active');
+        document.getElementById('step-confirm').style.display = 'none';
+        document.getElementById('step-complete').classList.add('active');
+        document.getElementById('step-complete').style.display = 'block';
+        
+        // Clear cart
+        clearCart();
+        updateCartDisplay();
+        
+    } catch (error) {
+        console.error('Error placing order:', error);
+        showToast('Failed to place order. Please try again.', 'error');
+        
+        // Reset button state
+        placeOrderBtn.disabled = false;
+        placeOrderBtn.innerHTML = originalBtnText;
     }
-    
-    // Update customer email in complete step
-    document.getElementById('order-email').textContent = customerData.email;
-    
-    // Show complete step
-    document.getElementById('step-confirm').classList.remove('active');
-    document.getElementById('step-confirm').style.display = 'none';
-    document.getElementById('step-complete').classList.add('active');
-    document.getElementById('step-complete').style.display = 'block';
-    
-    // Clear cart after successful order
-    clearCart();
-    updateCartDisplay();
-    
-  } catch (error) {
-    console.error('Error placing order:', error);
-    showToast('Failed to place order. Please try again.', 'error');
-    
-    // Reset button state
-    placeOrderBtn.disabled = false;
-    placeOrderBtn.innerHTML = originalBtnText;
-  }
 }
 
 // Function to save order to database

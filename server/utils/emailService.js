@@ -34,8 +34,8 @@ const createOAuth2Client = () => {
 const createTransporter = () => {
     // Create configuration object
     const config = {
-        service: 'gmail',
-        auth: {
+    service: 'gmail',
+    auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_APP_PASSWORD?.replace(/\s+/g, '') // Remove any spaces from app password
         }
@@ -59,19 +59,19 @@ let transporter = createTransporter();
 const sendEmail = async (options) => {
     try {
         // Ensure we have a transporter
-        if (!transporter) {
+    if (!transporter) {
             transporter = createTransporter();
-        }
-
-        const mailOptions = {
+    }
+    
+    const mailOptions = {
             from: {
                 name: 'N.Honest Supermarket',
                 address: process.env.EMAIL_USER
             },
-            to: options.to,
+        to: options.to,
             cc: options.cc,
-            subject: options.subject,
-            html: options.html,
+        subject: options.subject,
+        html: options.html,
             text: options.text || 'Please view this email in an HTML-compatible email client',
             attachments: options.attachments
         };
@@ -79,13 +79,13 @@ const sendEmail = async (options) => {
         console.log('Attempting to send email to:', options.to);
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
+                console.log('Email sent successfully:', info.messageId);
         return {
-            success: true,
+                    success: true,
             messageId: info.messageId
         };
     } catch (error) {
-        console.error('Error sending email:', error);
+                console.error('Error sending email:', error);
         // Try to recreate transporter
         transporter = createTransporter();
         throw new Error(`Failed to send email: ${error.message}`);
