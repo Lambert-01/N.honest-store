@@ -46,12 +46,12 @@ const createTransporter = () => {
 
         // Create configuration object with more secure settings for production
         const config = {
-            service: 'gmail',
+    service: 'gmail',
             host: 'smtp.gmail.com', // Explicitly set host
             port: 465, // Use SSL
             secure: true, // Use SSL
-            auth: {
-                user: process.env.EMAIL_USER,
+    auth: {
+        user: process.env.EMAIL_USER,
                 pass: appPassword
             },
             tls: {
@@ -102,24 +102,24 @@ const createTransporter = () => {
 const sendEmail = async (options, retries = 3) => {
     try {
         // Ensure we have a transporter
-        if (!transporter) {
+    if (!transporter) {
             transporter = await createTransporter();
         }
     
         // Validate required fields
         if (!options.to || !options.subject || (!options.html && !options.text)) {
             throw new Error('Missing required email fields (to, subject, and html/text)');
-        }
+    }
     
-        const mailOptions = {
+    const mailOptions = {
             from: {
                 name: 'N.Honest Supermarket',
                 address: process.env.EMAIL_USER
             },
-            to: options.to,
+        to: options.to,
             cc: options.cc,
-            subject: options.subject,
-            html: options.html,
+        subject: options.subject,
+        html: options.html,
             text: options.text || 'Please view this email in an HTML-compatible email client',
             attachments: options.attachments,
             headers: {
@@ -133,13 +133,13 @@ const sendEmail = async (options, retries = 3) => {
         console.log(`Attempting to send email to: ${options.to} (${process.env.NODE_ENV} environment)`);
 
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
+                console.log('Email sent successfully:', info.messageId);
         return {
-            success: true,
+                    success: true,
             messageId: info.messageId
         };
     } catch (error) {
-        console.error('Error sending email:', error);
+                console.error('Error sending email:', error);
         
         // Check for specific Gmail errors
         if (error.code === 'EAUTH') {

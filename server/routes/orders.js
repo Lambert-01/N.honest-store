@@ -3,14 +3,12 @@ const router = express.Router();
 const Order = require('../models/orders');
 const { sendInvoiceEmail } = require('../utils/emailService');
 const crypto = require('crypto');
-const { auth } = require('./auth');
-const { customerAuth } = require('./customerAuth');
 
 // Generate order reference number
 function generateOrderReference() {
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 10000);
-  return `INV-${timestamp}-${random}`;
+    return `INV-${timestamp}-${random}`;
 }
 
 // Generate order number
@@ -63,25 +61,30 @@ function generateBasicInvoiceHtml(order) {
     `;
 }
 
-// Create a new order
-router.post('/', customerAuth, async (req, res) => {
+// Create a new order - Removed authentication requirement
+router.post('/', async (req, res) => {
     try {
+        console.log('Received order request:', req.body);
+
         // Validate order data
         if (!req.body.customer || !req.body.items || !req.body.total) {
+            console.error('Missing required order data');
             return res.status(400).json({
                 success: false,
                 message: 'Missing required order data'
             });
         }
 
-        // Create order first
-        const order = new Order({
+        // Generate reference and order numbers
+        const orderData = {
             ...req.body,
-            customer: {
-                ...req.body.customer,
-                userId: req.customer._id // Add authenticated customer ID
-            }
-        });
+            reference: generateOrderReference(),
+            orderNumber: generateOrderNumber(),
+            createdAt: new Date()
+        };
+
+        // Create order
+        const order = new Order(orderData);
 
         // Save order to database
         const savedOrder = await order.save();
@@ -96,6 +99,7 @@ router.post('/', customerAuth, async (req, res) => {
 
         // Send invoice email asynchronously
         try {
+            console.log('Attempting to send invoice email...');
             sendInvoiceEmail(savedOrder)
                 .then(emailResult => {
                     console.log('Invoice email sent successfully:', emailResult);
@@ -136,82 +140,28 @@ router.post('/', customerAuth, async (req, res) => {
     }
 });
 
-// Get all orders with pagination and filtering
-router.get('/', auth, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    const sortField = req.query.sortField || 'createdAt';
-    const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
-    
-    // Build filter query
-    const query = {};
-    if (req.query.status) {
-      query.status = req.query.status;
+// Get all orders - Removed authentication
+router.get('/', async (req, res) => {
+    try {
+        const orders = await Order.find().sort({ createdAt: -1 });
+        res.json({
+            success: true,
+            orders: orders
+        });
+    } catch (error) {
+        console.error('Error fetching orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch orders',
+            error: error.message
+        });
     }
-    if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search, 'i');
-      query.$or = [
-        { orderNumber: searchRegex },
-        { 'customer.fullName': searchRegex },
-        { 'customer.email': searchRegex }
-      ];
-    }
-
-    // Get total count for pagination
-    const total = await Order.countDocuments(query);
-    
-    // Get orders with populated product details
-    const orders = await Order.find(query)
-      .sort({ [sortField]: sortOrder })
-      .skip(skip)
-      .limit(limit)
-      .lean(); // Use lean() for better performance
-
-    // Format the response
-    const formattedOrders = orders.map(order => ({
-      ...order,
-      createdAt: order.createdAt,
-      total: order.total || 0,
-      items: order.items || [],
-      customer: {
-        fullName: order.customer?.fullName || 'N/A',
-        email: order.customer?.email || 'N/A',
-        phone: order.customer?.phone || 'N/A'
-      },
-      status: order.status || 'pending',
-      paymentStatus: order.paymentStatus || 'pending'
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        orders: formattedOrders,
-        pagination: {
-          total,
-          pages: Math.ceil(total / limit),
-          page,
-          limit
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch orders'
-    });
-  }
 });
 
-// Get order by ID
-router.get('/:id', customerAuth, async (req, res) => {
+// Get order by ID - Removed authentication
+router.get('/:id', async (req, res) => {
     try {
-        const order = await Order.findOne({
-            _id: req.params.id,
-            'customer.userId': req.customer._id
-        });
+        const order = await Order.findById(req.params.id);
         
         if (!order) {
             return res.status(404).json({
@@ -220,7 +170,10 @@ router.get('/:id', customerAuth, async (req, res) => {
             });
         }
         
-        res.json(order);
+        res.json({
+            success: true,
+            order: order
+        });
     } catch (error) {
         console.error('Error fetching order:', error);
         res.status(500).json({
@@ -231,79 +184,23 @@ router.get('/:id', customerAuth, async (req, res) => {
     }
 });
 
-// Update order status
-router.patch('/:id/status', auth, async (req, res) => {
-  try {
-    const { status } = req.body;
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    ).lean();
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: order
-      });
-  } catch (error) {
-    console.error('Error updating order status:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to update order status'
-    });
-  }
-});
-
-// Delete order
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const order = await Order.findByIdAndDelete(req.params.id);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
-      }
-      
-    res.json({
-        success: true,
-      message: 'Order deleted successfully'
-      });
-  } catch (error) {
-    console.error('Error deleting order:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to delete order'
-    });
-  }
-});
-
-// Get all orders (for admin)
-router.get('/', async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch orders' });
-  }
-});
-
-// Get customer orders by email
+// Get customer orders by email - Removed authentication
 router.get('/customer/:email', async (req, res) => {
-  try {
-    const { email } = req.params;
-    const orders = await Order.find({ 'customer.email': email }).sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch customer orders' });
-  }
+    try {
+        const { email } = req.params;
+        const orders = await Order.find({ 'customer.email': email }).sort({ createdAt: -1 });
+        res.json({
+            success: true,
+            orders: orders
+        });
+    } catch (error) {
+        console.error('Error fetching customer orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch customer orders',
+            error: error.message
+        });
+    }
 });
 
 // Get order by reference number
@@ -322,48 +219,56 @@ router.get('/reference/:reference', async (req, res) => {
   }
 });
 
-// Update order payment status
+// Update order payment status - Removed authentication
 router.patch('/payment/:reference', async (req, res) => {
-  try {
-    const { reference } = req.params;
-    const { paymentStatus } = req.body;
-    
-    if (!['pending', 'paid', 'failed'].includes(paymentStatus)) {
-      return res.status(400).json({ error: 'Invalid payment status' });
+    try {
+        const { reference } = req.params;
+        const { paymentStatus } = req.body;
+        
+        if (!['pending', 'paid', 'failed'].includes(paymentStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid payment status'
+            });
+        }
+        
+        const order = await Order.findOne({ reference });
+        
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        
+        order.paymentStatus = paymentStatus;
+        
+        // If payment is marked as paid, update order status to processing
+        if (paymentStatus === 'paid' && order.status === 'pending') {
+            order.status = 'processing';
+        }
+        
+        await order.save();
+        
+        res.json({
+            success: true,
+            order: order,
+            message: 'Payment status updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating payment status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update payment status',
+            error: error.message
+        });
     }
-    
-    const order = await Order.findOne({ reference });
-    
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-    
-    order.paymentStatus = paymentStatus;
-    
-    // If payment is marked as paid, update order status to processing
-    if (paymentStatus === 'paid' && order.status === 'pending') {
-      order.status = 'processing';
-    }
-    
-    await order.save();
-    
-    res.json({
-      success: true,
-      order,
-      message: 'Payment status updated successfully'
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update payment status' });
-  }
 });
 
-// Resend invoice email
-router.post('/:id/resend-invoice', customerAuth, async (req, res) => {
+// Resend invoice email - Removed authentication
+router.post('/:id/resend-invoice', async (req, res) => {
     try {
-        const order = await Order.findOne({
-            _id: req.params.id,
-            'customer.userId': req.customer._id
-        });
+        const order = await Order.findById(req.params.id);
         
         if (!order) {
             return res.status(404).json({

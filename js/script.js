@@ -1392,23 +1392,6 @@ async function placeOrder() {
     placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
     
     try {
-        // Check if user is logged in
-        const customerToken = localStorage.getItem('customerToken');
-        const customerDataStr = localStorage.getItem('customer');
-        
-        if (!customerToken || !customerDataStr) {
-            // Show login required alert
-            const loginAlert = document.getElementById('login-required-alert');
-            if (loginAlert) {
-                loginAlert.style.display = 'block';
-            }
-            
-            // Reset button state
-            placeOrderBtn.disabled = false;
-            placeOrderBtn.innerHTML = originalBtnText;
-            return;
-        }
-        
         // Get form data
         const customerData = {
             fullName: document.getElementById('fullName').value.trim(),
@@ -1425,12 +1408,8 @@ async function placeOrder() {
         const deliveryFee = 1500;
         const total = subtotal + deliveryFee;
         
-        // Generate order reference
-        const orderReference = 'INV-' + Date.now().toString().slice(-6) + '-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-        
         // Create order object
         const order = {
-            reference: orderReference,
             customer: customerData,
             items: cart.map(item => ({
                 productId: item.id,
@@ -1450,64 +1429,48 @@ async function placeOrder() {
             date: new Date()
         };
 
-        // Set timeout for the fetch request
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        console.log('Sending order to server:', order);
 
-        try {
-            // Send order to server
-            const response = await fetch('/api/orders', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${customerToken}`
-                },
-                body: JSON.stringify(order),
-                signal: controller.signal
-            });
+        // Send order to server
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(order)
+        });
 
-            clearTimeout(timeout);
-
-            // Check response status
-            if (!response.ok) {
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Server error occurred');
-                } else {
-                    throw new Error(`Server error: ${response.status} ${response.statusText}`);
-                }
-            }
-
-            // Parse response
-            const result = await response.json();
-            console.log('Order saved successfully:', result);
-
-            // Update UI with order reference
-            document.getElementById('order-reference').textContent = orderReference;
-            document.getElementById('order-date').textContent = new Date().toLocaleDateString();
-            document.getElementById('order-email').textContent = customerData.email;
-            
-            // Show complete step
-            document.getElementById('step-confirm').classList.remove('active');
-            document.getElementById('step-confirm').style.display = 'none';
-            document.getElementById('step-complete').classList.add('active');
-            document.getElementById('step-complete').style.display = 'block';
-            
-            // Clear cart
-            clearCart();
-            updateCartDisplay();
-            
-            // Show success message
-            showToast('Order placed successfully! Check your email for invoice.', 'success');
-
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                throw new Error('Request timed out. Your order is being processed, but please check your email for confirmation.');
-            }
-            throw error;
+        // Check response status
+        if (!response.ok) {
+            throw new Error('Server error occurred');
         }
+
+        // Parse response
+        const result = await response.json();
+        console.log('Order saved successfully:', result);
+
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to create order');
+        }
+
+        // Update UI with order reference
+        document.getElementById('order-reference').textContent = result.order.reference;
+        document.getElementById('order-date').textContent = new Date().toLocaleDateString();
+        document.getElementById('order-email').textContent = customerData.email;
         
+        // Show complete step
+        document.getElementById('step-confirm').classList.remove('active');
+        document.getElementById('step-confirm').style.display = 'none';
+        document.getElementById('step-complete').classList.add('active');
+        document.getElementById('step-complete').style.display = 'block';
+        
+        // Clear cart
+        clearCart();
+        updateCartDisplay();
+        
+        // Show success message
+        showToast('Order placed successfully! Check your email for invoice.', 'success');
+
     } catch (error) {
         console.error('Error placing order:', error);
         showToast(error.message || 'Failed to place order. Please try again.', 'error');
