@@ -1431,21 +1431,25 @@ async function placeOrder() {
 
         console.log('Sending order to server:', order);
 
-        // Send order to server
+        // Send order to server with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
         const response = await fetch('/api/orders', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(order)
+            body: JSON.stringify(order),
+            signal: controller.signal
         });
 
-        // Check response status
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
-            throw new Error('Server error occurred');
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
         }
 
-        // Parse response
         const result = await response.json();
         console.log('Order saved successfully:', result);
 
@@ -1473,7 +1477,15 @@ async function placeOrder() {
 
     } catch (error) {
         console.error('Error placing order:', error);
-        showToast(error.message || 'Failed to place order. Please try again.', 'error');
+        
+        let errorMessage = 'Failed to place order. ';
+        if (error.name === 'AbortError') {
+            errorMessage += 'Request timed out. Please try again.';
+        } else {
+            errorMessage += error.message || 'Please try again.';
+        }
+        
+        showToast(errorMessage, 'error');
         
         // Reset button state
         placeOrderBtn.disabled = false;

@@ -433,6 +433,49 @@ app.use((req, res) => {
     res.status(404).send('Page not found');
 });
 
+// Increase timeout for long running operations
+app.use((req, res, next) => {
+    // Set timeout to 2 minutes
+    req.setTimeout(120000);
+    res.setTimeout(120000);
+    next();
+});
+
+// Add detailed logging for order requests
+app.use('/api/orders', (req, res, next) => {
+    console.log(`[${new Date().toISOString()}] Order API Request:`, {
+        method: req.method,
+        url: req.url,
+        body: req.body,
+        headers: req.headers
+    });
+    
+    // Log response
+    const oldWrite = res.write;
+    const oldEnd = res.end;
+    
+    const chunks = [];
+    
+    res.write = function (chunk) {
+        chunks.push(chunk);
+        return oldWrite.apply(res, arguments);
+    };
+    
+    res.end = function (chunk) {
+        if (chunk) chunks.push(chunk);
+        
+        const responseBody = Buffer.concat(chunks).toString('utf8');
+        console.log(`[${new Date().toISOString()}] Order API Response:`, {
+            statusCode: res.statusCode,
+            body: responseBody.substring(0, 1000) // Log first 1000 chars only
+        });
+        
+        oldEnd.apply(res, arguments);
+    };
+    
+    next();
+});
+
 // Connect to MongoDB
 const startServer = async () => {
   try {

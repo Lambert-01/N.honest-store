@@ -61,73 +61,78 @@ function generateBasicInvoiceHtml(order) {
     `;
 }
 
-// Create a new order - No authentication required
+// Create a new order
 router.post('/', async (req, res) => {
+    console.log('Received order request:', req.body);
+    
     try {
-        console.log('Received order request:', req.body);
-
         // Validate order data
         if (!req.body.customer || !req.body.items || !req.body.total) {
-            console.error('Missing required order data');
             return res.status(400).json({
                 success: false,
                 message: 'Missing required order data'
             });
         }
 
-        // Generate reference and order numbers
-        const orderData = {
+        // Create order first
+        const order = new Order({
             ...req.body,
             reference: generateOrderReference(),
             orderNumber: generateOrderNumber(),
+            status: 'pending',
             createdAt: new Date()
-        };
-
-        // Create order
-        const order = new Order(orderData);
+        });
 
         // Save order to database
-        const savedOrder = await order.save();
-        console.log('Order saved successfully:', savedOrder._id);
+        console.log('Saving order to database...');
+        await order.save();
+        console.log('Order saved successfully:', order._id);
 
-        // Send invoice email asynchronously
-        try {
-            console.log('Attempting to send invoice email...');
-            const emailResult = await sendInvoiceEmail(savedOrder);
-            console.log('Invoice email sent successfully:', emailResult);
-            
-            // Update order with email status
-            await Order.findByIdAndUpdate(savedOrder._id, {
-                $set: {
-                    emailSent: true,
-                    emailSentAt: new Date()
-                }
-            });
-        } catch (emailError) {
-            console.error('Failed to send invoice email:', emailError);
-            // Log email failure but don't block order creation
-            await Order.findByIdAndUpdate(savedOrder._id, {
-                $set: {
-                    emailError: emailError.message,
-                    emailErrorAt: new Date()
-                }
-            });
-        }
-
-        // Send success response
-        res.status(201).json({
+        // Send response immediately
+        res.status(200).json({
             success: true,
             message: 'Order created successfully',
-            order: savedOrder
+            order: {
+                reference: order.reference,
+                orderNumber: order.orderNumber,
+                total: order.total
+            }
         });
 
+        // Send invoice email asynchronously
+        console.log('Sending invoice email asynchronously...');
+        sendInvoiceEmail(order)
+            .then(() => {
+                console.log('Invoice email sent successfully');
+                // Update order status
+                return Order.findByIdAndUpdate(order._id, { 
+                    $set: { 
+                        emailSent: true,
+                        emailSentAt: new Date()
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error sending invoice email:', error);
+                // Log error but don't affect the order process
+                Order.findByIdAndUpdate(order._id, {
+                    $set: {
+                        emailError: error.message,
+                        emailErrorAt: new Date()
+                    }
+                }).catch(console.error);
+            });
+
     } catch (error) {
-        console.error('Error creating order:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to create order',
-            error: error.message
-        });
+        console.error('Error processing order:', error);
+        // Only send error response if response hasn't been sent yet
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                message: 'Error processing order',
+                error: error.message
+            });
+        }
     }
 });
 
