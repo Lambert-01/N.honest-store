@@ -124,8 +124,9 @@ app.use('/api/customer/google', (req, res, next) => {
     next();
 });
 
+// Increase payload size limits
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve static files from various directories
 app.use(express.static(path.join(__dirname, '../public')));
@@ -342,43 +343,26 @@ app.get('/api/ping', (req, res) => {
     res.status(200).json({ status: 'ok', message: 'Server is online' });
 });
 
-// Error handling middleware
+// Add timeout middleware
+app.use((req, res, next) => {
+    // Set timeout to 3 minutes
+    req.setTimeout(180000);
+    res.setTimeout(180000);
+    next();
+});
+
+// Add error handling middleware
 app.use((err, req, res, next) => {
-    console.error('API Error:', err);
-    if (err.name === 'UnauthorizedError') {
-        return res.status(401).json({ 
+    console.error('Server error:', err);
+    if (err.type === 'entity.too.large') {
+        return res.status(413).json({
             success: false,
-            message: 'Invalid token or no token provided'
+            error: 'Request entity too large'
         });
     }
-    
-    // Handle mongoose validation errors
-    if (err.name === 'ValidationError') {
-        const errors = {};
-        for (let field in err.errors) {
-            errors[field] = err.errors[field].message;
-        }
-        
-        console.log('Validation error details:', errors);
-        
-        return res.status(400).json({
-            success: false,
-            message: 'Validation failed',
-            errors: errors
-        });
-    }
-    
-    // Handle file size limit errors from multer
-    if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({
-            success: false,
-            message: 'File too large, maximum size is 5MB'
-        });
-    }
-    
     res.status(500).json({
         success: false,
-        message: err.message || 'Internal server error'
+        error: 'Internal server error'
     });
 });
 
@@ -431,14 +415,6 @@ app.use((req, res) => {
         return res.status(404).json({ message: 'API route not found' });
     }
     res.status(404).send('Page not found');
-});
-
-// Increase timeout for long running operations
-app.use((req, res, next) => {
-    // Set timeout to 2 minutes
-    req.setTimeout(120000);
-    res.setTimeout(120000);
-    next();
 });
 
 // Add detailed logging for order requests

@@ -1385,15 +1385,15 @@ function setupCheckoutProcess() {
 
 // Function to place order and send invoice
 async function placeOrder() {
-    // Show loading state
-    const placeOrderBtn = document.getElementById('place-order-btn');
-    const originalBtnText = placeOrderBtn.innerHTML;
-    placeOrderBtn.disabled = true;
-    placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-    
-    try {
+  // Show loading state
+  const placeOrderBtn = document.getElementById('place-order-btn');
+  const originalBtnText = placeOrderBtn.innerHTML;
+  placeOrderBtn.disabled = true;
+  placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+  
+  try {
         // Get form data
-        const customerData = {
+    const customerData = {
             fullName: document.getElementById('fullName').value.trim(),
             email: document.getElementById('customerEmail').value.trim(),
             phone: document.getElementById('phoneNumber').value.trim(),
@@ -1401,39 +1401,39 @@ async function placeOrder() {
             city: document.getElementById('city').value.trim(),
             sector: document.getElementById('sector').value.trim(),
             company: document.getElementById('companyName')?.value.trim() || ''
-        };
-        
-        // Calculate order totals
-        const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-        const deliveryFee = 1500;
-        const total = subtotal + deliveryFee;
-        
-        // Create order object
-        const order = {
-            customer: customerData,
-            items: cart.map(item => ({
-                productId: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                total: item.price * item.quantity,
-                image: item.image
-            })),
-            subtotal: subtotal,
-            deliveryFee: deliveryFee,
+    };
+    
+    // Calculate order totals
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const deliveryFee = 1500;
+    const total = subtotal + deliveryFee;
+    
+    // Create order object
+    const order = {
+      customer: customerData,
+      items: cart.map(item => ({
+        productId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        total: item.price * item.quantity,
+        image: item.image
+      })),
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
             tax: 0,
-            total: total,
-            paymentMethod: 'invoice',
-            paymentStatus: 'pending',
+      total: total,
+      paymentMethod: 'invoice',
+      paymentStatus: 'pending',
             status: 'pending',
-            date: new Date()
+      date: new Date()
         };
 
         console.log('Sending order to server:', order);
 
         // Send order to server with increased timeout
-        const response = await fetch('/api/orders', {
-            method: 'POST',
+      const response = await fetch('/api/orders', {
+        method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'no-cache'
@@ -1441,14 +1441,14 @@ async function placeOrder() {
             body: JSON.stringify(order),
             keepalive: true // Keep the request alive even if the page is unloaded
         });
-
-        if (!response.ok) {
+      
+      if (!response.ok) {
             throw new Error(`Server error: ${response.status} ${response.statusText}`);
-        }
-
+      }
+      
         const result = await response.json();
-        console.log('Order saved successfully:', result);
-
+      console.log('Order saved successfully:', result);
+      
         if (!result.success) {
             throw new Error(result.message || 'Failed to create order');
         }
@@ -1456,23 +1456,23 @@ async function placeOrder() {
         // Update UI with order reference
         document.getElementById('order-reference').textContent = result.order.reference;
         document.getElementById('order-date').textContent = new Date().toLocaleDateString();
-        document.getElementById('order-email').textContent = customerData.email;
-        
-        // Show complete step
-        document.getElementById('step-confirm').classList.remove('active');
-        document.getElementById('step-confirm').style.display = 'none';
-        document.getElementById('step-complete').classList.add('active');
-        document.getElementById('step-complete').style.display = 'block';
-        
+    document.getElementById('order-email').textContent = customerData.email;
+    
+    // Show complete step
+    document.getElementById('step-confirm').classList.remove('active');
+    document.getElementById('step-confirm').style.display = 'none';
+    document.getElementById('step-complete').classList.add('active');
+    document.getElementById('step-complete').style.display = 'block';
+    
         // Clear cart
-        clearCart();
-        updateCartDisplay();
+    clearCart();
+    updateCartDisplay();
         
         // Show success message
         showToast('Order placed successfully! Check your email for invoice.', 'success');
-
-    } catch (error) {
-        console.error('Error placing order:', error);
+    
+  } catch (error) {
+    console.error('Error placing order:', error);
         
         let errorMessage = 'Failed to place order. ';
         if (error.name === 'AbortError') {
@@ -1483,10 +1483,10 @@ async function placeOrder() {
         
         showToast(errorMessage, 'error');
     } finally {
-        // Reset button state
-        placeOrderBtn.disabled = false;
-        placeOrderBtn.innerHTML = originalBtnText;
-    }
+    // Reset button state
+    placeOrderBtn.disabled = false;
+    placeOrderBtn.innerHTML = originalBtnText;
+  }
 }
 
 // Function to save order to database
