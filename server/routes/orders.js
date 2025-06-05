@@ -3,6 +3,7 @@ const router = express.Router();
 const Order = require('../models/orders');
 const { sendInvoiceEmail } = require('../utils/emailService');
 const crypto = require('crypto');
+const { auth } = require('../middleware/auth');
 
 // Generate order reference number
 function generateOrderReference() {
@@ -170,13 +171,56 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Get all orders
-router.get('/', async (req, res) => {
-  try {
-    const orders = await Order.find().sort({ createdAt: -1 });
+// Get all orders with pagination and filtering
+router.get('/', auth, async (req, res) => {
+    try {
+        console.log('Fetching orders with params:', req.query);
+        
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const status = req.query.status;
+        const search = req.query.search;
+        const sortField = req.query.sortField || 'createdAt';
+        const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
+
+        // Build query
+        let query = {};
+        if (status) {
+            query.status = status;
+        }
+        if (search) {
+            query.$or = [
+                { orderNumber: { $regex: search, $options: 'i' } },
+                { 'customer.fullName': { $regex: search, $options: 'i' } },
+                { 'customer.email': { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        console.log('Query:', JSON.stringify(query));
+
+        // Get total count for pagination
+        const total = await Order.countDocuments(query);
+        console.log('Total matching orders:', total);
+
+        // Get orders
+        const orders = await Order.find(query)
+            .sort({ [sortField]: sortOrder })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        console.log(`Found ${orders.length} orders`);
+
         res.json({
             success: true,
-            orders: orders
+            orders,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
         });
     } catch (error) {
         console.error('Error fetching orders:', error);
@@ -189,9 +233,9 @@ router.get('/', async (req, res) => {
 });
 
 // Get order by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', auth, async (req, res) => {
     try {
-        const order = await Order.findById(req.params.id);
+        const order = await Order.findById(req.params.id).lean();
         
         if (!order) {
             return res.status(404).json({
@@ -199,19 +243,19 @@ router.get('/:id', async (req, res) => {
                 message: 'Order not found'
             });
         }
-        
+
         res.json({
             success: true,
-            order: order
+            order
         });
-  } catch (error) {
+    } catch (error) {
         console.error('Error fetching order:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch order',
             error: error.message
         });
-  }
+    }
 });
 
 // Get customer orders by email
@@ -344,6 +388,161 @@ router.post('/:id/resend-invoice', async (req, res) => {
             error: error.message
         });
   }
+});
+
+// Get order statistics
+router.get('/stats', auth, async (req, res) => {
+    try {
+        console.log('Fetching order stats...');
+        
+        // Get total orders count
+        const totalOrders = await Order.countDocuments();
+        console.log('Total orders:', totalOrders);
+
+        // Get orders by status
+        const ordersByStatus = await Order.aggregate([
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+        console.log('Orders by status:', ordersByStatus);
+
+        // Format the response
+        const stats = {
+            totalOrders,
+            ordersByStatus: ordersByStatus.reduce((acc, curr) => {
+                acc[curr._id || 'pending'] = curr.count;
+                return acc;
+            }, {
+                pending: 0,
+                processing: 0,
+                shipped: 0,
+                delivered: 0,
+                cancelled: 0
+            })
+        };
+
+        res.json({
+            success: true,
+            stats
+        });
+    } catch (error) {
+        console.error('Error fetching order stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch order statistics',
+            error: error.message
+        });
+    }
+});
+
+// Update order status
+router.patch('/:id/status', auth, async (req, res) => {
+    try {
+        console.log('Updating order status:', { orderId: req.params.id, status: req.body.status });
+        
+        const { status } = req.body;
+        
+        if (!status) {
+            return res.status(400).json({
+                success: false,
+                message: 'Status is required'
+            });
+        }
+
+        // Validate status value
+        const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status value'
+            });
+        }
+
+        // Find the order and handle validation errors
+        const order = await Order.findById(req.params.id);
+        
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        // Update the order status
+        order.status = status;
+
+        // If order is marked as delivered and payment method is invoice, update payment method to cash
+        if (status === 'delivered') {
+            if (order.paymentMethod === 'invoice') {
+                order.paymentMethod = 'cash';
+            }
+            if (order.paymentStatus === 'pending') {
+                order.paymentStatus = 'paid';
+            }
+        }
+
+        await order.save();
+        console.log('Order status updated successfully:', order._id);
+
+        res.json({
+            success: true,
+            message: 'Order status updated successfully',
+            order: {
+                _id: order._id,
+                status: order.status,
+                paymentStatus: order.paymentStatus,
+                paymentMethod: order.paymentMethod
+            }
+        });
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update order status',
+            error: error.message
+        });
+    }
+});
+
+// Delete order
+router.delete('/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const order = await Order.findByIdAndDelete(id);
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Order deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting order:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete order',
+            error: error.message
+        });
+    }
+});
+
+// Error handler middleware
+router.use((err, req, res, next) => {
+    console.error('Orders route error:', err);
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
 });
 
 module.exports = router;

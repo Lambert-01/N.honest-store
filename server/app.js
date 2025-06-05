@@ -103,10 +103,10 @@ app.use(cors({
             'http://nhonestsupermarket.com',
             'http://www.nhonestsupermarket.com'
         ] 
-        : true,
+        : ['http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With']
 }));
 
 // Log all API requests in production to help debug
@@ -312,9 +312,9 @@ app.use('/api/customer/google', googleAuthRoutes);
 // Register other API routes
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerAuthRouter);
-app.use('/api/categories', categoriesRoutes);
-app.use('/api/products', productsRoutes);
-app.use('/api/orders', ordersRoutes);
+app.use('/api/categories', auth, categoriesRoutes);
+app.use('/api/products', auth, productsRoutes);
+app.use('/api/orders', auth, ordersRoutes);
 app.use('/api', apiRoutes);
 
 // Add a route for sending invoice emails
@@ -335,11 +335,19 @@ app.post('/api/send-invoice', async (req, res) => {
 
 // Simple ping endpoint for connectivity checks
 app.head('/api/ping', (req, res) => {
+    // Add CORS headers for ping endpoint
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'HEAD, GET');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
     res.status(200).end();
 });
 
 // Add GET endpoint for ping as well to ensure compatibility
 app.get('/api/ping', (req, res) => {
+    // Add CORS headers for ping endpoint
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'HEAD, GET');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
     res.status(200).json({ status: 'ok', message: 'Server is online' });
 });
 

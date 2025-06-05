@@ -295,7 +295,7 @@ router.post('/products', uploadProductImage.single('featuredImage'), async (req,
         }
         
         // Validate required fields
-        const requiredFields = ['name', 'price', 'costPrice', 'category'];
+        const requiredFields = ['name', 'price', 'category'];
         const missingFields = {};
         
         requiredFields.forEach(field => {
@@ -316,11 +316,8 @@ router.post('/products', uploadProductImage.single('featuredImage'), async (req,
         // Create product object with explicit type conversion
         const product = new Product({
             name: String(req.body.name),
-            description: req.body.description ? String(req.body.description) : '',
             category: req.body.category,
             price: parseFloat(req.body.price),
-            costPrice: parseFloat(req.body.costPrice),
-            stock: parseInt(req.body.stock || '0'),
             status: req.body.status || 'active'
         });
         
@@ -328,7 +325,6 @@ router.post('/products', uploadProductImage.single('featuredImage'), async (req,
             name: product.name,
             category: product.category,
             price: product.price,
-            costPrice: product.costPrice
         });
         
         // Handle variants if present

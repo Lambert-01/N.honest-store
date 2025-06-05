@@ -731,7 +731,7 @@ function setupProductFormHandler() {
             }
             
             // Ensure all required fields are present
-            const requiredFields = ['name', 'category', 'price', 'costPrice'];
+            const requiredFields = ['name', 'category', 'price'];
             for (const field of requiredFields) {
                 if (!formData.get(field) || formData.get(field).trim() === '') {
                     throw new Error(`${field} is required`);
@@ -1673,14 +1673,102 @@ class CategoryManager {
 // Product Manager Class
 class ProductManager {
     constructor() {
-        this.baseUrl = window.location.origin; // Get the current base URL dynamically
+        this.products = [];
+        this.baseUrl = window.location.origin;
         this.loadProducts();
-        this.setupImageHandling(); // Add this new method call
+        this.setupImageHandling();
         this.initializeEventListeners();
         this.loadCategories();
     }
     
-    // Set up image compression and handling
+    initializeEventListeners() {
+        // Search functionality
+        const searchInput = document.getElementById('product-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                // Clear any existing timeout
+                if (this.searchTimeout) {
+                    clearTimeout(this.searchTimeout);
+                }
+                // Add debounce to avoid too many searches while typing
+                this.searchTimeout = setTimeout(() => {
+                    this.handleSearch(e.target.value);
+                }, 300);
+            });
+        }
+
+        // Category filter functionality
+        const categoryFilter = document.getElementById('category-filter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', (e) => this.handleFilter(e.target.value));
+        }
+
+        // Refresh button
+        const refreshBtn = document.getElementById('refresh-products');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.loadProducts());
+        }
+    }
+
+    handleSearch(searchTerm) {
+        if (!this.products) {
+            console.warn('No products loaded to search through');
+            return;
+        }
+
+        if (!searchTerm) {
+            this.displayProducts(this.products);
+            return;
+        }
+        
+        searchTerm = searchTerm.toLowerCase().trim();
+        const filteredProducts = this.products.filter(product => {
+            // Search in product name
+            if (product.name?.toLowerCase().includes(searchTerm)) return true;
+            
+            // Search in product SKU
+            if (product.sku?.toLowerCase().includes(searchTerm)) return true;
+            
+            // Search in category name
+            if (product.category?.name?.toLowerCase().includes(searchTerm)) return true;
+            
+            // Search in price (convert price to string for searching)
+            if (product.price?.toString().includes(searchTerm)) return true;
+            
+            // Search in status
+            if (product.status?.toLowerCase().includes(searchTerm)) return true;
+            
+            // Search in variants
+            if (product.variants?.some(variant => 
+                variant.name?.toLowerCase().includes(searchTerm) || 
+                variant.price?.toString().includes(searchTerm)
+            )) return true;
+            
+            return false;
+        });
+        
+        // Show message if no results found
+        if (filteredProducts.length === 0) {
+            const tbody = document.getElementById('products-table-body');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-search fa-2x mb-3"></i>
+                                <p class="mb-0">No products found matching "${searchTerm}"</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+            return;
+        }
+        
+        // Display filtered products
+        this.displayProducts(filteredProducts);
+    }
+
     setupImageHandling() {
         console.log('Setting up image handling for product manager');
         
@@ -1728,26 +1816,6 @@ class ProductManager {
                 }
             });
         }
-    }
-
-    initializeEventListeners() {
-        // Search and filter functionality
-        const searchInput = document.getElementById('product-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
-        }
-
-        const categoryFilter = document.getElementById('category-filter');
-        if (categoryFilter) {
-            categoryFilter.addEventListener('change', (e) => this.handleFilter(e.target.value));
-        }
-
-        const refreshBtn = document.getElementById('refresh-products');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadProducts());
-        }
-
-        // NOTE: We removed the form submission handler as it's now handled by setupProductFormHandler
     }
     
     // Setup bulk actions functionality
@@ -1953,33 +2021,39 @@ class ProductManager {
         if (!products || products.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" class="text-center">No products found</td>
+                    <td colspan="9" class="text-center py-4">
+                        <div class="text-muted">
+                            <i class="fas fa-box-open fa-2x mb-3"></i>
+                            <p class="mb-0">No products found</p>
+                        </div>
+                    </td>
                 </tr>
             `;
             return;
         }
 
-        // Store reference to 'this' for use in event handlers
-        const self = this;
-
         tbody.innerHTML = products.map(product => {
-            // Fix image URL if needed
             const imageUrl = window.fixImageUrl ? 
                 window.fixImageUrl(product.featuredImage) : 
                 (product.featuredImage || 'images/placeholder.png');
             
-            // Format price with currency symbol
             const formattedPrice = new Intl.NumberFormat('en-US', {
                 style: 'currency',
-                currency: 'RWF'
+                currency: 'RWF',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
             }).format(product.price);
             
-            // Get variant count
             const variantCount = product.variants && Array.isArray(product.variants) ? 
                 product.variants.length : 0;
                 
             return `
             <tr data-product-id="${product._id}">
+                <td class="text-center">
+                    <div class="form-check">
+                        <input class="form-check-input product-checkbox" type="checkbox" value="${product._id}">
+                    </div>
+                </td>
                 <td>
                     <div class="product-image-container">
                         ${product.featuredImage ? 
@@ -1996,30 +2070,33 @@ class ProductManager {
                 </td>
                 <td>
                     <div class="d-flex flex-column">
-                        <strong>${product.name}</strong>
-                        <small class="text-muted">SKU: ${product.sku}</small>
-                        ${product.description ? `<small class="text-truncate d-inline-block" style="max-width: 200px;">${product.description}</small>` : ''}
+                        <h6 class="mb-1 text-dark">${product.name}</h6>
                     </div>
                 </td>
-                <td>${product.category && typeof product.category === 'object' ? product.category.name : 'Uncategorized'}</td>
-                <td>${formattedPrice}</td>
-                <td>${product.stock}</td>
                 <td>
-                    ${variantCount > 0 ? 
-                      `<span class="badge bg-info">${variantCount} variants</span>` : 
-                      '-'}
+                    <span class="badge bg-light text-dark">
+                        ${product.category && typeof product.category === 'object' ? 
+                            product.category.name : 'Uncategorized'}
+                    </span>
                 </td>
-                <td>
+                <td class="text-end fw-bold">${formattedPrice}</td>
+                <td class="text-center">
+                    ${variantCount > 0 ? 
+                        `<span class="badge bg-info">${variantCount}</span>` : 
+                        '-'
+                    }
+                </td>
+                <td class="text-center">
                     <span class="badge ${product.status === 'active' ? 'bg-success' : 'bg-warning'}">
                         ${product.status || 'active'}
                     </span>
                 </td>
-                <td>
+                <td class="text-end">
                     <div class="btn-group">
-                        <button class="btn btn-sm btn-primary edit-product-btn" data-id="${product._id}">
+                        <button class="btn btn-sm btn-outline-primary edit-product-btn" data-product-id="${product._id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger delete-product-btn" data-id="${product._id}">
+                        <button class="btn btn-sm btn-outline-danger delete-product-btn" data-product-id="${product._id}" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -2028,50 +2105,21 @@ class ProductManager {
         `;
         }).join('');
         
-        // Fix: Use proper event binding for product edit/delete buttons
-        document.querySelectorAll('.edit-product-btn').forEach(btn => {
+        // Add event listeners for edit and delete buttons
+        const self = this;
+        tbody.querySelectorAll('.edit-product-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                const productId = this.getAttribute('data-id');
-                console.log('Edit button clicked for product ID:', productId);
+                const productId = this.getAttribute('data-product-id');
                 self.editProduct(productId);
             });
         });
         
-        document.querySelectorAll('.delete-product-btn').forEach(btn => {
+        tbody.querySelectorAll('.delete-product-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                const productId = this.getAttribute('data-id');
-                console.log('Delete button clicked for product ID:', productId);
+                const productId = this.getAttribute('data-product-id');
                 self.deleteProduct(productId);
-            });
-        });
-        
-        // Set up select all functionality
-        const selectAllCheckbox = document.getElementById('select-all-products');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', function() {
-                const checkboxes = document.querySelectorAll('.product-checkbox');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
                 });
             });
-        }
-    }
-
-    handleSearch(searchTerm) {
-        if (!searchTerm) {
-            this.displayProducts(this.products);
-            return;
-        }
-        
-        searchTerm = searchTerm.toLowerCase();
-        const filteredProducts = this.products.filter(product => 
-            product.name.toLowerCase().includes(searchTerm) || 
-            product.sku.toLowerCase().includes(searchTerm) || 
-            (product.description && product.description.toLowerCase().includes(searchTerm)) ||
-            (product.category?.name && product.category.name.toLowerCase().includes(searchTerm))
-        );
-        
-        this.displayProducts(filteredProducts);
     }
 
     handleFilter(categoryId) {
@@ -2131,29 +2179,35 @@ async editProduct(id) {
     try {
         // Show loading indicator
         showAlert('Loading product data...', 'info', 1000);
+        
         // Fetch product details from the server
         const response = await fetch(`/api/products/${id}`, {
             method: 'GET',
             headers: getAuthHeaders()
         });
+        
         if (!response.ok) {
             throw new Error(`Failed to fetch product data: ${response.status}`);
         }
+        
         const product = await response.json();
         console.log('Product data loaded:', product);
+        
         // Populate the edit form with product data
         const editForm = document.getElementById('edit-product-form');
         if (!editForm) {
             throw new Error('Edit product form not found');
         }
+        
         // Check if the hidden input exists
         const productIdInput = document.getElementById('edit-product-id');
         if (!productIdInput) {
             throw new Error('Edit product ID input not found');
         }
-        console.log('Edit product ID input found:', productIdInput);
+        
         // Set hidden product ID field
         productIdInput.value = product._id;
+        
         // Set basic product fields
         const nameInput = document.getElementById('edit-name');
         if (!nameInput) {
@@ -2161,31 +2215,11 @@ async editProduct(id) {
         }
         nameInput.value = product.name || '';
         
-        
-        
-        const descriptionInput = document.getElementById('edit-description');
-        if (!descriptionInput) {
-            throw new Error('Edit description input not found');
-        }
-        descriptionInput.value = product.description || '';
-        
         const priceInput = document.getElementById('edit-price');
         if (!priceInput) {
             throw new Error('Edit price input not found');
         }
         priceInput.value = product.price || '';
-        
-        const costPriceInput = document.getElementById('edit-costPrice');
-        if (!costPriceInput) {
-            throw new Error('Edit cost price input not found');
-        }
-        costPriceInput.value = product.costPrice || '';
-        
-        const stockInput = document.getElementById('edit-stock');
-        if (!stockInput) {
-            throw new Error('Edit stock input not found');
-        }
-        stockInput.value = product.stock || 0;
         
         const statusSelect = document.getElementById('edit-status');
         if (!statusSelect) {
@@ -2202,47 +2236,20 @@ async editProduct(id) {
             }
             categorySelect.value = product.category;
         }
+        
         // Clear previous image previews
         resetImagePreviews('edit-product-images-preview');
+        
         // Display existing product images
         const previewContainer = document.getElementById('edit-product-images-preview');
-        if (previewContainer && product.images && product.images.length > 0) {
-            previewContainer.innerHTML = '';
-            product.images.forEach((image, index) => {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'image-preview-item position-relative mb-2';
-                imgContainer.dataset.imageIndex = index;
-                const img = document.createElement('img');
-                img.src = image.includes('://') ? image : window.fixImageUrl(image);
-                img.className = 'img-thumbnail preview-image';
-                img.alt = `Product image ${index + 1}`;
-                const deleteBtn = document.createElement('button');
-                deleteBtn.type = 'button';
-                deleteBtn.className = 'btn btn-sm btn-danger position-absolute top-0 end-0 m-1';
-                deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-                deleteBtn.onclick = () => {
-                    imgContainer.remove();
-                    // Update hidden field with remaining images
-                    updateExistingImagesField();
-                };
-                imgContainer.appendChild(img);
-                imgContainer.appendChild(deleteBtn);
-                previewContainer.appendChild(imgContainer);
-            });
-            // Function to update hidden field with remaining images
-            function updateExistingImagesField() {
-                const remainingImages = [];
-                document.querySelectorAll('#edit-product-images-preview .image-preview-item').forEach(item => {
-                    const index = parseInt(item.dataset.imageIndex);
-                    if (!isNaN(index) && product.images[index]) {
-                        remainingImages.push(product.images[index]);
+        if (previewContainer) {
+            if (product.featuredImage) {
+                const img = document.getElementById('edit-product-preview-image');
+                img.src = product.featuredImage;
+                img.style.display = 'block';
                     }
-                });
-                document.getElementById('edit-existing-images').value = JSON.stringify(remainingImages);
-            }
-            // Initialize hidden field with all images
-            document.getElementById('edit-existing-images').value = JSON.stringify(product.images);
         }
+        
         // Set up variants
         if (product.variants && product.variants.length > 0) {
             // Store variants in global variable for later use
@@ -2252,13 +2259,16 @@ async editProduct(id) {
         } else {
             window.editProductVariants = [];
             document.getElementById('edit-variants-table').querySelector('tbody').innerHTML = 
-                '<tr><td colspan="6" class="text-center">No variants defined</td></tr>';
+                '<tr><td colspan="3" class="text-center">No variants defined</td></tr>';
         }
+        
         // Update hidden field for variants
         document.getElementById('edit-variants-json').value = JSON.stringify(window.editProductVariants || []);
+        
         // Show the edit modal
         const editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
         editModal.show();
+        
         // Set up form submission handler if not already set
         if (!editForm.dataset.handlerAttached) {
             editForm.addEventListener('submit', this.handleEditProductSubmit.bind(this));
@@ -2395,6 +2405,14 @@ async editProduct(id) {
             // Reset form
             e.target.reset();
             
+            // Reset image preview
+            resetImagePreviews();
+            
+            // Reset variants
+            window.variants = [];
+            if (window.productVariants) window.productVariants = [];
+            updateVariantsTable();
+            
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
             if (modal) {
@@ -2420,11 +2438,14 @@ async editProduct(id) {
 function updateEditVariantsTable() {
     const variantsTable = document.getElementById('edit-variants-table').querySelector('tbody');
     if (!variantsTable) return;
+    
     if (!window.editProductVariants || window.editProductVariants.length === 0) {
-        variantsTable.innerHTML = '<tr><td colspan="6" class="text-center">No variants defined</td></tr>';
+        variantsTable.innerHTML = '<tr><td colspan="3" class="text-center">No variants defined</td></tr>';
         return;
     }
+    
     variantsTable.innerHTML = '';
+    
     window.editProductVariants.forEach((variant, index) => {
         const row = document.createElement('tr');
         // Create variant name from combination
@@ -2434,6 +2455,7 @@ function updateEditVariantsTable() {
                 .map(item => `${item.attribute}: ${item.value}`)
                 .join(', ');
         }
+        
         row.innerHTML = `
             <td class="fw-medium">${variantName || `Variant ${index + 1}`}</td>
             <td>
@@ -2444,10 +2466,6 @@ function updateEditVariantsTable() {
                 </div>
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm edit-variant-stock" 
-                       data-index="${index}" value="${variant.stock || 0}" min="0" step="1">
-            </td>
-            <td>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditVariant(${index})">
                     <i class="fas fa-times"></i>
                 </button>
@@ -2455,16 +2473,19 @@ function updateEditVariantsTable() {
         `;
         variantsTable.appendChild(row);
     });
+    
     // Add event listeners to variant inputs
-    document.querySelectorAll('.edit-variant-price, .edit-variant-stock').forEach(input => {
+    document.querySelectorAll('.edit-variant-price').forEach(input => {
         input.addEventListener('change', updateEditVariantValue);
     });
+    
     // Update hidden input
     const variantsJsonInput = document.getElementById('edit-variants-json');
     if (variantsJsonInput) {
         variantsJsonInput.value = JSON.stringify(window.editProductVariants);
     }
 }
+
 // Update edit variant value when input changes
 function updateEditVariantValue(event) {
     const input = event.target;
@@ -2472,8 +2493,6 @@ function updateEditVariantValue(event) {
     
     if (input.classList.contains('edit-variant-price')) {
         window.editProductVariants[index].price = parseFloat(input.value) || 0;
-    } else if (input.classList.contains('edit-variant-stock')) {
-        window.editProductVariants[index].stock = parseInt(input.value, 10) || 0;
     }
     
     // Update the hidden input
@@ -3953,12 +3972,11 @@ function generateProductVariants() {
     // Generate combinations
     productVariants = generateVariantCombinations(productAttributes);
     
-    // Add price and stock to each variant
-    productVariants = productVariants.map((variant, index) => {
+    // Add price to each variant
+    productVariants = productVariants.map(variant => {
         return {
             ...variant,
-            price: basePrice,
-            stock: 0
+            price: basePrice
         };
     });
     
@@ -4003,7 +4021,7 @@ function updateVariantsList() {
     if (productVariants.length === 0) {
         variantsList.innerHTML = `
             <tr id="no-variants-message">
-                <td colspan="5" class="text-center py-3 text-muted">
+                <td colspan="3" class="text-center py-3 text-muted">
                     <i class="fas fa-info-circle me-1"></i> Add attributes and generate variants
                 </td>
             </tr>
@@ -4033,10 +4051,6 @@ function updateVariantsList() {
                 </div>
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm variant-stock" 
-                       data-index="${index}" value="${variant.stock}" min="0" step="1">
-            </td>
-            <td>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="window.removeVariant(${index})">
                     <i class="fas fa-times"></i>
                 </button>
@@ -4046,7 +4060,7 @@ function updateVariantsList() {
     });
     
     // Add event listeners to variant inputs
-    document.querySelectorAll('.variant-price, .variant-stock').forEach(input => {
+    document.querySelectorAll('.variant-price').forEach(input => {
         input.addEventListener('change', updateVariantValue);
     });
     
@@ -4070,8 +4084,6 @@ function updateVariantValue(event) {
     
     if (input.classList.contains('variant-price')) {
         productVariants[index].price = parseFloat(input.value) || 0;
-    } else if (input.classList.contains('variant-stock')) {
-        productVariants[index].stock = parseInt(input.value, 10) || 0;
     }
     
     // Update the hidden input with the latest variant data

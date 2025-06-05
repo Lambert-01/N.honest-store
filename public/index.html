@@ -132,10 +132,6 @@
         <span>Subtotal:</span>
         <span id="cart-subtotal" class="fw-semibold">RWF 0.00</span>
       </div>
-      <div class="d-flex justify-content-between mb-2">
-        <span>Tax (10%):</span>
-        <span id="cart-tax" class="fw-semibold">RWF 0.00</span>
-      </div>
       <div class="d-flex justify-content-between mb-4">
         <span class="fw-bold">Total:</span>
         <span id="cart-total" class="fw-bold text-success">RWF 0.00</span>
@@ -162,101 +158,7 @@
       </div>
       <div class="offcanvas-body">
         <ul class="navbar-nav justify-content-end menu-list list-unstyled d-flex flex-column gap-md-3 mb-0">
-          <!-- Beverages -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="beverages">
-              <i class="fas fa-glass-whiskey fa-fw"></i>
-              <span>Beverages</span>
-            </a>
-          </li>
-
-          <!-- Packaged Foods -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="packaged-foods">
-              <i class="fas fa-box-open fa-fw"></i>
-              <span>Packaged Foods</span>
-            </a>
-          </li>
-
-          <!-- Dairy Products -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="dairy">
-              <i class="fas fa-cheese fa-fw"></i>
-              <span>Dairy Products</span>
-            </a>
-          </li>
-
-          <!-- Household Supplies -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="household">
-              <i class="fas fa-home fa-fw"></i>
-              <span>Household Supplies</span>
-            </a>
-          </li>
-
-          <!-- Personal Care -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="personal-care">
-              <i class="fas fa-pump-soap fa-fw"></i>
-              <span>Personal Care</span>
-            </a>
-          </li>
-
-          <!-- Cleaning Products -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="cleaning">
-              <i class="fas fa-spray-can-sparkles fa-fw"></i>
-              <span>Cleaning Products</span>
-            </a>
-          </li>
-
-          <!-- Baby Care -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="baby-care">
-              <i class="fas fa-baby fa-fw"></i>
-              <span>Baby Care</span>
-            </a>
-          </li>
-
-          <!-- Pet Supplies -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="pet-supplies">
-              <i class="fas fa-paw fa-fw"></i>
-              <span>Pet Supplies</span>
-            </a>
-          </li>
-
-          <!-- Health and Wellness -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="health-wellness">
-              <i class="fas fa-heart-pulse fa-fw"></i>
-              <span>Health and Wellness</span>
-            </a>
-          </li>
-
-          <!-- Electronics Accessories -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="electronics">
-              <i class="fas fa-plug fa-fw"></i>
-              <span>Electronics Accessories</span>
-            </a>
-          </li>
-
-          <!-- Clothing and Fabrics -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="clothing">
-              <i class="fas fa-shirt fa-fw"></i>
-              <span>Clothing and Fabrics</span>
-            </a>
-          </li>
-
-          <!-- Stationery and Office Supplies -->
-          <li class="nav-item border-dashed">
-            <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="stationery">
-              <i class="fas fa-pen fa-fw"></i>
-              <span>Stationery and Office Supplies</span>
-            </a>
-          </li>
+          <!-- Categories will be loaded dynamically -->
         </ul>
       </div>
     </div>
@@ -378,18 +280,7 @@
         <li class="nav-item">
               <a href="index.html" class="nav-link py-3 px-2 border-bottom border-3 border-primary">Home</a>
             </li>
-            <li class="nav-item dropdown">
-              <a href="#" class="nav-link py-3 px-2 dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">Categories</a>
-              <ul class="dropdown-menu border-0 shadow-sm rounded-3 py-2 mt-0">
-                <li><a class="dropdown-item py-2 px-3" href="#" data-category="beverages">Beverages</a></li>
-                <li><a class="dropdown-item py-2 px-3" href="#" data-category="packaged-foods">Packaged Foods</a></li>
-                <li><a class="dropdown-item py-2 px-3" href="#" data-category="dairy">Dairy Products</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item py-2 px-3" href="#" data-category="household">Household</a></li>
-                <li><a class="dropdown-item py-2 px-3" href="#" data-category="personal-care">Personal Care</a></li>
-                <li><a class="dropdown-item py-2 px-3" href="#" data-category="cleaning">Cleaning Products</a></li>
-              </ul>
-        </li>
+           
         <li class="nav-item">
               <a href="#products-section" class="nav-link py-3 px-2">Shop</a>
         </li>

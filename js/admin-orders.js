@@ -77,40 +77,61 @@ class OrderManager {
                 params.append('search', this.searchTerm);
             }
 
+            console.log('Loading orders with params:', params.toString());
+
+            const baseUrl = window.location.port === '5000' ? 'http://localhost:5000' : '';
             const token = localStorage.getItem('token');
+
             if (!token) {
-                throw new Error('Authentication token not found');
+                throw new Error('Authentication required. Please log in again.');
             }
 
-            const response = await fetch(`/api/orders?${params}`, {
+            const response = await fetch(`${baseUrl}/api/orders?${params}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 }
             });
 
+            const data = await response.json();
+            console.log('Server response:', data);
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to fetch orders');
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login.html';
+                    throw new Error('Session expired. Please log in again.');
+                }
+                throw new Error(data.message || `Failed to load orders (${response.status})`);
             }
 
-            const data = await response.json();
-            
             if (data.success) {
-                this.totalOrders = data.data.pagination.total;
-                this.totalPages = data.data.pagination.pages;
-                this.displayOrders(data.data.orders);
+                // Handle both response formats
+                if (data.data) {
+                    // New format
+                    this.totalOrders = data.data.pagination.total;
+                    this.totalPages = data.data.pagination.pages;
+                    this.displayOrders(data.data.orders);
+                } else if (data.orders) {
+                    // Old format
+                    this.totalOrders = data.pagination?.total || data.orders.length;
+                    this.totalPages = data.pagination?.pages || Math.ceil(data.orders.length / this.ordersPerPage);
+                    this.displayOrders(data.orders);
+                } else {
+                    throw new Error('Invalid response format');
+                }
+                
                 this.updatePagination();
                 this.updateOrderCounts();
             } else {
-                throw new Error(data.error || 'Failed to fetch orders');
+                throw new Error(data.message || 'Failed to load orders');
             }
         } catch (error) {
             console.error('Error loading orders:', error);
             showAlert('Failed to load orders: ' + error.message, 'error');
-            
-            // Show empty state in the table
             this.displayOrders([]);
+            this.updatePagination();
         } finally {
             hideLoader();
         }
@@ -194,6 +215,12 @@ class OrderManager {
         const paginationContainer = document.querySelector('#orders-section nav ul.pagination');
         if (!paginationContainer) return;
 
+        // If there are no orders, hide pagination
+        if (this.totalOrders === 0) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
         let pages = '';
         
         // Previous button
@@ -218,12 +245,12 @@ class OrderManager {
                     </li>
                 `;
             } else if (
-                i === this.currentPage - 3 ||
-                i === this.currentPage + 3
+                (i === this.currentPage - 3 && this.currentPage > 4) ||
+                (i === this.currentPage + 3 && this.currentPage < this.totalPages - 3)
             ) {
                 pages += `
                     <li class="page-item disabled">
-                        <a class="page-link" href="#">...</a>
+                        <span class="page-link">...</span>
                     </li>
                 `;
             }
@@ -239,21 +266,49 @@ class OrderManager {
         `;
 
         paginationContainer.innerHTML = pages;
+
+        // Update showing count
+        const showingElement = document.getElementById('showing-orders');
+        const totalElement = document.getElementById('total-orders');
+        
+        if (showingElement && totalElement) {
+            const start = (this.currentPage - 1) * this.ordersPerPage + 1;
+            const end = Math.min(this.currentPage * this.ordersPerPage, this.totalOrders);
+            showingElement.textContent = `${start}-${end}`;
+            totalElement.textContent = this.totalOrders;
+        }
     }
 
     updateOrderCounts() {
-        const showingOrders = document.getElementById('showing-orders');
-        const totalOrders = document.getElementById('total-orders');
-        
-        if (showingOrders) {
-            const start = (this.currentPage - 1) * this.ordersPerPage + 1;
-            const end = Math.min(start + this.ordersPerPage - 1, this.totalOrders);
-            showingOrders.textContent = `${start}-${end}`;
-        }
-        
-        if (totalOrders) {
-            totalOrders.textContent = this.totalOrders;
-        }
+        // Get all orders with different statuses
+        fetch('/api/orders/stats', {
+            headers: getAuthHeaders()
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const stats = data.stats;
+                
+                // Update the counts in the filter dropdown
+                const dropdown = document.getElementById('orderFilterDropdown');
+                if (dropdown && dropdown.nextElementSibling) {
+                    const items = dropdown.nextElementSibling.querySelectorAll('.dropdown-item');
+                    items.forEach(item => {
+                        const status = item.getAttribute('data-status');
+                        const count = status === 'all' ? this.totalOrders : (stats[status] || 0);
+                        const badge = item.querySelector('.badge');
+                        if (badge) {
+                            badge.textContent = count;
+                        } else {
+                            item.innerHTML = `${item.textContent} <span class="badge bg-secondary float-end">${count}</span>`;
+                        }
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching order stats:', error);
+        });
     }
 
     getOrderStatusBadge(status) {
@@ -290,8 +345,8 @@ class OrderManager {
 
             const data = await response.json();
             
-            if (data.success) {
-                this.showOrderDetailsModal(data.data);
+            if (data.success && data.order) {
+                this.showOrderDetailsModal(data.order);
             } else {
                 throw new Error(data.error || 'Failed to fetch order details');
             }
@@ -304,6 +359,11 @@ class OrderManager {
     }
 
     showOrderDetailsModal(order) {
+        if (!order) {
+            console.error('No order data provided to showOrderDetailsModal');
+            return;
+        }
+
         // Create modal HTML
         const modalHtml = `
             <div class="modal fade" id="orderDetailsModal" tabindex="-1">
@@ -311,7 +371,7 @@ class OrderManager {
                     <div class="modal-content">
                         <div class="modal-header bg-gradient-primary text-white">
                             <h5 class="modal-title">
-                                <i class="fas fa-shopping-cart me-2"></i>Order Details - #${order.orderNumber}
+                                <i class="fas fa-shopping-cart me-2"></i>Order Details - #${order.orderNumber || 'N/A'}
                             </h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
@@ -319,17 +379,17 @@ class OrderManager {
                             <div class="row mb-4">
                                 <div class="col-md-6">
                                     <h6 class="fw-bold">Customer Information</h6>
-                                    <p class="mb-1"><strong>Name:</strong> ${order.customer.fullName}</p>
-                                    <p class="mb-1"><strong>Email:</strong> ${order.customer.email}</p>
-                                    <p class="mb-1"><strong>Phone:</strong> ${order.customer.phone}</p>
-                                    <p class="mb-1"><strong>Address:</strong> ${order.customer.address}</p>
-                                    <p class="mb-1"><strong>City:</strong> ${order.customer.city}</p>
-                                    <p class="mb-1"><strong>Sector:</strong> ${order.customer.sector}</p>
+                                    <p class="mb-1"><strong>Name:</strong> ${order.customer?.fullName || 'N/A'}</p>
+                                    <p class="mb-1"><strong>Email:</strong> ${order.customer?.email || 'N/A'}</p>
+                                    <p class="mb-1"><strong>Phone:</strong> ${order.customer?.phone || 'N/A'}</p>
+                                    <p class="mb-1"><strong>Address:</strong> ${order.customer?.address || 'N/A'}</p>
+                                    <p class="mb-1"><strong>City:</strong> ${order.customer?.city || 'N/A'}</p>
+                                    <p class="mb-1"><strong>Sector:</strong> ${order.customer?.sector || 'N/A'}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <h6 class="fw-bold">Order Information</h6>
                                     <p class="mb-1"><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleString()}</p>
-                                    <p class="mb-1"><strong>Payment Method:</strong> ${order.paymentMethod}</p>
+                                    <p class="mb-1"><strong>Payment Method:</strong> ${order.paymentMethod || 'N/A'}</p>
                                     <p class="mb-1">
                                         <strong>Payment Status:</strong> 
                                         <span class="badge bg-${this.getPaymentStatusBadge(order.paymentStatus)}">${order.paymentStatus}</span>
@@ -357,7 +417,7 @@ class OrderManager {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${order.items.map(item => `
+                                        ${order.items?.map(item => `
                                             <tr>
                                                 <td>
                                                     <div class="d-flex align-items-center">
@@ -367,30 +427,30 @@ class OrderManager {
                                                         <div>${item.name}</div>
                                                     </div>
                                                 </td>
-                                                <td class="text-end">RWF ${item.price.toFixed(2)}</td>
+                                                <td class="text-end">RWF ${item.price?.toLocaleString()}</td>
                                                 <td class="text-end">${item.quantity}</td>
-                                                <td class="text-end">RWF ${(item.price * item.quantity).toFixed(2)}</td>
+                                                <td class="text-end">RWF ${(item.price * item.quantity)?.toLocaleString()}</td>
                                             </tr>
-                                        `).join('')}
+                                        `).join('') || '<tr><td colspan="4" class="text-center">No items found</td></tr>'}
                                     </tbody>
                                     <tfoot>
                                         <tr>
                                             <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
-                                            <td class="text-end">RWF ${order.subtotal.toFixed(2)}</td>
+                                            <td class="text-end">RWF ${order.subtotal?.toLocaleString() || '0'}</td>
                                         </tr>
                                         <tr>
                                             <td colspan="3" class="text-end"><strong>Delivery Fee:</strong></td>
-                                            <td class="text-end">RWF ${order.deliveryFee.toFixed(2)}</td>
+                                            <td class="text-end">RWF ${order.deliveryFee?.toLocaleString() || '0'}</td>
                                         </tr>
                                         ${order.tax ? `
                                             <tr>
                                                 <td colspan="3" class="text-end"><strong>Tax:</strong></td>
-                                                <td class="text-end">RWF ${order.tax.toFixed(2)}</td>
+                                                <td class="text-end">RWF ${order.tax.toLocaleString()}</td>
                                             </tr>
                                         ` : ''}
                                         <tr>
                                             <td colspan="3" class="text-end"><strong>Total:</strong></td>
-                                            <td class="text-end"><strong>RWF ${order.total.toFixed(2)}</strong></td>
+                                            <td class="text-end"><strong>RWF ${order.total?.toLocaleString() || '0'}</strong></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -404,6 +464,7 @@ class OrderManager {
                             ` : ''}
                         </div>
                         <div class="modal-footer">
+                            <button type="button" class="btn btn-danger" id="deleteOrder">Delete Order</button>
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             <button type="button" class="btn btn-primary" id="updateOrderStatus">Update Status</button>
                         </div>
@@ -431,42 +492,69 @@ class OrderManager {
             await this.updateOrderStatus(order._id, newStatus);
             modal.hide();
         });
+
+        // Add event listener for delete
+        document.getElementById('deleteOrder').addEventListener('click', async () => {
+            modal.hide();
+            await this.deleteOrder(order._id);
+        });
     }
 
     async updateOrderStatus(orderId, status) {
         try {
-            const response = await fetch(`/api/orders/${orderId}/status`, {
+            showLoader();
+            
+            const baseUrl = window.location.port === '5000' ? 'http://localhost:5000' : '';
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                throw new Error('Authentication required. Please log in again.');
+            }
+
+            console.log('Updating order status:', { orderId, status });
+
+            const response = await fetch(`${baseUrl}/api/orders/${orderId}/status`, {
                 method: 'PATCH',
                 headers: {
-                    ...getAuthHeaders(),
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({ status })
             });
 
             if (!response.ok) {
-                throw new Error('Failed to update order status');
+                const errorData = await response.json().catch(() => ({}));
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login.html';
+                    throw new Error('Session expired. Please log in again.');
+                }
+                throw new Error(errorData.message || `Failed to update order status (${response.status})`);
             }
 
             const data = await response.json();
-            
+            console.log('Server response:', data);
+
             if (data.success) {
                 showAlert('Order status updated successfully', 'success');
-                this.loadOrders();
+                await this.loadOrders(); // Refresh the orders list
             } else {
-                throw new Error(data.error || 'Failed to update order status');
+                throw new Error(data.message || 'Failed to update order status');
             }
         } catch (error) {
             console.error('Error updating order status:', error);
-            showAlert('Failed to update order status: ' + error.message, 'error');
+            showAlert('Error updating order status: ' + error.message, 'error');
+        } finally {
+            hideLoader();
         }
     }
 
     async deleteOrder(orderId) {
         try {
-            const result = await Swal.fire({
+            const confirmed = await Swal.fire({
                 title: 'Are you sure?',
-                text: "You won't be able to revert this!",
+                text: "This action cannot be undone!",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
@@ -474,28 +562,34 @@ class OrderManager {
                 confirmButtonText: 'Yes, delete it!'
             });
 
-            if (result.isConfirmed) {
-                const response = await fetch(`/api/orders/${orderId}`, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                });
+            if (!confirmed.isConfirmed) {
+                return;
+            }
 
-                if (!response.ok) {
-                    throw new Error('Failed to delete order');
-                }
+            showLoader();
+            
+            const response = await fetch(`/api/orders/${orderId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
 
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert('Order deleted successfully', 'success');
-                    this.loadOrders();
-                } else {
-                    throw new Error(data.error || 'Failed to delete order');
-                }
+            if (!response.ok) {
+                throw new Error('Failed to delete order');
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert('Order deleted successfully', 'success');
+                await this.loadOrders(); // Refresh the orders list
+            } else {
+                throw new Error(data.message || 'Failed to delete order');
             }
         } catch (error) {
             console.error('Error deleting order:', error);
             showAlert('Failed to delete order: ' + error.message, 'error');
+        } finally {
+            hideLoader();
         }
     }
 }

@@ -1114,8 +1114,7 @@ function updateQuantity(productId, change) {
 }
 
 function updateCartSummary(subtotal) {
-  const tax = subtotal * 0.1; // 10% tax
-  const total = subtotal + tax;
+  const total = subtotal;
   
   // Format with thousand separators
   const formatPrice = (value) => {
@@ -1123,16 +1122,14 @@ function updateCartSummary(subtotal) {
   };
   
   document.getElementById('cart-subtotal').textContent = `RWF ${formatPrice(subtotal)}`;
-  document.getElementById('cart-tax').textContent = `RWF ${formatPrice(tax)}`;
   document.getElementById('cart-total').textContent = `RWF ${formatPrice(total)}`;
   
   // Update modal summary if exists
   const modalSubtotal = document.getElementById('modal-subtotal');
-  const modalTax = document.getElementById('modal-tax');
   const modalTotal = document.getElementById('modal-total');
   const modalDelivery = document.getElementById('modal-delivery');
   
-  if (modalSubtotal && modalTax && modalTotal) {
+  if (modalSubtotal && modalTotal) {
     modalSubtotal.textContent = `RWF ${formatPrice(subtotal)}`;
     
     // Add delivery fee if total is below free shipping threshold
@@ -1148,7 +1145,6 @@ function updateCartSummary(subtotal) {
       }
     }
     
-    modalTax.textContent = `RWF ${formatPrice(tax)}`;
     modalTotal.textContent = `RWF ${formatPrice(total + deliveryFee)}`;
     
     // Also update order total in complete step
@@ -2491,31 +2487,20 @@ async function loadCategories() {
   } catch (error) {
     console.error('=== ERROR LOADING CATEGORIES ===');
     console.error('Error details:', error);
-    showToast('Error loading categories. Using default categories instead.', 'error');
+    showToast('Error loading categories. Please try again later.', 'error');
     
-    // Use hardcoded categories as fallback
-    const fallbackCategories = [
-      { _id: 'beverages', name: 'Beverages', description: 'Drinks and beverages' },
-      { _id: 'packaged-foods', name: 'Packaged Foods', description: 'Ready-to-eat foods' },
-      { _id: 'dairy', name: 'Dairy Products', description: 'Milk, cheese, and more' },
-      { _id: 'household', name: 'Household Supplies', description: 'Everyday essentials' },
-      { _id: 'personal-care', name: 'Personal Care', description: 'Health and beauty' }
-    ];
+    // Initialize with empty categories instead of fallback
+    window.appCategories = [];
     
-    console.log('Using fallback categories:', fallbackCategories);
-    
-    // Store fallback categories globally
-    window.appCategories = fallbackCategories;
-    
-    // Update UI with fallback categories
-    updateSidebarCategories(fallbackCategories);
-    updateCategoryDropdown(fallbackCategories);
-    updateCategoryCarousel(fallbackCategories);
+    // Update UI with empty state
+    updateSidebarCategories([]);
+    updateCategoryDropdown([]);
+    updateCategoryCarousel([]);
     
     // Make sure all category event listeners are added
     addCategoryEventListeners();
     
-    return fallbackCategories;
+    return [];
   }
 }
 
@@ -2527,6 +2512,17 @@ function updateSidebarCategories(categories) {
   // Clear existing categories first
   sidebarMenu.innerHTML = '';
   
+  // Add "All Categories" option first
+  const allCategoriesLi = document.createElement('li');
+  allCategoriesLi.className = 'nav-item border-dashed';
+  allCategoriesLi.innerHTML = `
+    <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="">
+      <i class="fas fa-th-large fa-fw"></i>
+      <span>All Categories</span>
+    </a>
+  `;
+  sidebarMenu.appendChild(allCategoriesLi);
+  
   // Add each category to the menu
   categories.forEach(category => {
     const li = document.createElement('li');
@@ -2535,7 +2531,6 @@ function updateSidebarCategories(categories) {
     // Get FontAwesome icon class based on category name
     const iconClass = getCategoryIcon(category.name);
     
-    // Make sure to use the _id field from the database as the data-category attribute value
     li.innerHTML = `
       <a href="#" class="nav-link d-flex align-items-center gap-3 text-dark p-2" data-category="${category._id}">
         <i class="${iconClass} fa-fw"></i>
