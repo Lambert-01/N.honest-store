@@ -9,19 +9,20 @@ const crypto = require('crypto');
 const { generateInvoicePDF } = require('./pdfGenerator');
 require('dotenv').config();
 
-// Initialize Resend
+// Constants
+const COMPANY_NAME = 'N.honest Supermarket';
+const COMPANY_EMAIL = process.env.BUSINESS_EMAIL || 'info@nhonestsupermarket.com';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const TEST_EMAIL = 'nhonestsp@gmail.com';
+const DEFAULT_FROM = `${COMPANY_NAME} <${COMPANY_EMAIL}>`;
+
+// Initialize Resend client
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// For testing, we'll use the verified email
-const TEST_EMAIL = 'nhonestsp@gmail.com';
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-
-// Default sender email (using Resend's test domain)
-const DEFAULT_FROM_EMAIL = 'onboarding@resend.dev';
-
-// Email configuration
-const COMPANY_EMAIL = 'info@nhonestsupermarket.com';
-const COMPANY_NAME = 'N.Honest Supermarket';
+// Validate email configuration
+if (!process.env.RESEND_API_KEY) {
+    console.error('WARNING: RESEND_API_KEY is not set. Email functionality will not work.');
+}
 
 // OAuth2 configuration for Google login (keeping this for authentication)
 const createOAuth2Client = () => {
@@ -43,9 +44,13 @@ const createOAuth2Client = () => {
 const sendEmail = async (options, retries = 3) => {
     console.log(`Attempting to send email to ${options.to} with subject: ${options.subject}`);
     
+    if (!process.env.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY is not configured');
+    }
+
     try {
         const emailData = {
-            from: `${COMPANY_NAME} <${COMPANY_EMAIL}>`,
+            from: DEFAULT_FROM,
             to: options.to,
             subject: options.subject,
             html: options.html,
@@ -67,6 +72,13 @@ const sendEmail = async (options, retries = 3) => {
         return response;
     } catch (error) {
         console.error('Error sending email:', error);
+        
+        if (retries > 0) {
+            console.log(`Retrying... ${retries} attempts remaining`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return sendEmail(options, retries - 1);
+        }
+        
         throw new Error(`Resend API error: ${error.message}`);
     }
 };
@@ -182,29 +194,38 @@ const sendInvoiceEmail = async (order) => {
         return true;
     } catch (error) {
         console.error('Error sending invoice email:', error);
-        throw error;
+        // Don't throw error to allow order creation to continue
+        return false;
     }
 };
 
-// Add a health check function
+/**
+ * Check if email service is properly configured
+ */
 const checkEmailService = async () => {
     try {
-        const { data } = await resend.emails.send({
-            from: 'N.Honest Supermarket <orders@nhonest.com>',
-            to: 'test@resend.dev',
-            subject: 'Email Service Health Check',
-            text: 'This is a test email to verify the email service is working.'
+        if (!process.env.RESEND_API_KEY) {
+            return {
+                status: 'error',
+                message: 'RESEND_API_KEY is not configured'
+            };
+        }
+
+        // Try to send a test email
+        await sendEmail({
+            to: COMPANY_EMAIL,
+            subject: 'Email Service Test',
+            html: '<p>This is a test email to verify the email service configuration.</p>'
         });
-        return { 
-            status: 'healthy', 
-            message: 'Email service is working correctly',
-            id: data.id
+
+        return {
+            status: 'success',
+            message: 'Email service is properly configured'
         };
     } catch (error) {
-        return { 
-            status: 'unhealthy', 
-            message: 'Email service is not working',
-            error: error.message 
+        return {
+            status: 'error',
+            message: `Email service configuration error: ${error.message}`
         };
     }
 };

@@ -310,7 +310,7 @@ app.get('/test-email', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerAuthRouter);
-app.use('/api/google', googleAuthRoutes);
+app.use('/api/customer/google', googleAuthRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/products/search', productsSearchRouter);
 app.use('/api/products', productsRouter);

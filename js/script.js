@@ -1183,7 +1183,7 @@ function updateCartDisplay() {
 
   cartItemsContainer.innerHTML = cartHTML;
   updateCartSummary(subtotal);
-
+  
   // Add event listeners for quantity buttons
   document.querySelectorAll('.quantity-btn').forEach(button => {
     button.addEventListener('click', (e) => {
@@ -1192,7 +1192,7 @@ function updateCartDisplay() {
       updateQuantity(productId, change);
     });
   });
-
+  
   // Add event listeners for remove buttons
   document.querySelectorAll('.remove-item').forEach(button => {
     button.addEventListener('click', (e) => {
@@ -2174,8 +2174,8 @@ function showQuickView(product) {
   // Verify all required elements exist
   if (!mainImage || !title || !price || !quantity || !addToCartBtn) {
     console.error('Required quick view elements not found');
-    return;
-  }
+        return;
+    }
   
   // Set basic product info
   title.textContent = product.name;
@@ -2258,7 +2258,7 @@ function showQuickView(product) {
                 ${value}
               </button>
             `).join('')}
-          </div>
+        </div>
         `;
         
         variantsWrapper.appendChild(variantGroup);
@@ -2286,8 +2286,8 @@ function showQuickView(product) {
               `).join('')}
             </tbody>
           </table>
-        </div>
-      `;
+    </div>
+  `;
       variantsWrapper.appendChild(priceTable);
       
       // Handle variant selection
@@ -2313,9 +2313,9 @@ function showQuickView(product) {
             return variant.combination.every(comb => {
               const selectedValue = selectedVariants.get(comb.attribute);
               return selectedValue === comb.value;
-            });
-          });
-          
+    });
+  });
+  
           // Update price and selected variant
           if (matchingVariant) {
             price.textContent = formatPrice(matchingVariant.price);
@@ -2362,7 +2362,7 @@ function showQuickView(product) {
     addToCart(product, selectedVariant, quantityValue);
     modalInstance.hide();
   };
-
+  
   // Remove old event listener and add new one
   addToCartBtn.removeEventListener('click', handleAddToCart);
   addToCartBtn.addEventListener('click', handleAddToCart);

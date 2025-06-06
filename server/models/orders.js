@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 
 const orderItemSchema = new mongoose.Schema({
     productId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product',
+        type: String,
         required: true
     },
     name: {
@@ -35,6 +34,11 @@ const orderSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    reference: {
+        type: String,
+        required: true,
+        unique: true
+    },
     customer: {
         fullName: {
             type: String,
@@ -46,14 +50,15 @@ const orderSchema = new mongoose.Schema({
         },
         phone: {
             type: String,
-            required: true
+            required: false
         },
         address: {
             type: String,
-            required: true
+            required: false
         },
         city: String,
-        sector: String
+        sector: String,
+        company: String
     },
     items: [orderItemSchema],
     subtotal: {
@@ -62,7 +67,7 @@ const orderSchema = new mongoose.Schema({
     },
     deliveryFee: {
         type: Number,
-        default: 0
+        default: 1500
     },
     tax: {
         type: Number,
@@ -80,7 +85,7 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: {
         type: String,
         enum: ['cash', 'card', 'momo', 'invoice'],
-        required: true
+        default: 'invoice'
     },
     paymentStatus: {
         type: String,
@@ -88,13 +93,21 @@ const orderSchema = new mongoose.Schema({
         default: 'pending'
     },
     deliveryNotes: String,
-    transactionId: String
+    transactionId: String,
+    invoiceSent: {
+        type: Boolean,
+        default: false
+    },
+    invoiceSentAt: {
+        type: Date
+    }
 }, {
     timestamps: true
 });
 
 // Add index for better query performance
 orderSchema.index({ orderNumber: 1 });
+orderSchema.index({ reference: 1 });
 orderSchema.index({ 'customer.email': 1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ createdAt: -1 });

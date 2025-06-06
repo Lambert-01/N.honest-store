@@ -11,14 +11,20 @@ const fs = require('fs');
 const generateInvoicePDF = async (order) => {
     return new Promise((resolve, reject) => {
         try {
+            console.log('Starting PDF generation for order:', order.reference);
+            
             const doc = new PDFDocument({
                 size: 'A4',
-                margin: 50
+                margin: 50,
+                bufferPages: true // Enable buffering of pages
             });
 
             const buffers = [];
             doc.on('data', buffers.push.bind(buffers));
-            doc.on('end', () => resolve(Buffer.concat(buffers)));
+            doc.on('end', () => {
+                console.log('PDF generation completed');
+                resolve(Buffer.concat(buffers));
+            });
 
             // Get the absolute path to the logo
             const logoPath = path.join(process.cwd(), 'public', 'images', 'f.logo.png');
@@ -27,6 +33,7 @@ const generateInvoicePDF = async (order) => {
             try {
                 if (fs.existsSync(logoPath)) {
                     doc.image(logoPath, 50, 45, { width: 80 });
+                    console.log('Logo added successfully');
                 } else {
                     console.warn('Logo file not found at:', logoPath);
                 }
@@ -48,20 +55,30 @@ const generateInvoicePDF = async (order) => {
                .fontSize(16)
                .text('INVOICE', 50, 150)
                .fontSize(10)
-               .text(`Invoice Number: ${order.reference}`, 50, 180)
+               .text(`Invoice Number: ${order.reference || order.orderNumber}`, 50, 180)
                .text(`Order Number: ${order.orderNumber}`, 50, 195)
-               .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 50, 210);
+               .text(`Date: ${new Date().toLocaleDateString()}`, 50, 210);
 
             // Add customer details with full address
             doc.fontSize(12)
                .text('Bill To:', 50, 250)
                .fontSize(10)
                .text(`${order.customer.fullName}`, 50, 270)
-               .text(`Email: ${order.customer.email}`, 50, 285)
-               .text(`Phone: ${order.customer.phone || 'N/A'}`, 50, 300)
-               .text(`Address: ${order.customer.address || 'N/A'}`, 50, 315)
-               .text(`City: ${order.customer.city || 'N/A'}`, 50, 330)
-               .text(`Sector: ${order.customer.sector || 'N/A'}`, 50, 345);
+               .text(`Email: ${order.customer.email}`, 50, 285);
+
+            // Add optional customer details if available
+            if (order.customer.phone) {
+                doc.text(`Phone: ${order.customer.phone}`, 50, 300);
+            }
+            if (order.customer.address) {
+                doc.text(`Address: ${order.customer.address}`, 50, 315);
+            }
+            if (order.customer.city) {
+                doc.text(`City: ${order.customer.city}`, 50, 330);
+            }
+            if (order.customer.sector) {
+                doc.text(`Sector: ${order.customer.sector}`, 50, 345);
+            }
 
             // Draw items table
             const tableTop = 390;
@@ -91,10 +108,10 @@ const generateInvoicePDF = async (order) => {
                        .fillColor('#000000');
                 }
 
-                doc.text(item.name, 50, y)
+                doc.text(item.name || 'Unknown Item', 50, y)
                    .text(item.quantity.toString(), 280, y)
-                   .text(`RWF ${item.price.toLocaleString()}`, 350, y)
-                   .text(`RWF ${(item.price * item.quantity).toLocaleString()}`, 450, y);
+                   .text(`RWF ${(item.price || 0).toLocaleString()}`, 350, y)
+                   .text(`RWF ${((item.price || 0) * item.quantity).toLocaleString()}`, 450, y);
                 y += 20;
             });
 
@@ -103,55 +120,46 @@ const generateInvoicePDF = async (order) => {
                .lineTo(550, y)
                .stroke();
 
-
-            // Add totals with better formatting
+            // Add totals
             y += 20;
-            doc.fontSize(10)
-               .text('Subtotal:', 350, y)
+            doc.text('Subtotal:', 350, y)
                .text(`RWF ${order.subtotal.toLocaleString()}`, 450, y);
             y += 20;
             doc.text('Delivery Fee:', 350, y)
                .text(`RWF ${order.deliveryFee.toLocaleString()}`, 450, y);
-            if (order.tax) {
-                y += 20;
-                doc.text('Tax:', 350, y)
-                   .text(`RWF ${order.tax.toLocaleString()}`, 450, y);
-            }
-            y += 25;
-            
-            // Total with background highlight
-            doc.fillColor('#f0f0f0')
-               .rect(340, y - 5, 210, 25)
-               .fill()
-               .fillColor('#000000')
-               .fontSize(12)
+            y += 20;
+            doc.fontSize(12)
                .text('Total:', 350, y, { bold: true })
                .text(`RWF ${order.total.toLocaleString()}`, 450, y, { bold: true });
 
-            // Add payment instructions with styled box
-            doc.rect(50, y + 40, 500, 120)
-               .lineWidth(1)
-               .stroke()
-               .fontSize(12)
-               .text('Payment Instructions', 60, y + 50, { underline: true })
+            // Add payment instructions
+            doc.fontSize(12)
+               .text('Payment Instructions', 50, y + 50, { underline: true })
                .fontSize(10)
-               .moveDown(0.5)
-               .text('MTN Mobile Money:', 60)
-               .text('1. Dial *182*8*1#', 70)
-               .text('2. Enter merchant code: 430020', 70)
-               .text(`3. Enter amount: RWF ${order.total.toLocaleString()}`, 70)
-               .text('4. Enter your PIN to confirm', 70);
+               .moveDown()
+               .text('MTN Mobile Money:', 50)
+               .text('1. Dial *182*8*1#')
+               .text('2. Enter merchant code: 430020')
+               .text(`3. Enter amount: RWF ${order.total.toLocaleString()}`)
+               .text('4. Enter your PIN to confirm');
 
-            // Add footer with line
-            doc.moveTo(50, 700)
-               .lineTo(550, 700)
-               .stroke()
-               .fontSize(8)
-               .text('Thank you for shopping with N.Honest Supermarket!', 50, 710, { align: 'center' })
+            // Add delivery notes if available
+            if (order.deliveryNotes) {
+                doc.moveDown()
+                   .fontSize(12)
+                   .text('Delivery Notes:', 50, null, { underline: true })
+                   .fontSize(10)
+                   .text(order.deliveryNotes);
+            }
+
+            // Add footer
+            doc.fontSize(8)
+               .text('Thank you for shopping with N.Honest Supermarket!', 50, 700, { align: 'center' })
                .text('For any questions, please contact us at +250 788 633 739 or info@nhonestsupermarket.com', { align: 'center' });
 
             // Finalize the PDF
             doc.end();
+            console.log('PDF generation process completed successfully');
         } catch (error) {
             console.error('Error generating PDF:', error);
             reject(error);

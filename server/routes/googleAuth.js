@@ -12,18 +12,18 @@ const Customer = require('../models/Customer');
 const { sendEmail } = require('../utils/emailService');
 
 // Initialize Google OAuth client
-const googleClient = new OAuth2Client(process.env.CLIENT_ID);
+const client = new OAuth2Client(process.env.GMAIL_CLIENT_ID);
 
 // Log the Google Client ID to verify it's loaded correctly
-console.log('Google Client ID loaded:', process.env.CLIENT_ID ? 'Yes (hidden for security)' : 'No');
+console.log('Google Client ID loaded:', process.env.GMAIL_CLIENT_ID ? 'Yes (hidden for security)' : 'No');
 
 // Helper function to validate Google token
 async function verifyGoogleToken(credential) {
     try {
         console.log('Verifying Google token...');
-        const ticket = await googleClient.verifyIdToken({
+        const ticket = await client.verifyIdToken({
             idToken: credential,
-            audience: process.env.CLIENT_ID
+            audience: process.env.GMAIL_CLIENT_ID
         });
         
         const payload = ticket.getPayload();
@@ -37,100 +37,69 @@ async function verifyGoogleToken(credential) {
 
 // Google authentication route (login)
 router.post('/login', async (req, res) => {
-    console.log('Google login route hit');
     try {
         const { credential } = req.body;
         
         if (!credential) {
-            console.error('No credential provided in request');
-            return res.status(400).json({ error: 'Google credential is required' });
+            return res.status(400).json({ error: 'No credential provided' });
         }
-        
-        console.log('Credential received, verifying...');
-        
-        // Verify the Google token using our helper function
-        const payload = await verifyGoogleToken(credential);
-        const { email, given_name, family_name, picture, sub } = payload;
-        
-        console.log(`Google user verified: ${email}`);
-        
-        // Check if customer exists
+
+        // Verify the Google token
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GMAIL_CLIENT_ID
+        });
+
+        const payload = ticket.getPayload();
+        const { email, given_name, family_name, picture, sub: googleId } = payload;
+
+        // Find or create customer
         let customer = await Customer.findOne({ email });
-        console.log('Customer found in database:', customer ? 'Yes' : 'No');
-        
+
         if (!customer) {
-            // If customer doesn't exist, create a new one (auto-signup)
-            console.log('Creating new customer account from Google login');
+            // Create new customer
             customer = new Customer({
                 firstName: given_name,
                 lastName: family_name,
                 email,
-                googleId: sub,
-                profilePicture: picture,
-                isVerified: true, // Auto-verify Google accounts
-                // Generate a random password (they'll use Google to login)
-                password: crypto.randomBytes(16).toString('hex'),
-                // Set default email preferences
-                emailPreferences: {
-                    welcomeEmail: true,
-                    loginNotifications: true,
-                    marketingEmails: true,
-                    orderConfirmations: true
-                }
+                googleId,
+                picture,
+                password: Math.random().toString(36).slice(-8), // Random password for Google users
+                isVerified: true // Google users are automatically verified
             });
-            
             await customer.save();
-            console.log('New customer account created successfully:', customer._id);
         } else {
-            // Update customer's Google ID if not already set
-            if (!customer.googleId) {
-                console.log('Updating customer with Google ID');
-                customer.googleId = sub;
-                await customer.save();
-            }
+            // Update existing customer's Google info
+            customer.googleId = googleId;
+            customer.picture = picture;
+            await customer.save();
         }
-        
+
         // Generate JWT token
-        const token = jwt.sign({ _id: customer._id }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRES_IN || '24h'
-        });
-        
-        console.log('JWT token generated successfully');
-        
-        // Return customer data and token
+        const token = jwt.sign(
+            { _id: customer._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // Return success response
         res.json({
-            message: 'Login successful',
+            success: true,
             token,
             customer: {
                 _id: customer._id,
                 firstName: customer.firstName,
                 lastName: customer.lastName,
                 email: customer.email,
-                phone: customer.phone,
-                picture: customer.profilePicture || picture,
-                isVerified: customer.isVerified
+                picture: customer.picture
             }
         });
+
     } catch (error) {
-        console.error('Google authentication error:', error);
-        console.error('Error details:', error.stack);
-        
-        // Provide more detailed error message based on the error type
-        let errorMessage = 'Google authentication failed';
-        let statusCode = 401;
-        
-        if (error.message === 'Invalid Google token') {
-            errorMessage = 'The Google authentication token is invalid or expired';
-        } else if (error.message.includes('audience')) {
-            errorMessage = 'Google Client ID mismatch. Please ensure the correct Client ID is configured';
-        } else if (error.message.includes('network')) {
-            errorMessage = 'Network error while verifying Google token';
-            statusCode = 500;
-        }
-        
-        res.status(statusCode).json({ 
-            error: errorMessage,
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        console.error('Google auth error:', error);
+        res.status(401).json({
+            error: 'Authentication failed',
+            details: error.message
         });
     }
 });

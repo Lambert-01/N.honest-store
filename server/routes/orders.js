@@ -74,6 +74,7 @@ router.post('/', async (req, res) => {
 
         // Validate the order data
         if (!req.body.customer || !req.body.items || !req.body.items.length) {
+            console.error('Invalid order data:', req.body);
             return res.status(400).json({
                 success: false,
                 error: 'Invalid order data. Required fields: customer, items'
@@ -82,6 +83,7 @@ router.post('/', async (req, res) => {
 
         // Validate customer data
         if (!req.body.customer.email || !req.body.customer.fullName) {
+            console.error('Invalid customer data:', req.body.customer);
             return res.status(400).json({
                 success: false,
                 error: 'Invalid customer data. Required fields: email, fullName'
@@ -104,18 +106,43 @@ router.post('/', async (req, res) => {
             items: req.body.items.map(item => ({
                 productId: item.id || item.productId,
                 name: item.name,
-                price: item.price,
-                quantity: item.quantity,
+                price: parseFloat(item.price) || 0,
+                quantity: parseInt(item.quantity) || 1,
                 image: item.image
             })),
-            subtotal: req.body.subtotal,
-            deliveryFee: req.body.deliveryFee || 1500,
-            total: req.body.total,
+            subtotal: parseFloat(req.body.subtotal) || 0,
+            deliveryFee: parseFloat(req.body.deliveryFee) || 1500,
+            total: parseFloat(req.body.total) || 0,
             status: 'pending',
             paymentStatus: 'pending',
-            paymentMethod: req.body.paymentMethod || 'invoice',
-            createdAt: new Date()
+            paymentMethod: req.body.paymentMethod || 'invoice'
         };
+
+        // Validate total calculation
+        const calculatedSubtotal = orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const calculatedTotal = calculatedSubtotal + orderData.deliveryFee;
+
+        if (Math.abs(calculatedSubtotal - orderData.subtotal) > 0.01) {
+            console.error('Subtotal mismatch:', {
+                calculated: calculatedSubtotal,
+                received: orderData.subtotal
+            });
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid subtotal amount'
+            });
+        }
+
+        if (Math.abs(calculatedTotal - orderData.total) > 0.01) {
+            console.error('Total mismatch:', {
+                calculated: calculatedTotal,
+                received: orderData.total
+            });
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid total amount'
+            });
+        }
 
         // Create and save the order
         console.log('Creating order with data:', orderData);
@@ -129,13 +156,13 @@ router.post('/', async (req, res) => {
             await sendInvoiceEmail(savedOrder);
             console.log('Invoice email sent successfully');
             
-            // Update order with email status
+            // Update order to mark invoice as sent
             savedOrder.invoiceSent = true;
             savedOrder.invoiceSentAt = new Date();
             await savedOrder.save();
         } catch (emailError) {
-            console.error('Error sending invoice email:', emailError);
-            // Don't reject the order if email fails
+            console.error('Failed to send invoice email:', emailError);
+            // Don't throw error, just log it and continue
         }
 
         // Calculate processing time
@@ -147,26 +174,23 @@ router.post('/', async (req, res) => {
             success: true,
             message: 'Order created successfully',
             order: {
+                id: savedOrder._id,
                 reference: savedOrder.reference,
                 orderNumber: savedOrder.orderNumber,
-                _id: savedOrder._id,
                 total: savedOrder.total,
-                status: savedOrder.status,
-                paymentStatus: savedOrder.paymentStatus
+                status: savedOrder.status
             }
         });
-
     } catch (error) {
-        console.error('Error processing order:', error);
-        const processingTime = Date.now() - startTime;
-        console.log(`Order processing failed after ${processingTime}ms`);
+        console.error('Error creating order:', error);
+        console.error('Stack trace:', error.stack);
 
         // Send detailed error response
         res.status(500).json({
             success: false,
-            error: 'Failed to process order',
-            details: error.message,
-            code: error.code
+            message: 'Failed to create order',
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });
