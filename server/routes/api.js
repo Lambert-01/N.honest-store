@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { ensureAbsoluteUrl, transformItemUrls, BASE_URL } = require('../utils/urlHelper');
 const { uploadProductImage, uploadCategoryImage, useCloudinary } = require('../utils/multer');
+const { auth } = require('../middleware/auth');
 
 // Configure Multer for file uploads
 // const storage = multer.diskStorage({
@@ -52,8 +53,11 @@ const { uploadProductImage, uploadCategoryImage, useCloudinary } = require('../u
 //     }
 // });
 
-// Category Routes
-router.get('/categories', async (req, res) => {
+// Public routes (no authentication required)
+router.get('/ping', (req, res) => res.status(200).send('pong'));
+
+// Protected routes (require authentication)
+router.get('/categories', auth, async (req, res) => {
     try {
         const categories = await Category.find({ status: 'active' });
         // Transform all URLs to absolute URLs
@@ -65,7 +69,7 @@ router.get('/categories', async (req, res) => {
     }
 });
 
-router.get('/categories/main', async (req, res) => {
+router.get('/categories/main', auth, async (req, res) => {
     try {
         const mainCategories = await Category.find({ level: 1 });
         res.json(mainCategories);
@@ -75,7 +79,7 @@ router.get('/categories/main', async (req, res) => {
 });
 
 // Check if category name exists
-router.get('/categories/check', async (req, res) => {
+router.get('/categories/check', auth, async (req, res) => {
     try {
         const { name } = req.query;
         
@@ -91,7 +95,7 @@ router.get('/categories/check', async (req, res) => {
 });
 
 // Categories JSON API endpoint (for when images aren't being uploaded)
-router.post('/categories', async (req, res) => {
+router.post('/categories', auth, async (req, res) => {
     try {
         console.log('=== WARNING: USING FALLBACK CATEGORY ROUTE IN API.JS ===');
         console.log('This route is being used instead of the dedicated /api/categories route.');
@@ -164,7 +168,7 @@ router.post('/categories', async (req, res) => {
     }
 });
 
-router.delete('/categories/:id', async (req, res) => {
+router.delete('/categories/:id', auth, async (req, res) => {
     try {
         const category = await Category.findById(req.params.id);
         if (!category) {
@@ -184,7 +188,7 @@ router.delete('/categories/:id', async (req, res) => {
 });
 
 // Product Routes
-router.get('/products', async (req, res) => {
+router.get('/products', auth, async (req, res) => {
     try {
         const products = await Product.find({ status: 'active' }).populate('category');
         // Transform all URLs to absolute URLs
@@ -197,7 +201,7 @@ router.get('/products', async (req, res) => {
 });
 
 // Get products by category - This must be defined BEFORE the product ID route
-router.get('/products/category/:categoryId', async (req, res) => {
+router.get('/products/category/:categoryId', auth, async (req, res) => {
     try {
         console.log(`GET /api/products/category/${req.params.categoryId} - Fetching products by category`);
         const categoryId = req.params.categoryId;
@@ -249,7 +253,7 @@ router.get('/products/category/:categoryId', async (req, res) => {
 });
 
 // Get product by ID - This must be defined AFTER more specific routes
-router.get('/products/:id', async (req, res) => {
+router.get('/products/:id', auth, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id).populate('category');
         if (!product) {
@@ -265,7 +269,7 @@ router.get('/products/:id', async (req, res) => {
 });
 
 // Check if product name exists
-router.get('/products/check-name', async (req, res) => {
+router.get('/products/check-name', auth, async (req, res) => {
     try {
         const { name } = req.query;
         
@@ -280,7 +284,7 @@ router.get('/products/check-name', async (req, res) => {
     }
 });
 
-router.post('/products', uploadProductImage.single('featuredImage'), async (req, res) => {
+router.post('/products', auth, uploadProductImage.single('featuredImage'), async (req, res) => {
     try {
         console.log('=== PRODUCT CREATION START ===');
         console.log('Request headers:', req.headers);
@@ -476,7 +480,7 @@ router.post('/products', uploadProductImage.single('featuredImage'), async (req,
     }
 });
 
-router.delete('/products/:id', async (req, res) => {
+router.delete('/products/:id', auth, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
         if (!product) {

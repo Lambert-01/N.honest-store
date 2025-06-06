@@ -105,14 +105,14 @@ class OrderManager {
                 }
                 throw new Error(data.message || `Failed to load orders (${response.status})`);
             }
-
+            
             if (data.success) {
                 // Handle both response formats
                 if (data.data) {
                     // New format
-                    this.totalOrders = data.data.pagination.total;
-                    this.totalPages = data.data.pagination.pages;
-                    this.displayOrders(data.data.orders);
+                this.totalOrders = data.data.pagination.total;
+                this.totalPages = data.data.pagination.pages;
+                this.displayOrders(data.data.orders);
                 } else if (data.orders) {
                     // Old format
                     this.totalOrders = data.pagination?.total || data.orders.length;
@@ -535,7 +535,7 @@ class OrderManager {
 
             const data = await response.json();
             console.log('Server response:', data);
-
+            
             if (data.success) {
                 showAlert('Order status updated successfully', 'success');
                 await this.loadOrders(); // Refresh the orders list

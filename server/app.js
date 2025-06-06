@@ -9,10 +9,12 @@ const { router: authRouter, auth } = require('./routes/auth');
 const { router: customerAuthRouter, customerAuth } = require('./routes/customerAuth');
 const googleAuthRoutes = require('./routes/googleAuth');
 const categoriesRoutes = require('./routes/categories');
-const productsRoutes = require('./routes/products');
+const { router: productsRouter, searchRouter: productsSearchRouter } = require('./routes/products');
 const ordersRoutes = require('./routes/orders');
 const apiRoutes = require('./routes/api');
 const { sendInvoiceEmail } = require('./utils/emailService');
+const Product = require('./models/Product');
+const { transformItemUrls } = require('./utils/urlHelper');
 
 
 // Initialize Express app
@@ -305,16 +307,41 @@ app.get('/test-email', async (req, res) => {
     }
 });
 
-// API Routes - Order matters! Put specific routes before general ones
-// Register Google auth routes first to ensure they take precedence
-app.use('/api/customer/google', googleAuthRoutes);
-
-// Register other API routes
+// API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/customer', customerAuthRouter);
-app.use('/api/categories', auth, categoriesRoutes);
-app.use('/api/products', auth, productsRoutes);
-app.use('/api/orders', auth, ordersRoutes);
+app.use('/api/google', googleAuthRoutes);
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/products/search', productsSearchRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/orders', ordersRoutes);
+app.use('/api', apiRoutes);
+
+// Public product search endpoint that doesn't require authentication
+app.get('/api/products/active', async (req, res) => {
+    try {
+        const products = await Product.find({ status: 'active' })
+            .populate('category')
+            .select('-__v');
+        res.json(products);
+    } catch (error) {
+        console.error('Error fetching active products:', error);
+        res.status(500).json({ message: 'Error fetching products' });
+    }
+});
+
+// Add auth middleware for protected routes
+app.use('/api', (req, res, next) => {
+    // Skip auth for public endpoints
+    if (req.path.startsWith('/products/search') || req.path.startsWith('/categories')) {
+        return next();
+    }
+    auth(req, res, next);
+});
+
+// Protected routes
+app.use('/api/products', productsRouter);
+app.use('/api/orders', ordersRoutes);
 app.use('/api', apiRoutes);
 
 // Add a route for sending invoice emails

@@ -54,6 +54,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize profile UI
   initProfileUI();
   // Other initializations...
+
+  setupConnectivityCheck();
 });
 
 /**
@@ -178,21 +180,44 @@ function removePreloader() {
 // Set Up Event Listeners
 function setupEventListeners() {
   // Event delegation for product container
-  document.getElementById('products-container').addEventListener('click', function(e) {
+  const productsContainer = document.getElementById('products-container');
+  if (!productsContainer) {
+    console.error('Products container not found in DOM');
+    return;
+  }
+
+  productsContainer.addEventListener('click', function(e) {
     const target = e.target;
     
     // Handle add to cart button
     if (target.classList.contains('add-to-cart-btn') || target.closest('.add-to-cart-btn')) {
+      console.log('=== ADD TO CART BUTTON CLICKED ===');
       e.preventDefault();
+      
       const button = target.classList.contains('add-to-cart-btn') ? target : target.closest('.add-to-cart-btn');
+      console.log('Add to cart button:', button);
+      
       const productId = button.dataset.productId;
+      console.log('Product ID:', productId);
+      
       const productCard = button.closest('.product-card');
+      console.log('Product card:', productCard);
+      
       const quantityInput = productCard.querySelector('.product-quantity');
+      console.log('Quantity input:', quantityInput);
       
       const quantity = parseInt(quantityInput ? quantityInput.value : 1);
+      console.log('Quantity to add:', quantity);
       
       // Find the product in our loaded products array
-      const product = currentProducts.find(p => p._id === productId || p.id === productId);
+      console.log('Searching in currentProducts:', currentProducts);
+      const product = currentProducts.find(p => {
+        const pId = p._id || p.id;
+        console.log(`Comparing product ID ${pId} with clicked ID ${productId}`);
+        return pId === productId;
+      });
+      console.log('Found product:', product);
+      
       if (product) {
         addToCart(product, null, quantity);
         
@@ -204,6 +229,11 @@ function setupEventListeners() {
           button.classList.remove('btn-success');
           button.innerHTML = '<i class="fas fa-shopping-cart me-1"></i> Add to Cart';
         }, 1500);
+      } else {
+        console.error('Product not found in currentProducts array');
+        console.error('Current products:', currentProducts);
+        console.error('Looking for product ID:', productId);
+        showToast('Error adding product to cart', 'error');
       }
     }
     
@@ -410,37 +440,99 @@ async function handleSortClick(e) {
 
 // Setup Search Functionality
 function setupSearch() {
-  const searchButton = document.getElementById('search-button');
-  const searchInput = document.getElementById('search-input');
-  if (searchButton && searchInput) {
-    searchButton.addEventListener('click', handleSearch);
-    searchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') handleSearch();
+    const searchInput = document.getElementById('search-input');
+    const mobileSearchInput = document.getElementById('mobile-search-input');
+    const productsSearchInput = document.getElementById('products-search-input');
+    
+    // Function to handle search
+    const handleSearchAction = async (searchTerm) => {
+        try {
+            currentSearchTerm = searchTerm.trim();
+            console.log(`Searching for: "${currentSearchTerm}"`);
+            
+            // Reset to first page
+            currentPage = 1;
+            
+            // Show loading state
+            toggleProductStates(false, false, true);
+            
+            if (!currentSearchTerm) {
+                // If no search term, load all products
+                await loadProducts();
+                return;
+            }
+            
+            // Use the search endpoint
+            const response = await fetch(`/api/products/search?search=${encodeURIComponent(currentSearchTerm)}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to search products');
+            }
+            
+            // Update products with search results
+            currentProducts = data.products;
+            
+            // Display products and update pagination
+            displayProducts(currentProducts);
+            generatePagination(data.total);
+            
+            // Update active filters display
+            updateActiveFilters();
+            
+            // Show products container
+            toggleProductStates(true, false, false);
+            
+            // Show feedback toast
+            showToast(`Found ${data.total} products matching "${currentSearchTerm}"`);
+            
+        } catch (error) {
+            console.log('=== ERROR LOADING PRODUCTS ===');
+            console.log('Error details:', error);
+            showErrorLoadingProducts(error);
+            toggleProductStates(false, true, false);
+        }
+    };
+    
+    // Sync search inputs and handle search
+    const syncSearchInputs = (value, sourceInput) => {
+        if (searchInput && searchInput !== sourceInput) searchInput.value = value;
+        if (mobileSearchInput && mobileSearchInput !== sourceInput) mobileSearchInput.value = value;
+        if (productsSearchInput && productsSearchInput !== sourceInput) productsSearchInput.value = value;
+    };
+    
+    // Add event listeners to search inputs
+    [searchInput, mobileSearchInput, productsSearchInput].forEach(input => {
+        if (!input) return;
+        
+        // Handle input changes with debounce
+        let debounceTimer;
+        input.addEventListener('input', (e) => {
+            const value = e.target.value;
+            syncSearchInputs(value, input);
+            
+            // Clear previous timer
+            clearTimeout(debounceTimer);
+            
+            // Set new timer
+            debounceTimer = setTimeout(() => {
+                handleSearchAction(value);
+            }, 300); // 300ms delay
+        });
+        
+        // Handle enter key
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSearchAction(e.target.value);
+            }
+        });
     });
-  }
-}
-
-// Handle Search
-async function handleSearch() {
-  const searchInput = document.getElementById('search-input');
-  if (!searchInput) return;
-  
-  currentSearchTerm = searchInput.value.trim();
-  console.log(`Searching for: "${currentSearchTerm}"`);
-  
-  // Reset to first page
-  currentPage = 1;
-  
-  // Load products with search term
-  await loadProducts();
-  
-  // Scroll to products section
-  document.getElementById('products-section').scrollIntoView({ behavior: 'smooth' });
-  
-  // Show feedback toast if search term is provided
-  if (currentSearchTerm) {
-    showToast(`Search results for "${currentSearchTerm}"`);
-  }
 }
 
 // Reset Filters
@@ -544,6 +636,41 @@ function handleCartClick(e) {
   }
 }
 
+// Get authentication token from localStorage
+function getAuthToken() {
+    // Try to get admin token first
+    const adminToken = localStorage.getItem('token');
+    if (adminToken) {
+        return adminToken;
+    }
+    
+    // Try to get customer token if admin token not found
+    const customerToken = localStorage.getItem('customerToken');
+    if (customerToken) {
+        return customerToken;
+    }
+    
+    return null;
+}
+
+// Get authentication headers
+function getAuthHeaders() {
+    const token = getAuthToken();
+    return {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json'
+    };
+}
+
+// Handle authentication errors
+function handleAuthError(error) {
+    if (error.message.includes('Authentication required') || error.message.includes('401')) {
+        // Redirect to login page
+        window.location.href = '/login.html';
+    }
+    throw error;
+}
+
 // Load Products from API
 async function loadProducts() {
   try {
@@ -552,133 +679,88 @@ async function loadProducts() {
     
     // Build the API URL with query parameters for filtering
     let apiUrl = '/api/products';
+    let needsAuth = true;
     
     // Add query parameters array
     const queryParams = [];
     
+    // If search term is provided, use search endpoint
+    if (currentSearchTerm) {
+      apiUrl = '/api/products/search';
+      needsAuth = false; // Search endpoint is public
+      queryParams.push(`search=${encodeURIComponent(currentSearchTerm)}`);
+    }
     // If a category is selected, use the category-specific endpoint
-    if (currentCategory) {
+    else if (currentCategory) {
       console.log(`Category filter active with ID: "${currentCategory}"`);
       apiUrl = `/api/products/category/${currentCategory}`;
       console.log(`Using category-specific endpoint: ${apiUrl}`);
-      
-      // Add pagination to category endpoint
-      queryParams.push(`page=${currentPage}`);
-      queryParams.push(`limit=${productsPerPage}`);
-      
-      // Add sort option if selected
-      if (currentSort) {
-        queryParams.push(`sort=${currentSort}`);
-      }
-    } else {
-      console.log('No category filter active, showing all products');
-      // Add search term if provided
-      if (currentSearchTerm) {
-        queryParams.push(`search=${encodeURIComponent(currentSearchTerm)}`);
-      }
-      
-      // Add sort option if selected
-      if (currentSort) {
-        queryParams.push(`sort=${currentSort}`);
-      }
-      
-      // Add pagination
-      queryParams.push(`page=${currentPage}`);
-      queryParams.push(`limit=${productsPerPage}`);
     }
-    
-    // Append query parameters to URL if there are any
+      
+    // Add pagination parameters
+    queryParams.push(`page=${currentPage}`);
+    queryParams.push(`limit=${productsPerPage}`);
+      
+    // Add query parameters to URL if any exist
     if (queryParams.length > 0) {
-      apiUrl += (apiUrl.includes('?') ? '&' : '?') + queryParams.join('&');
+      apiUrl += `?${queryParams.join('&')}`;
     }
-    
+        
     console.log('Final API URL:', apiUrl);
-    
-    console.log('Sending fetch request...');
-    const response = await fetch(apiUrl);
+        
+    // Prepare fetch options
+    const options = {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    };
+        
+    // Add auth headers only if needed
+    if (needsAuth) {
+      const token = getAuthToken();
+      if (token) {
+        options.headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+        
+    // Fetch products
+    const response = await fetch(apiUrl, options);
     
     if (!response.ok) {
-      console.error(`API request failed with status: ${response.status} ${response.statusText}`);
-      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     
     const data = await response.json();
-    console.log('API Response received:', data);
-    
-    // If the API returns a structured response with products and metadata
-    let products = Array.isArray(data) ? data : (data.products || []);
-    totalProducts = data.total || products.length;
-    
-    console.log(`Successfully loaded ${products.length} products`);
-    
-    // Debug product data to see if categories are properly included
-    if (products.length > 0) {
-      console.log('Sample product data:');
-      const sampleProduct = products[0];
-      console.log('- Product name:', sampleProduct.name);
-      console.log('- Product category:', sampleProduct.category ? 
-        `${sampleProduct.category.name} (${sampleProduct.category._id})` : 'No category');
-      console.log('- Product price:', sampleProduct.price);
-      console.log('- Other properties:', Object.keys(sampleProduct).join(', '));
+    console.log('Received products data:', data);
+        
+    // Handle the response data
+    if (currentSearchTerm) {
+      // Search response includes pagination data
+      currentProducts = Array.isArray(data.products) ? data.products : [];
+      console.log('Updated currentProducts array with search results:', currentProducts);
+      console.log('First product ID:', currentProducts[0]?._id || currentProducts[0]?.id);
+      displayProducts(currentProducts);
+      generatePagination(data.total);
+    } else {
+      // Regular response is just an array of products
+      currentProducts = Array.isArray(data) ? data : [];
+      console.log('Updated currentProducts array with regular results:', currentProducts);
+      console.log('First product ID:', currentProducts[0]?._id || currentProducts[0]?.id);
+      displayProducts(currentProducts);
+      generatePagination(currentProducts.length);
     }
-    
-    // Store products globally so we can access them in event handlers
-    currentProducts = products;
-    
-    if (products.length === 0) {
-      console.log('No products found matching criteria');
-      toggleProductStates(false, true, false);
-      document.getElementById('empty-products').innerHTML = `
-        <div class="col-12 text-center py-5 bg-white rounded-4 shadow-sm">
-          <div class="empty-state-icon mb-4">
-            <i class="fas fa-search fa-4x text-muted"></i>
-          </div>
-          <h5>No Products Found</h5>
-          <p class="text-muted">We couldn't find any products that match your criteria.</p>
-          <button class="btn btn-primary mt-3" id="clear-all-filters" onclick="resetFilters()">
-            <i class="fas fa-filter-circle-xmark me-2"></i>Clear All Filters
-          </button>
-        </div>
-      `;
-      return;
-    }
-    
-    // Display products and update pagination
-    console.log('Displaying products and updating pagination');
-    displayProducts(products);
-    generatePagination(totalProducts);
-    
-    // Update active filters display
-    updateActiveFilters();
+        
     console.log('=== PRODUCTS LOADED SUCCESSFULLY ===');
+    console.log('Total products in currentProducts:', currentProducts.length);
+    toggleProductStates(true, false, false);
     
   } catch (error) {
-    console.error('=== ERROR LOADING PRODUCTS ===');
-    console.error('Error details:', error);
+    console.log('=== ERROR LOADING PRODUCTS ===');
+    console.log('Error details:', error);
+    showErrorLoadingProducts(error);
     toggleProductStates(false, true, false);
-    
-    // Show error message to the user
-    const emptyProductsElement = document.getElementById('empty-products');
-    if (emptyProductsElement) {
-      emptyProductsElement.innerHTML = `
-        <div class="col-12 text-center py-5 bg-white rounded-4 shadow-sm">
-          <div class="empty-state-icon mb-4">
-            <i class="fas fa-exclamation-triangle fa-4x text-warning"></i>
-          </div>
-          <h5>Error Loading Products</h5>
-          <p class="text-muted">${error.message}</p>
-          <button class="btn btn-primary mt-3" id="retry-load-products">
-            <i class="fas fa-sync-alt me-2"></i>Retry
-          </button>
-        </div>
-      `;
-      
-      // Add event listener to retry button
-      const retryButton = document.getElementById('retry-load-products');
-      if (retryButton) {
-        retryButton.addEventListener('click', loadProducts);
-      }
-    }
+    currentProducts = []; // Reset currentProducts on error
   }
 }
 
@@ -715,7 +797,8 @@ function displayProducts(products) {
   if (products.length === 0) {
     toggleProductStates(false, true, false);
   } else {
-  products.forEach(product => {
+    console.log('Displaying products:', products);
+    products.forEach(product => {
       // Convert the HTML string to a DOM element before appending
       const productHTML = createProductCard(product);
       productsContainer.innerHTML += productHTML;
@@ -730,6 +813,8 @@ function displayProducts(products) {
 
 // Create Product Card
 function createProductCard(product) {
+  console.log('Creating product card for:', product);
+  
   // Create discount tag HTML if there's a discount
   const discountHTML = calculateDiscountHTML(product);
   
@@ -742,18 +827,22 @@ function createProductCard(product) {
   // Determine if item is out of stock
   const isOutOfStock = (product.stock <= 0);
   
+  // Get the correct product ID
+  const productId = product._id || product.id;
+  console.log('Using product ID:', productId);
+  
   return `
     <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
       <div class="product-card h-100 position-relative overflow-hidden shadow-sm rounded-4 border">
         ${discountHTML}
         <div class="position-absolute top-0 end-0 p-2">
-          <button class="btn btn-sm btn-light rounded-circle shadow-sm wishlist-btn" data-product-id="${product._id}">
+          <button class="btn btn-sm btn-light rounded-circle shadow-sm wishlist-btn" data-product-id="${productId}">
             <i class="far fa-heart"></i>
           </button>
         </div>
 
         <div class="product-img text-center p-4">
-          <a href="#" class="product-link" data-product-id="${product._id}">
+          <a href="#" class="product-link" data-product-id="${productId}">
             <img src="${productImage}" alt="${product.name}" class="img-fluid product-thumbnail" style="height: 180px; object-fit: contain;">
           </a>
         </div>
@@ -761,7 +850,7 @@ function createProductCard(product) {
         <div class="product-details p-3">
           <div class="product-category small text-muted mb-1">${product.category ? product.category.name : 'Uncategorized'}</div>
           <h3 class="product-title fs-6 mb-1 text-truncate">
-            <a href="#" class="text-dark product-link" data-product-id="${product._id}">${product.name}</a>
+            <a href="#" class="text-dark product-link" data-product-id="${productId}">${product.name}</a>
           </h3>
           
           <div class="d-flex justify-content-between align-items-center mb-2">
@@ -796,7 +885,7 @@ function createProductCard(product) {
               <input type="number" class="form-control form-control-sm text-center border-0 product-quantity" value="1" min="1" max="${product.stock || 10}" style="width: 40px" ${isOutOfStock ? 'disabled' : ''}>
               <button class="btn btn-sm btn-quantity" data-action="increase" ${isOutOfStock ? 'disabled' : ''}>+</button>
             </div>
-            <button class="btn ${isOutOfStock ? 'btn-secondary' : 'btn-primary'} btn-sm add-to-cart-btn" data-product-id="${product._id}" ${isOutOfStock ? 'disabled' : ''}>
+            <button class="btn ${isOutOfStock ? 'btn-secondary' : 'btn-primary'} btn-sm add-to-cart-btn" data-product-id="${productId}" ${isOutOfStock ? 'disabled' : ''}>
               <i class="fas ${isOutOfStock ? 'fa-ban' : 'fa-shopping-cart'} me-1"></i> ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
             </button>
           </div>
@@ -1189,7 +1278,7 @@ function showToast(message, type = 'success') {
     toast.classList.remove('show');
     setTimeout(() => {
       toastContainer.removeChild(toast);
-    }, 300);
+    }, 3000);
   }, 3000);
 }
 
@@ -1431,7 +1520,7 @@ async function placeOrder() {
       const response = await fetch('/api/orders', {
         method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                ...getAuthHeaders(),
                 'Cache-Control': 'no-cache'
             },
             body: JSON.stringify(order),
@@ -1488,31 +1577,32 @@ async function placeOrder() {
 // Function to save order to database
 async function saveOrderToDatabase(order) {
   try {
-    // Get customer token if logged in
-    const customerToken = localStorage.getItem('customerToken');
-    
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-    // Add authorization header if customer is logged in
-    if (customerToken) {
-      headers['Authorization'] = `Bearer ${customerToken}`;
-    }
-    
+        // Send order to server with increased timeout
     const response = await fetch('/api/orders', {
       method: 'POST',
-      headers,
-      body: JSON.stringify(order)
+            headers: {
+                ...getAuthHeaders(),
+                'Cache-Control': 'no-cache'
+            },
+            body: JSON.stringify(order),
+            keepalive: true // Keep the request alive even if the page is unloaded
     });
     
     if (!response.ok) {
-      throw new Error('Failed to save order');
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
     }
     
-    return await response.json();
+        const result = await response.json();
+        console.log('Order saved successfully:', result);
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to create order');
+        }
+        
+        return result;
   } catch (error) {
     console.error('Error saving order:', error);
+        handleAuthError(error);
     throw error;
   }
 }
@@ -2039,6 +2129,10 @@ function completeOrder() {
 
 // Show Quick View Modal
 function showQuickView(product) {
+    if (!product) {
+        console.error('No product data provided for quick view');
+        return;
+    }
   console.log('Quick view for product:', product);
   
   // Create modal if it doesn't exist
@@ -2063,6 +2157,10 @@ function showQuickView(product) {
   
   // Get modal content container
   const quickViewContent = document.getElementById('quickViewContent');
+    if (!quickViewContent) {
+        console.error('Quick view content container not found');
+        return;
+    }
   
   // Default image if product image is missing
   const productImage = product.image || product.featuredImage || 'images/placeholder.png';
@@ -2154,36 +2252,14 @@ function showQuickView(product) {
               </button>
             </div>
           </div>
-          
-          <div class="d-flex justify-content-between mt-3">
-            <button class="btn btn-outline-secondary btn-sm">
-              <i class="far fa-heart me-1"></i> Add to Wishlist
-            </button>
-            <button class="btn btn-outline-secondary btn-sm">
-              <i class="fas fa-share-alt me-1"></i> Share
-            </button>
-          </div>
-        </div>
-        
-        <div class="product-meta mt-4 pt-3 border-top">
-          <div class="row">
-            <div class="col-6">
-              <small class="text-muted">SKU: </small>
-              <small>${product.sku || 'N/A'}</small>
-            </div>
-            <div class="col-6">
-              <small class="text-muted">Stock: </small>
-              <small>${product.stock || 0} units</small>
-            </div>
-          </div>
         </div>
       </div>
     </div>
   `;
   
   // Initialize modal and show it
-  const quickViewModalObj = new bootstrap.Modal(quickViewModal);
-  quickViewModalObj.show();
+    const modal = new bootstrap.Modal(quickViewModal);
+    modal.show();
   
   // Add event listeners for thumbnails
   const thumbnails = quickViewModal.querySelectorAll('.thumbnail-item img');
@@ -2229,278 +2305,36 @@ function showQuickView(product) {
       modal.hide();
     });
   }
-  
-  // Handle variants if any
-  if (product.variants && product.variants.length > 0) {
-    quickViewVariants.innerHTML = '<h6 class="fw-bold mb-3">Available Options:</h6>';
-    
-    // Group variants by their type (e.g., size, color)
-    const variantGroups = {};
-    
-    product.variants.forEach(variant => {
-      const variantName = variant.name.split(':')[0].trim();
-      if (!variantGroups[variantName]) {
-        variantGroups[variantName] = [];
-      }
-      variantGroups[variantName].push(variant);
-    });
-    
-    // Create variant selectors
-    for (const [groupName, variants] of Object.entries(variantGroups)) {
-      const selectGroup = document.createElement('div');
-      selectGroup.className = 'mb-3 variant-group';
-      
-      // Create label
-      const label = document.createElement('label');
-      label.className = 'form-label fw-medium';
-      label.textContent = `${groupName}:`;
-      selectGroup.appendChild(label);
-      
-      // If this is a color option, create color swatches
-      if (groupName.toLowerCase() === 'color') {
-        const colorContainer = document.createElement('div');
-        colorContainer.className = 'd-flex flex-wrap gap-2 mb-2';
-        
-        variants.forEach(variant => {
-          const colorValue = variant.name.split(':')[1].trim();
-          const colorSwatch = document.createElement('div');
-          colorSwatch.className = 'color-swatch';
-          colorSwatch.dataset.variantId = variant._id;
-          colorSwatch.dataset.price = variant.price;
-          colorSwatch.dataset.stock = variant.stock;
-          colorSwatch.dataset.sku = variant.sku;
-          colorSwatch.title = colorValue;
-          
-          // Try to use the color value as the background color
-          let backgroundColor = colorValue.toLowerCase();
-          
-          // For common color names that might not be CSS colors
-          const colorMap = {
-            'navy': '#000080',
-            'burgundy': '#800020',
-            'teal': '#008080',
-            'olive': '#808000',
-            'beige': '#F5F5DC',
-            'cream': '#FFFDD0',
-            'mauve': '#E0B0FF',
-            'mint': '#98FB98',
-            'salmon': '#FA8072',
-            'mustard': '#FFDB58'
-          };
-          
-          backgroundColor = colorMap[backgroundColor] || backgroundColor;
-          
-          colorSwatch.style.backgroundColor = backgroundColor;
-          
-          // Add a checkmark for the selected color
-          const checkmark = document.createElement('i');
-          checkmark.className = 'fas fa-check checkmark';
-          colorSwatch.appendChild(checkmark);
-          
-          // Handle color selection
-          colorSwatch.addEventListener('click', function() {
-            document.querySelectorAll('.color-swatch').forEach(swatch => {
-              swatch.classList.remove('selected');
-            });
-            colorSwatch.classList.add('selected');
-            updateVariantPrice();
-          });
-          
-          colorContainer.appendChild(colorSwatch);
-        });
-        
-        selectGroup.appendChild(colorContainer);
-      } 
-      // For size or other options, create a select dropdown
-      else {
-        const select = document.createElement('select');
-        select.className = 'form-select variant-select';
-        select.id = `variant-${groupName.toLowerCase()}`;
-        select.dataset.variantType = groupName.toLowerCase();
-        
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = `Select ${groupName}`;
-        select.appendChild(defaultOption);
-        
-        variants.forEach(variant => {
-          const option = document.createElement('option');
-          option.value = variant._id;
-          option.dataset.sku = variant.sku;
-          option.dataset.price = variant.price;
-          option.dataset.stock = variant.stock;
-          option.textContent = variant.name.split(':')[1].trim();
-          select.appendChild(option);
-        });
-        
-        select.addEventListener('change', updateVariantPrice);
-        selectGroup.appendChild(select);
-      }
-      
-      quickViewVariants.appendChild(selectGroup);
-    }
-  } else {
-    quickViewVariants.innerHTML = '';
-  }
-  
-  // Handle quantity buttons
-  quickViewDecrease.addEventListener('click', function() {
-    let quantity = parseInt(quickViewQuantity.value);
-    if (quantity > 1) {
-      quickViewQuantity.value = --quantity;
-    }
-  });
-  
-  quickViewIncrease.addEventListener('click', function() {
-    let quantity = parseInt(quickViewQuantity.value);
-    const max = parseInt(quickViewQuantity.max);
-    if (quantity < max) {
-      quickViewQuantity.value = ++quantity;
-    }
-  });
-  
-  // Handle add to cart button
-  quickViewAddToCart.addEventListener('click', function() {
-    const quantity = parseInt(quickViewQuantity.value);
-    
-    // Check if any variants are selected
-    let selectedVariant = null;
-    const variantSelects = quickViewVariants.querySelectorAll('.variant-select');
-    const colorSwatches = quickViewVariants.querySelectorAll('.color-swatch.selected');
-    
-    // Check if all required variants are selected
-    let allVariantsSelected = true;
-    
-    if (variantSelects.length > 0) {
-      variantSelects.forEach(select => {
-        if (!select.value) {
-          allVariantsSelected = false;
-          select.classList.add('is-invalid');
-        } else {
-          select.classList.remove('is-invalid');
-          // Get the selected variant
-          selectedVariant = {
-            _id: select.value,
-            price: parseFloat(select.options[select.selectedIndex].dataset.price),
-            stock: parseInt(select.options[select.selectedIndex].dataset.stock),
-            sku: select.options[select.selectedIndex].dataset.sku
-          };
-        }
-      });
-    }
-    
-    if (colorSwatches.length > 0) {
-      if (colorSwatches.length !== 1) {
-        allVariantsSelected = false;
-        // Highlight that a color needs to be selected
-        const colorGroup = quickViewVariants.querySelector('.variant-group:has(.color-swatch)');
-        if (colorGroup) {
-          colorGroup.classList.add('text-danger');
-        }
-      } else {
-        const colorSwatch = colorSwatches[0];
-        const colorGroup = quickViewVariants.querySelector('.variant-group:has(.color-swatch)');
-        if (colorGroup) {
-          colorGroup.classList.remove('text-danger');
-      }
-      
-      // Get the selected variant
-        selectedVariant = {
-          _id: colorSwatch.dataset.variantId,
-          price: parseFloat(colorSwatch.dataset.price),
-          stock: parseInt(colorSwatch.dataset.stock),
-          sku: colorSwatch.dataset.sku
-        };
-      }
-    }
-    
-    if (allVariantsSelected) {
-    addToCart(product, selectedVariant, quantity);
-      
-      // Show success message
-      quickViewAddToCart.innerHTML = '<i class="fas fa-check me-2"></i> Added to Cart';
-      quickViewAddToCart.classList.add('btn-success');
-      
-      // Reset button after 1.5 seconds
-      setTimeout(() => {
-        quickViewAddToCart.innerHTML = '<i class="fas fa-shopping-cart me-2"></i> Add to Cart';
-        quickViewAddToCart.classList.remove('btn-success');
-    
-    // Close the modal
-    const quickViewModalInstance = bootstrap.Modal.getInstance(quickViewModal);
-    quickViewModalInstance.hide();
-      }, 1500);
-      } else {
-      // Show error message
-      showToast('Please select all required options', 'error');
-    }
-  });
-  
-  // Show the modal
-  const modal = new bootstrap.Modal(quickViewModal);
-  modal.show();
 }
 
 // Load Categories from API
 async function loadCategories() {
   try {
     console.log('=== LOADING CATEGORIES ===');
-    const response = await fetch('/api/categories');
+        
+        const response = await fetch('/api/categories', {
+            headers: getAuthHeaders()
+        });
+        
     if (!response.ok) {
-      console.error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch categories: ${response.status} ${response.statusText}`);
     }
     
     const categories = await response.json();
-    console.log(`Loaded ${categories.length} categories from database:`, categories);
+        console.log(`Successfully loaded ${categories.length} categories`);
     
-    if (!Array.isArray(categories)) {
-      console.error('API returned non-array response for categories:', categories);
-      throw new Error('Invalid categories data: Expected an array');
-    }
-    
-    // Check if categories have valid _id fields
-    const hasValidIds = categories.every(cat => cat._id);
-    if (!hasValidIds) {
-      console.warn('Some categories are missing _id fields:', categories);
-    }
-    
-    // Store categories globally for later reference
-    window.appCategories = categories;
-    console.log('Categories stored in window.appCategories:', window.appCategories);
-    
-    // Update sidebar categories
+        // Update UI with categories
     updateSidebarCategories(categories);
-    
-    // Update dropdown filter categories
     updateCategoryDropdown(categories);
-    
-    // Update category carousel if needed
     updateCategoryCarousel(categories);
     
-    // Make sure all category event listeners are added
-    addCategoryEventListeners();
-    
     console.log('=== CATEGORIES LOADED SUCCESSFULLY ===');
-    return categories;
-    
   } catch (error) {
     console.error('=== ERROR LOADING CATEGORIES ===');
     console.error('Error details:', error);
+        handleAuthError(error);
+        // Handle error appropriately
     showToast('Error loading categories. Please try again later.', 'error');
-    
-    // Initialize with empty categories instead of fallback
-    window.appCategories = [];
-    
-    // Update UI with empty state
-    updateSidebarCategories([]);
-    updateCategoryDropdown([]);
-    updateCategoryCarousel([]);
-    
-    // Make sure all category event listeners are added
-    addCategoryEventListeners();
-    
-    return [];
   }
 }
 
@@ -2826,99 +2660,142 @@ function setupProductEventListeners() {
 
 // Update Active Filters Display
 function updateActiveFilters() {
-  const activeFiltersContainer = document.getElementById('active-filters-container');
-  const activeFiltersDiv = document.getElementById('active-filters');
-  
-  if (!activeFiltersContainer || !activeFiltersDiv) {
-    console.error('Active filters container or div not found in the DOM');
-    return;
-  }
-  
-  // Clear current filters
-  activeFiltersDiv.innerHTML = '';
-  
-  let hasActiveFilters = false;
-  
-  // Add category filter if active
-  if (currentCategory) {
-    hasActiveFilters = true;
-    const categoryName = getCategoryNameById(currentCategory);
-    console.log(`Adding category filter badge for: ${categoryName} (${currentCategory})`);
+    const activeFiltersContainer = document.getElementById('active-filters-container');
+    const activeFiltersDiv = document.getElementById('active-filters');
     
-    activeFiltersDiv.innerHTML += `
-      <span class="badge rounded-pill bg-primary d-flex align-items-center">
-        <i class="fas fa-tag me-1"></i> ${categoryName}
-        <button class="btn-close btn-close-white ms-2" aria-label="Remove filter" 
-                onclick="removeFilter('category')"></button>
-      </span>
-    `;
-  }
-  
-  // Add search term filter if active
-  if (currentSearchTerm) {
-    hasActiveFilters = true;
-    console.log(`Adding search filter badge for: "${currentSearchTerm}"`);
-    activeFiltersDiv.innerHTML += `
-      <span class="badge rounded-pill bg-info d-flex align-items-center">
-        <i class="fas fa-search me-1"></i> "${currentSearchTerm}"
-        <button class="btn-close btn-close-white ms-2" aria-label="Remove filter" 
-                onclick="removeFilter('search')"></button>
-      </span>
-    `;
-  }
-  
-  // Add sort filter if active
-  if (currentSort) {
-    hasActiveFilters = true;
-    let sortLabel = 'Sorted';
-    
-    switch(currentSort) {
-      case 'price-asc':
-        sortLabel = 'Price: Low to High';
-        break;
-      case 'price-desc':
-        sortLabel = 'Price: High to Low';
-        break;
-      case 'name-asc':
-        sortLabel = 'Name: A to Z';
-        break;
-      case 'name-desc':
-        sortLabel = 'Name: Z to A';
-        break;
+    if (!activeFiltersContainer || !activeFiltersDiv) {
+        console.error('Active filters container or div not found in the DOM');
+        return;
     }
     
-    console.log(`Adding sort filter badge for: ${sortLabel}`);
-    activeFiltersDiv.innerHTML += `
-      <span class="badge rounded-pill bg-secondary d-flex align-items-center">
-        <i class="fas fa-sort me-1"></i> ${sortLabel}
-        <button class="btn-close btn-close-white ms-2" aria-label="Remove filter" 
-                onclick="removeFilter('sort')"></button>
-      </span>
-    `;
-  }
-  
-  // Show or hide the filters container
-  console.log(`Active filters: ${hasActiveFilters ? 'showing' : 'hiding'}`);
-  activeFiltersContainer.style.display = hasActiveFilters ? 'block' : 'none';
+    // Clear current filters
+    activeFiltersDiv.innerHTML = '';
+    
+    let hasActiveFilters = false;
+    
+    // Add category filter if active
+    if (currentCategory) {
+        hasActiveFilters = true;
+        const categoryName = getCategoryNameById(currentCategory);
+        console.log(`Adding category filter badge for: ${categoryName} (${currentCategory})`);
+        
+        activeFiltersDiv.innerHTML += `
+            <span class="badge rounded-pill bg-primary d-flex align-items-center me-2 mb-2" data-filter-type="category">
+                <i class="fas fa-tag me-1"></i> ${categoryName}
+                <button class="btn-close btn-close-white ms-2" aria-label="Remove category filter" 
+                        onclick="removeFilter('category')"></button>
+            </span>
+        `;
+    }
+    
+    // Add search term filter if active
+    if (currentSearchTerm) {
+        hasActiveFilters = true;
+        console.log(`Adding search filter badge for: "${currentSearchTerm}"`);
+        activeFiltersDiv.innerHTML += `
+            <span class="badge rounded-pill bg-info d-flex align-items-center me-2 mb-2" data-filter-type="search">
+                <i class="fas fa-search me-1"></i> "${currentSearchTerm}"
+                <button class="btn-close btn-close-white ms-2" aria-label="Remove search filter" 
+                        onclick="removeFilter('search')"></button>
+            </span>
+        `;
+    }
+    
+    // Add sort filter if active
+    if (currentSort) {
+        hasActiveFilters = true;
+        const sortText = currentSort === 'price-asc' ? 'Price: Low to High' :
+                        currentSort === 'price-desc' ? 'Price: High to Low' :
+                        currentSort === 'name-asc' ? 'Name: A to Z' :
+                        currentSort === 'name-desc' ? 'Name: Z to A' :
+                        'Sort';
+        
+        activeFiltersDiv.innerHTML += `
+            <span class="badge rounded-pill bg-secondary d-flex align-items-center me-2 mb-2" data-filter-type="sort">
+                <i class="fas fa-sort me-1"></i> ${sortText}
+                <button class="btn-close btn-close-white ms-2" aria-label="Remove sort filter" 
+                        onclick="removeFilter('sort')"></button>
+            </span>
+        `;
+    }
+    
+    // Show/hide the container based on whether there are active filters
+    activeFiltersContainer.style.display = hasActiveFilters ? 'block' : 'none';
+    
+    // If there are active filters, ensure the container is visible
+    if (hasActiveFilters) {
+        activeFiltersContainer.classList.remove('d-none');
+    }
 }
 
 // Remove specific filter
 function removeFilter(filterType) {
-  switch(filterType) {
-    case 'category':
-      currentCategory = '';
-      break;
-    case 'search':
-      currentSearchTerm = '';
-      document.getElementById('search-input').value = '';
-      break;
-    case 'sort':
-      currentSort = '';
-      break;
-  }
-  
-  currentPage = 1;
-  loadProducts();
+    switch(filterType) {
+        case 'category':
+            currentCategory = '';
+            // Reset category filter in search bar if it exists
+            const categoryFilter = document.getElementById('category-filter');
+            if (categoryFilter) {
+                categoryFilter.value = '';
+            }
+            // Reset category dropdown text if it exists
+            const categoryDropdown = document.getElementById('categoryDropdown');
+            if (categoryDropdown) {
+                categoryDropdown.innerHTML = '<i class="fas fa-filter me-2"></i>Categories';
+            }
+            // Remove active class from all category items
+            document.querySelectorAll('[data-category]').forEach(el => {
+                el.classList.remove('active');
+                const parentListItem = el.closest('li');
+                if (parentListItem) {
+                    parentListItem.classList.remove('active');
+                }
+            });
+            break;
+            
+        case 'search':
+            currentSearchTerm = '';
+            // Clear all search inputs
+            ['search-input', 'mobile-search-input', 'products-search-input'].forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.value = '';
+                }
+            });
+            break;
+            
+        case 'sort':
+            currentSort = '';
+            // Reset sort buttons if they exist
+            document.querySelectorAll('.sort-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            break;
+    }
+    
+    // Reset to first page
+    currentPage = 1;
+    
+    // Remove the filter badge from UI
+    const filterBadge = document.querySelector(`[data-filter-type="${filterType}"]`);
+    if (filterBadge) {
+        filterBadge.remove();
+    }
+    
+    // Check if there are any remaining filters
+    const activeFiltersDiv = document.getElementById('active-filters');
+    if (activeFiltersDiv && !activeFiltersDiv.hasChildNodes()) {
+        const container = document.getElementById('active-filters-container');
+        if (container) {
+            container.style.display = 'none';
+        }
+    }
+    
+    // Reload products with updated filters
+    loadProducts();
+    
+    // Show feedback toast
+    showToast(`${filterType.charAt(0).toUpperCase() + filterType.slice(1)} filter removed`);
 }
 
 // Make removeFilter available globally
@@ -3139,3 +3016,63 @@ function updateCheckoutModal() {
     }
   }
 }
+
+function setupConnectivityCheck() {
+    const networkIndicator = document.getElementById('network-indicator');
+    if (!networkIndicator) return;
+
+    function updateNetworkStatus() {
+        if (navigator.onLine) {
+            networkIndicator.textContent = '✓ Connected';
+            networkIndicator.style.backgroundColor = '#28a745';
+            networkIndicator.style.display = 'block';
+            setTimeout(() => {
+                networkIndicator.style.display = 'none';
+            }, 3000);
+        } else {
+            networkIndicator.textContent = '✕ Offline';
+            networkIndicator.style.backgroundColor = '#dc3545';
+            networkIndicator.style.display = 'block';
+        }
+    }
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus();
+
+    setInterval(async () => {
+        try {
+            const response = await fetch(`/api/ping?_=${Date.now()}`, {
+                method: 'HEAD',
+                cache: 'no-store',
+                headers: {
+                    ...getAuthHeaders(),
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            
+            if (!response.ok && navigator.onLine) {
+                networkIndicator.textContent = '! Limited Connectivity';
+                networkIndicator.style.backgroundColor = '#ffc107';
+                networkIndicator.style.display = 'block';
+            } else if (navigator.onLine) {
+                updateNetworkStatus();
+            }
+        } catch (error) {
+            if (navigator.onLine) {
+                networkIndicator.textContent = '! Limited Connectivity';
+                networkIndicator.style.backgroundColor = '#ffc107';
+                networkIndicator.style.display = 'block';
+            }
+        }
+    }, 30000);
+}
+
+// Add network indicator to the page
+document.addEventListener('DOMContentLoaded', function() {
+    // Create network indicator
+    const networkIndicator = document.createElement('div');
+    networkIndicator.id = 'network-indicator';
+    networkIndicator.style.cssText = 'position: fixed; bottom: 20px; right: 20px; padding: 8px 16px; border-radius: 4px; z-index: 9999; display: none; transition: all 0.3s ease;';
+    document.body.appendChild(networkIndicator);
+});

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const searchRouter = express.Router(); // Create a separate router for search
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -506,29 +507,91 @@ router.delete('/:id', async (req, res, next) => {
     }
 });
 
-// Search products
-router.get('/search/:term', async (req, res, next) => {
+// Search products endpoint
+searchRouter.get('/', async (req, res) => {
     try {
-        const searchTerm = req.params.term;
-        
-        const products = await Product.find({
+        const searchTerm = req.query.search;
+        console.log('=== PRODUCT SEARCH START ===');
+        console.log('Search term:', searchTerm);
+
+        if (!searchTerm) {
+            console.log('No search term provided');
+            return res.status(400).json({
+                success: false,
+                message: 'Search term is required'
+            });
+        }
+
+        // Create a case-insensitive search regex
+        const searchRegex = new RegExp(searchTerm, 'i');
+        console.log('Search regex:', searchRegex);
+
+        // First find categories that match the search term
+        console.log('Searching categories...');
+        let categoryIds = [];
+        try {
+            const matchingCategories = await Category.find({
+                name: searchRegex
+            });
+            console.log('Matching categories:', matchingCategories.map(c => c.name));
+            categoryIds = matchingCategories.map(cat => cat._id);
+        } catch (categoryError) {
+            console.error('Error searching categories:', categoryError);
+            // Continue with product search even if category search fails
+        }
+        console.log('Category IDs:', categoryIds);
+
+        // Build the search query
+        const searchQuery = {
             $or: [
-                { name: { $regex: searchTerm, $options: 'i' } },
-                { description: { $regex: searchTerm, $options: 'i' } },
-                { sku: { $regex: searchTerm, $options: 'i' } }
-            ]
-        }).populate('category', 'name');
+                { name: searchRegex }
+            ],
+            status: 'active'
+        };
+
+        // Only add category filter if we found matching categories
+        if (categoryIds.length > 0) {
+            searchQuery.$or.push({ category: { $in: categoryIds } });
+        }
+
+        console.log('Final search query:', JSON.stringify(searchQuery, null, 2));
+
+        // Search in name and matching category IDs
+        const products = await Product.find(searchQuery)
+            .populate('category', 'name')
+            .select('-__v');
+
+        console.log(`Found ${products.length} products matching "${searchTerm}"`);
+        if (products.length > 0) {
+            console.log('First matching product:', {
+                name: products[0].name,
+                category: products[0].category?.name
+            });
+        }
         
-        // Transform products to add full URLs to images using our helper
+        // Transform products to add full URLs
         const transformedProducts = products.map(product => transformItemUrls(product));
         
-        res.json(transformedProducts);
-    } catch (err) {
-        next(err);
+        console.log('=== PRODUCT SEARCH COMPLETE ===');
+        res.json({
+            success: true,
+            products: transformedProducts,
+            total: transformedProducts.length
+        });
+
+    } catch (error) {
+        console.error('=== PRODUCT SEARCH ERROR ===');
+        console.error('Error details:', error);
+        console.error('Stack trace:', error.stack);
+        res.status(500).json({
+            success: false,
+            message: 'Error searching products',
+            error: error.message
+        });
     }
 });
 
 // Register error handling middleware
 router.use(handleError);
 
-module.exports = router;
+module.exports = { router, searchRouter };

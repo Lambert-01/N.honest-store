@@ -417,11 +417,11 @@ router.get('/stats', auth, async (req, res) => {
                 acc[curr._id || 'pending'] = curr.count;
                 return acc;
             }, {
-                pending: 0,
-                processing: 0,
-                shipped: 0,
-                delivered: 0,
-                cancelled: 0
+            pending: 0,
+            processing: 0,
+            shipped: 0,
+            delivered: 0,
+            cancelled: 0
             })
         };
 
@@ -445,7 +445,7 @@ router.patch('/:id/status', auth, async (req, res) => {
         console.log('Updating order status:', { orderId: req.params.id, status: req.body.status });
         
         const { status } = req.body;
-        
+
         if (!status) {
             return res.status(400).json({
                 success: false,
@@ -464,7 +464,7 @@ router.patch('/:id/status', auth, async (req, res) => {
 
         // Find the order and handle validation errors
         const order = await Order.findById(req.params.id);
-        
+
         if (!order) {
             return res.status(404).json({
                 success: false,
