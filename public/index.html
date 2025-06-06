@@ -1132,53 +1132,105 @@
 
 <!-- Product Quick View Modal -->
 <div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header border-0">
         <h5 class="modal-title" id="quickViewModalLabel">Product Details</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body p-4">
         <div class="row">
-          <!-- Product Image -->
-          <div class="col-md-5 text-center">
-            <img id="quick-view-image" src="" alt="Product" class="img-fluid modal-product-image mb-4">
+          <!-- Product Images -->
+          <div class="col-md-6 mb-4 mb-md-0">
+            <div class="product-image-container mb-3">
+              <img src="" alt="" id="quickview-main-image" class="img-fluid">
+            </div>
+            <div class="product-thumbnails d-flex gap-2 justify-content-center">
+              <!-- Thumbnails will be added dynamically -->
+            </div>
           </div>
           
           <!-- Product Details -->
-          <div class="col-md-7">
-            <h2 id="quick-view-title" class="fs-4 mb-2"></h2>
-            
-            <div class="d-flex align-items-center mb-3">
-              <div id="quick-view-rating" class="stars-outer me-2">
-                <div class="stars-inner"></div>
-              </div>
-              <span id="quick-view-reviews" class="text-muted small"></span>
-            </div>
-            
-            <div class="mb-3">
-              <span id="quick-view-price" class="product-modal-price"></span>
-              <span id="quick-view-original-price" class="product-modal-original-price"></span>
-            </div>
-            
-            <div id="quick-view-stock" class="mb-3"></div>
-            
-            <div id="quick-view-description" class="mb-4 text-muted"></div>
-            
-            <!-- Variants will be added here dynamically -->
-            <div id="quick-view-variants" class="mb-4"></div>
-            
-            <!-- Quantity and Add to Cart -->
-            <div class="d-flex align-items-center">
-              <div class="quantity-selector d-flex align-items-center border rounded me-3">
-                <button class="btn btn-sm btn-quantity" id="quick-view-decrease">-</button>
-                <input type="number" class="form-control form-control-sm text-center border-0" id="quick-view-quantity" value="1" min="1" style="width: 50px">
-                <button class="btn btn-sm btn-quantity" id="quick-view-increase">+</button>
+          <div class="col-md-6">
+            <div class="product-info">
+              <h4 class="product-title mb-2" id="quickview-title"></h4>
+              <div class="d-flex align-items-center mb-3">
+                <span class="badge bg-primary me-2" id="quickview-category"></span>
+                <div class="product-rating">
+                  <div class="stars-outer">
+                    <div class="stars-inner" id="quickview-rating"></div>
+                  </div>
+                </div>
               </div>
               
-              <button id="quick-view-add-to-cart" class="btn btn-primary">
-                <i class="fas fa-shopping-cart me-2"></i> Add to Cart
-              </button>
+              <div class="product-price mb-4">
+                <h3 class="text-primary mb-0" id="quickview-price"></h3>
+                <small class="text-muted text-decoration-line-through" id="quickview-original-price"></small>
+              </div>
+              
+              <div class="product-description mb-4">
+                <h6 class="fw-bold mb-2">Description</h6>
+                <p class="text-muted" id="quickview-description"></p>
+              </div>
+              
+              <!-- Variants Section -->
+              <div class="product-variants mb-4" id="quickview-variants">
+                <h6 class="fw-bold mb-3">Available Variants</h6>
+                <div class="variants-container">
+                  <!-- Size Variants -->
+                  <div class="variant-group mb-3" id="size-variants">
+                    <label class="d-block mb-2">Size</label>
+                    <div class="btn-group" role="group" aria-label="Size variants">
+                      <!-- Size buttons will be added dynamically -->
+                    </div>
+                  </div>
+                  
+                  <!-- Color Variants -->
+                  <div class="variant-group mb-3" id="color-variants">
+                    <label class="d-block mb-2">Color</label>
+                    <div class="btn-group" role="group" aria-label="Color variants">
+                      <!-- Color buttons will be added dynamically -->
+                    </div>
+                  </div>
+                  
+                  <!-- Other Variants -->
+                  <div class="variant-group mb-3" id="other-variants">
+                    <!-- Other variant options will be added dynamically -->
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Quantity and Add to Cart -->
+              <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="quantity-selector d-flex align-items-center">
+                  <button class="btn btn-outline-secondary btn-quantity" type="button" id="quickview-decrease-quantity">
+                    <i class="fas fa-minus"></i>
+                  </button>
+                  <input type="number" class="form-control text-center product-quantity" id="quickview-quantity" value="1" min="1">
+                  <button class="btn btn-outline-secondary btn-quantity" type="button" id="quickview-increase-quantity">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+                <button class="btn btn-primary flex-grow-1" id="quickview-add-to-cart">
+                  <i class="fas fa-shopping-cart me-2"></i>Add to Cart
+                </button>
+              </div>
+              
+              <!-- Additional Info -->
+              <div class="additional-info">
+                <div class="d-flex align-items-center text-muted mb-2">
+                  <i class="fas fa-box me-2"></i>
+                  <span id="quickview-stock-status">In Stock</span>
+                </div>
+                <div class="d-flex align-items-center text-muted mb-2">
+                  <i class="fas fa-truck me-2"></i>
+                  <span>Free delivery on orders above 50,000 RWF</span>
+                </div>
+                <div class="d-flex align-items-center text-muted">
+                  <i class="fas fa-shield-alt me-2"></i>
+                  <span>Secure checkout with MTN MoMo & Airtel Money</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -356,6 +356,35 @@ function setupEventListeners() {
       updateCheckoutModal();
     });
   }
+  
+  // Initialize quick view modal
+  const quickViewModal = document.getElementById('quickViewModal');
+  if (quickViewModal) {
+    quickViewModal.addEventListener('hidden.bs.modal', function () {
+      // Reset modal content when hidden
+      const mainImage = document.getElementById('quickview-main-image');
+      const thumbnails = document.querySelector('.product-thumbnails');
+      const title = document.getElementById('quickview-title');
+      const category = document.getElementById('quickview-category');
+      const price = document.getElementById('quickview-price');
+      const description = document.getElementById('quickview-description');
+      const variantsContainer = document.getElementById('quickview-variants');
+      const quantity = document.getElementById('quickview-quantity');
+      
+      if (mainImage) mainImage.src = '';
+      if (thumbnails) thumbnails.innerHTML = '';
+      if (title) title.textContent = '';
+      if (category) category.textContent = '';
+      if (price) price.textContent = '';
+      if (description) description.textContent = '';
+      if (variantsContainer) {
+        variantsContainer.style.display = 'none';
+        const variantsWrapper = variantsContainer.querySelector('.variants-container');
+        if (variantsWrapper) variantsWrapper.innerHTML = '';
+      }
+      if (quantity) quantity.value = 1;
+    });
+  }
 }
 
 // Handle Category Click
@@ -440,7 +469,7 @@ async function handleSortClick(e) {
 
 // Setup Search Functionality
 function setupSearch() {
-    const searchInput = document.getElementById('search-input');
+  const searchInput = document.getElementById('search-input');
     const mobileSearchInput = document.getElementById('mobile-search-input');
     const productsSearchInput = document.getElementById('products-search-input');
     
@@ -448,11 +477,11 @@ function setupSearch() {
     const handleSearchAction = async (searchTerm) => {
         try {
             currentSearchTerm = searchTerm.trim();
-            console.log(`Searching for: "${currentSearchTerm}"`);
-            
-            // Reset to first page
-            currentPage = 1;
-            
+  console.log(`Searching for: "${currentSearchTerm}"`);
+  
+  // Reset to first page
+  currentPage = 1;
+  
             // Show loading state
             toggleProductStates(false, false, true);
             
@@ -470,7 +499,7 @@ function setupSearch() {
             }
             
             const data = await response.json();
-            
+  
             if (!data.success) {
                 throw new Error(data.message || 'Failed to search products');
             }
@@ -487,7 +516,7 @@ function setupSearch() {
             
             // Show products container
             toggleProductStates(true, false, false);
-            
+  
             // Show feedback toast
             showToast(`Found ${data.total} products matching "${currentSearchTerm}"`);
             
@@ -1029,24 +1058,22 @@ function generatePagination(totalItems) {
 
 // Cart Functions
 function addToCart(product, variant = null, quantity = 1) {
-  // Determine which price and SKU to use
+  // Determine which price to use - ALWAYS use variant price if a variant is selected
   const price = variant ? variant.price : product.price;
-  const sku = variant ? variant.sku : product.sku;
   
   // Create a cart item object with consistent id property
   const cartItem = {
-    id: variant ? `${product._id || product.id}-${variant._id}` : (product._id || product.id),
+    id: variant ? `${product._id || product.id}-${variant.name}` : (product._id || product.id),
     productId: product._id || product.id,
     name: product.name,
     price: price,
-    sku: sku,
     image: product.featuredImage || product.image || 'images/placeholder.png',
     quantity: quantity,
     category: product.category ? product.category.name : '',
     variant: variant ? {
-      _id: variant._id,
       name: variant.name,
-      sku: variant.sku
+      combination: variant.combination,
+      price: variant.price
     } : null
   };
   
@@ -1069,7 +1096,8 @@ function addToCart(product, variant = null, quantity = 1) {
   updateCartDisplay();
   
   // Show success toast
-  showToast(`${product.name} added to cart!`, 'success');
+  const variantText = variant ? ` (${variant.name})` : '';
+  showToast(`${product.name}${variantText} added to cart!`, 'success');
 }
 
 function removeFromCart(productId) {
@@ -1092,28 +1120,12 @@ function updateCartCount() {
 
 // Update the cart functions in script.js
 function updateCartDisplay() {
-  console.log("Updating cart display with", cart.length, "items");
-  
-  const cartItemsContainer = document.getElementById('cart-items-container');
-  const cartSummary = document.getElementById('cart-summary');
-  
-  // Check if cart items container and summary exist
-  if (!cartItemsContainer) {
-    console.error("Cart items container missing in DOM");
-    return;
-  }
-  
-  if (!cartSummary) {
-    console.error("Cart summary missing in DOM");
-    return;
-  }
-  
-  // If cart is empty, show empty message
   if (cart.length === 0) {
     cartItemsContainer.innerHTML = `
       <div class="text-center py-5">
         <i class="fas fa-shopping-basket fa-3x text-muted mb-3"></i>
-        <p class="text-muted">Your cart is empty.</p>
+        <h5>Your cart is empty</h5>
+        <p class="text-muted">Add some products to your cart</p>
         <button class="btn btn-outline-primary" data-bs-dismiss="offcanvas">Continue Shopping</button>
       </div>
     `;
@@ -1139,49 +1151,55 @@ function updateCartDisplay() {
              alt="${item.name}">
         <div class="flex-grow-1">
           <h6 class="mb-1">${item.name}</h6>
+          ${item.variant ? `<p class="text-muted small mb-1">Variant: ${item.variant.name}</p>` : ''}
           <p class="text-muted small mb-2">${item.category || 'General'}</p>
           <div class="d-flex justify-content-between align-items-center">
             <div class="quantity-control d-flex align-items-center">
-              <button class="btn btn-sm btn-outline-secondary quantity-btn" data-product-id="${item.id}" data-change="-1">
+              <button class="btn btn-sm btn-outline-secondary quantity-btn" 
+                      data-product-id="${item.id}" 
+                      data-change="-1"
+                      ${item.quantity <= 1 ? 'disabled' : ''}>
                 <i class="fas fa-minus"></i>
               </button>
               <span class="mx-2">${item.quantity}</span>
-              <button class="btn btn-sm btn-outline-secondary quantity-btn" data-product-id="${item.id}" data-change="1">
+              <button class="btn btn-sm btn-outline-secondary quantity-btn" 
+                      data-product-id="${item.id}" 
+                      data-change="1">
                 <i class="fas fa-plus"></i>
               </button>
             </div>
             <div class="text-end">
-              <span class="fw-bold d-block">RWF ${itemTotal.toFixed(0)}</span>
-              <small class="text-muted">RWF ${item.price.toFixed(0)} each</small>
+              <div class="fw-bold">${formatPrice(itemTotal)}</div>
+              <div class="small text-muted">${formatPrice(item.price)} each</div>
             </div>
           </div>
         </div>
-        <button class="btn btn-sm text-danger ms-2 remove-item-btn" data-product-id="${item.id}">
-          <i class="fas fa-trash"></i>
+        <button class="btn btn-link text-danger ms-2 remove-item" data-product-id="${item.id}">
+          <i class="fas fa-times"></i>
         </button>
       </div>
     `;
   });
 
   cartItemsContainer.innerHTML = cartHTML;
-  
-  // Add event listeners to the newly created buttons
-  document.querySelectorAll('.quantity-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const productId = this.dataset.productId;
-      const change = parseInt(this.dataset.change);
+  updateCartSummary(subtotal);
+
+  // Add event listeners for quantity buttons
+  document.querySelectorAll('.quantity-btn').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const productId = e.currentTarget.dataset.productId;
+      const change = parseInt(e.currentTarget.dataset.change);
       updateQuantity(productId, change);
     });
   });
-  
-  document.querySelectorAll('.remove-item-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const productId = this.dataset.productId;
+
+  // Add event listeners for remove buttons
+  document.querySelectorAll('.remove-item').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const productId = e.currentTarget.dataset.productId;
       removeFromCart(productId);
     });
   });
-  
-  updateCartSummary(subtotal);
 }
 
 function updateQuantity(productId, change) {
@@ -2129,182 +2147,246 @@ function completeOrder() {
 
 // Show Quick View Modal
 function showQuickView(product) {
-    if (!product) {
-        console.error('No product data provided for quick view');
-        return;
-    }
   console.log('Quick view for product:', product);
   
-  // Create modal if it doesn't exist
-  let quickViewModal = document.getElementById('quickViewModal');
-  if (!quickViewModal) {
-    const modalHTML = `
-      <div class="modal fade" id="quickViewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title">Product Details</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="quickViewContent"></div>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    quickViewModal = document.getElementById('quickViewModal');
+  // Get modal elements
+  const modal = document.getElementById('quickViewModal');
+  if (!modal) {
+    console.error('Quick view modal not found in DOM');
+    return;
+  }
+
+  // Initialize modal
+  const modalInstance = new bootstrap.Modal(modal);
+  
+  // Get other modal elements
+  const mainImage = document.getElementById('quickview-main-image');
+  const thumbnails = document.querySelector('.product-thumbnails');
+  const title = document.getElementById('quickview-title');
+  const category = document.getElementById('quickview-category');
+  const price = document.getElementById('quickview-price');
+  const description = document.getElementById('quickview-description');
+  const variantsContainer = document.getElementById('quickview-variants');
+  const stockStatus = document.getElementById('quickview-stock-status');
+  const quantity = document.getElementById('quickview-quantity');
+  const addToCartBtn = document.getElementById('quickview-add-to-cart');
+
+  // Verify all required elements exist
+  if (!mainImage || !title || !price || !quantity || !addToCartBtn) {
+    console.error('Required quick view elements not found');
+    return;
   }
   
-  // Get modal content container
-  const quickViewContent = document.getElementById('quickViewContent');
-    if (!quickViewContent) {
-        console.error('Quick view content container not found');
-        return;
+  // Set basic product info
+  title.textContent = product.name;
+  if (category) category.textContent = product.category ? product.category.name : '';
+  price.textContent = formatPrice(product.price);
+  if (description) description.textContent = product.description || 'No description available';
+  if (stockStatus) stockStatus.textContent = product.stock > 0 ? 'In Stock' : 'Out of Stock';
+  
+  // Reset quantity
+  quantity.value = 1;
+  
+  // Track selected variant
+  let selectedVariant = null;
+  
+  // Set main image and thumbnails
+  if (product.images && product.images.length > 0) {
+    mainImage.src = product.images[0];
+    mainImage.alt = product.name;
+    
+    if (thumbnails) {
+      // Clear existing thumbnails
+      thumbnails.innerHTML = '';
+      
+      // Add thumbnails
+      product.images.forEach((image, index) => {
+        const thumbnail = document.createElement('div');
+        thumbnail.className = `thumbnail-item ${index === 0 ? 'active' : ''}`;
+        thumbnail.innerHTML = `<img src="${image}" alt="${product.name} - Image ${index + 1}">`;
+        
+        // Add click handler to switch main image
+        thumbnail.addEventListener('click', () => {
+          mainImage.src = image;
+          mainImage.alt = `${product.name} - Image ${index + 1}`;
+          document.querySelectorAll('.thumbnail-item').forEach(t => t.classList.remove('active'));
+          thumbnail.classList.add('active');
+        });
+        
+        thumbnails.appendChild(thumbnail);
+      });
     }
-  
-  // Default image if product image is missing
-  const productImage = product.image || product.featuredImage || 'images/placeholder.png';
-  
-  // Determine if item is out of stock
-  const isOutOfStock = (product.stock <= 0);
-  
-  // Create discount tag HTML if there's a discount
-  const discountHTML = calculateDiscountHTML(product);
-  
-  // Generate variants HTML
-  let variantsHTML = '';
-  if (product.variants && product.variants.length > 0) {
-    variantsHTML = `
-      <div class="product-variants mb-3">
-        <h6 class="fw-bold mb-2">Available Options</h6>
-        <div class="variants-container">
-          <div class="row g-2">
-            ${product.variants.map(variant => `
-              <div class="col-md-6">
-                <div class="variant-item p-2 border rounded d-flex justify-content-between align-items-center">
-                  <div>
-                    <span class="variant-name">${variant.name}</span>
-                    ${variant.combination && variant.combination.length > 0 ? 
-                      `<small class="d-block text-muted">${variant.combination.join(' / ')}</small>` : ''}
-                  </div>
-                  <div class="variant-price fw-bold">RWF ${variant.price.toLocaleString()}</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    `;
+  } else {
+    mainImage.src = product.featuredImage || 'images/placeholder.jpg';
+    mainImage.alt = product.name;
+    if (thumbnails) thumbnails.innerHTML = '';
   }
   
-  // Populate modal content
-  quickViewContent.innerHTML = `
-    <div class="row">
-      <div class="col-md-6">
-        <div class="product-image-container position-relative">
-          ${discountHTML}
-          <img src="${productImage}" class="img-fluid rounded" alt="${product.name}">
-        </div>
-        ${product.images && product.images.length > 1 ? `
-          <div class="product-thumbnails d-flex mt-2 gap-2 overflow-auto">
-            ${product.images.map(img => `
-              <div class="thumbnail-item">
-                <img src="${img}" class="img-thumbnail" alt="${product.name}" style="width: 70px; height: 70px; object-fit: cover; cursor: pointer;">
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-      </div>
-      <div class="col-md-6">
-        <div class="product-category small text-muted mb-1">${product.category ? product.category.name : 'Uncategorized'}</div>
-        <h3 class="product-title h4 mb-2">${product.name}</h3>
-        
-        <div class="product-rating mb-3">
-          <div class="stars-outer">
-            <div class="stars-inner" style="width: ${(product.rating || 4) * 20}%"></div>
-          </div>
-          <span class="rating-count small text-muted">(${product.reviews || Math.floor(Math.random() * 50) + 5} reviews)</span>
-        </div>
-        
-        <div class="product-price mb-3">
-          <span class="fw-bold fs-4">RWF ${product.price.toLocaleString()}</span>
-          ${product.originalPrice ? `<span class="text-decoration-line-through text-muted ms-2">RWF ${product.originalPrice.toLocaleString()}</span>` : ''}
-        </div>
-        
-        <div class="product-description mb-3">
-          <p>${product.description || 'No description available.'}</p>
-        </div>
-        
-        ${variantsHTML}
-        
-        <div class="product-actions">
-          <div class="row g-2 align-items-center">
-            <div class="col-auto">
-              <div class="quantity-selector d-flex align-items-center border rounded">
-                <button class="btn btn-sm btn-quantity" data-action="decrease" ${isOutOfStock ? 'disabled' : ''}>-</button>
-                <input type="number" class="form-control form-control-sm text-center border-0 product-quantity" value="1" min="1" max="${product.stock || 10}" style="width: 50px" ${isOutOfStock ? 'disabled' : ''}>
-                <button class="btn btn-sm btn-quantity" data-action="increase" ${isOutOfStock ? 'disabled' : ''}>+</button>
-              </div>
-            </div>
-            <div class="col">
-              <button class="btn ${isOutOfStock ? 'btn-secondary' : 'btn-primary'} w-100 add-to-cart-btn" data-product-id="${product._id}" ${isOutOfStock ? 'disabled' : ''}>
-                <i class="fas ${isOutOfStock ? 'fa-ban' : 'fa-shopping-cart'} me-2"></i> ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Initialize modal and show it
-    const modal = new bootstrap.Modal(quickViewModal);
-    modal.show();
-  
-  // Add event listeners for thumbnails
-  const thumbnails = quickViewModal.querySelectorAll('.thumbnail-item img');
-  const mainImage = quickViewModal.querySelector('.product-image-container img');
-  
-  thumbnails.forEach(thumb => {
-    thumb.addEventListener('click', function() {
-      mainImage.src = this.src;
-    });
-  });
-  
-  // Add event listeners for quantity buttons
-  const decreaseBtn = quickViewModal.querySelector('[data-action="decrease"]');
-  const increaseBtn = quickViewModal.querySelector('[data-action="increase"]');
-  const quantityInput = quickViewModal.querySelector('.product-quantity');
-  
-  if (decreaseBtn && increaseBtn && quantityInput) {
-    decreaseBtn.addEventListener('click', function() {
-      let quantity = parseInt(quantityInput.value);
-      if (quantity > 1) {
-        quantityInput.value = --quantity;
+  // Handle variants
+  if (variantsContainer && product.variants && product.variants.length > 0) {
+    variantsContainer.style.display = 'block';
+    
+    // Group variants by their combination attributes
+    const variantGroups = {};
+    product.variants.forEach(variant => {
+      if (variant.combination && variant.combination.length > 0) {
+        variant.combination.forEach(comb => {
+          if (!variantGroups[comb.attribute]) {
+            variantGroups[comb.attribute] = new Set();
+          }
+          variantGroups[comb.attribute].add(comb.value);
+        });
       }
     });
     
-    increaseBtn.addEventListener('click', function() {
-      let quantity = parseInt(quantityInput.value);
-      const max = parseInt(quantityInput.max);
-      if (quantity < max) {
-        quantityInput.value = ++quantity;
-      }
-    });
+    // Clear existing variants
+    const variantsWrapper = variantsContainer.querySelector('.variants-container');
+    if (variantsWrapper) {
+      variantsWrapper.innerHTML = '';
+      
+      // Create variant selection groups
+      Object.entries(variantGroups).forEach(([attribute, values]) => {
+        const variantGroup = document.createElement('div');
+        variantGroup.className = 'variant-group mb-3';
+        variantGroup.innerHTML = `
+          <label class="d-block mb-2">${attribute}</label>
+          <div class="btn-group flex-wrap" role="group" aria-label="${attribute} variants">
+            ${Array.from(values).map(value => `
+              <button type="button" class="btn btn-outline-secondary m-1" 
+                      data-attribute="${attribute}"
+                      data-value="${value}">
+                ${value}
+              </button>
+            `).join('')}
+          </div>
+        `;
+        
+        variantsWrapper.appendChild(variantGroup);
+      });
+      
+      // Add variant price table
+      const priceTable = document.createElement('div');
+      priceTable.className = 'variant-price-table mt-4';
+      priceTable.innerHTML = `
+        <h6 class="fw-bold mb-3">Available Variants</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>Variant</th>
+                <th class="text-end">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${product.variants.map(variant => `
+                <tr>
+                  <td>${variant.name}</td>
+                  <td class="text-end">${formatPrice(variant.price)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      variantsWrapper.appendChild(priceTable);
+      
+      // Handle variant selection
+      const variantButtons = variantsWrapper.querySelectorAll('.btn-group .btn');
+      const selectedVariants = new Map();
+      
+      variantButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const attribute = button.dataset.attribute;
+          const value = button.dataset.value;
+          
+          // Toggle active state in this group
+          button.closest('.btn-group').querySelectorAll('.btn').forEach(b => {
+            b.classList.remove('active');
+          });
+          button.classList.add('active');
+          
+          // Update selected variants
+          selectedVariants.set(attribute, value);
+          
+          // Find matching variant
+          const matchingVariant = product.variants.find(variant => {
+            return variant.combination.every(comb => {
+              const selectedValue = selectedVariants.get(comb.attribute);
+              return selectedValue === comb.value;
+            });
+          });
+          
+          // Update price and selected variant
+          if (matchingVariant) {
+            price.textContent = formatPrice(matchingVariant.price);
+            selectedVariant = matchingVariant;
+            addToCartBtn.disabled = false;
+          } else {
+            price.textContent = formatPrice(product.price);
+            selectedVariant = null;
+            // Only disable add to cart if we have variants but none selected
+            addToCartBtn.disabled = selectedVariants.size > 0;
+          }
+        });
+      });
+    }
+  } else if (variantsContainer) {
+    variantsContainer.style.display = 'none';
+    selectedVariant = null;
+    addToCartBtn.disabled = false;
   }
   
-  // Add event listener for add to cart button
-  const addToCartBtn = quickViewModal.querySelector('.add-to-cart-btn');
-  if (addToCartBtn) {
-    addToCartBtn.addEventListener('click', function() {
-      const quantity = parseInt(quantityInput.value);
-      addToCart(product, null, quantity);
-      showToast(`${product.name} added to cart`);
-      
-      // Close modal after adding to cart
-      modal.hide();
-    });
+  // Handle quantity changes
+  const decreaseBtn = document.getElementById('quickview-decrease-quantity');
+  const increaseBtn = document.getElementById('quickview-increase-quantity');
+  
+  if (decreaseBtn) {
+    decreaseBtn.onclick = () => {
+      const currentValue = parseInt(quantity.value) || 1;
+      if (currentValue > 1) {
+        quantity.value = currentValue - 1;
+      }
+    };
   }
+  
+  if (increaseBtn) {
+    increaseBtn.onclick = () => {
+      const currentValue = parseInt(quantity.value) || 1;
+      quantity.value = currentValue + 1;
+    };
+  }
+  
+  // Handle add to cart
+  const handleAddToCart = () => {
+    const quantityValue = parseInt(quantity.value) || 1;
+    addToCart(product, selectedVariant, quantityValue);
+    modalInstance.hide();
+  };
+
+  // Remove old event listener and add new one
+  addToCartBtn.removeEventListener('click', handleAddToCart);
+  addToCartBtn.addEventListener('click', handleAddToCart);
+  
+  // Show the modal
+  try {
+    modalInstance.show();
+  } catch (error) {
+    console.error('Error showing modal:', error);
+    // Try alternative method
+    modal.classList.add('show');
+    modal.style.display = 'block';
+    document.body.classList.add('modal-open');
+  }
+}
+
+// Helper function to format price
+function formatPrice(price) {
+    return new Intl.NumberFormat('rw-RW', {
+        style: 'currency',
+        currency: 'RWF',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(price);
 }
 
 // Load Categories from API
@@ -2647,6 +2729,7 @@ function setupProductEventListeners() {
   document.querySelectorAll('.product-link').forEach(link => {
     link.addEventListener('click', function(e) {
       e.preventDefault();
+      e.stopPropagation();
       const productId = this.dataset.productId;
       
       // Find the product in our loaded products array
@@ -2660,67 +2743,67 @@ function setupProductEventListeners() {
 
 // Update Active Filters Display
 function updateActiveFilters() {
-    const activeFiltersContainer = document.getElementById('active-filters-container');
-    const activeFiltersDiv = document.getElementById('active-filters');
+  const activeFiltersContainer = document.getElementById('active-filters-container');
+  const activeFiltersDiv = document.getElementById('active-filters');
+  
+  if (!activeFiltersContainer || !activeFiltersDiv) {
+    console.error('Active filters container or div not found in the DOM');
+    return;
+  }
+  
+  // Clear current filters
+  activeFiltersDiv.innerHTML = '';
+  
+  let hasActiveFilters = false;
+  
+  // Add category filter if active
+  if (currentCategory) {
+    hasActiveFilters = true;
+    const categoryName = getCategoryNameById(currentCategory);
+    console.log(`Adding category filter badge for: ${categoryName} (${currentCategory})`);
     
-    if (!activeFiltersContainer || !activeFiltersDiv) {
-        console.error('Active filters container or div not found in the DOM');
-        return;
-    }
-    
-    // Clear current filters
-    activeFiltersDiv.innerHTML = '';
-    
-    let hasActiveFilters = false;
-    
-    // Add category filter if active
-    if (currentCategory) {
-        hasActiveFilters = true;
-        const categoryName = getCategoryNameById(currentCategory);
-        console.log(`Adding category filter badge for: ${categoryName} (${currentCategory})`);
-        
-        activeFiltersDiv.innerHTML += `
+    activeFiltersDiv.innerHTML += `
             <span class="badge rounded-pill bg-primary d-flex align-items-center me-2 mb-2" data-filter-type="category">
-                <i class="fas fa-tag me-1"></i> ${categoryName}
+        <i class="fas fa-tag me-1"></i> ${categoryName}
                 <button class="btn-close btn-close-white ms-2" aria-label="Remove category filter" 
-                        onclick="removeFilter('category')"></button>
-            </span>
-        `;
-    }
-    
-    // Add search term filter if active
-    if (currentSearchTerm) {
-        hasActiveFilters = true;
-        console.log(`Adding search filter badge for: "${currentSearchTerm}"`);
-        activeFiltersDiv.innerHTML += `
+                onclick="removeFilter('category')"></button>
+      </span>
+    `;
+  }
+  
+  // Add search term filter if active
+  if (currentSearchTerm) {
+    hasActiveFilters = true;
+    console.log(`Adding search filter badge for: "${currentSearchTerm}"`);
+    activeFiltersDiv.innerHTML += `
             <span class="badge rounded-pill bg-info d-flex align-items-center me-2 mb-2" data-filter-type="search">
-                <i class="fas fa-search me-1"></i> "${currentSearchTerm}"
+        <i class="fas fa-search me-1"></i> "${currentSearchTerm}"
                 <button class="btn-close btn-close-white ms-2" aria-label="Remove search filter" 
-                        onclick="removeFilter('search')"></button>
-            </span>
-        `;
-    }
-    
-    // Add sort filter if active
-    if (currentSort) {
-        hasActiveFilters = true;
+                onclick="removeFilter('search')"></button>
+      </span>
+    `;
+  }
+  
+  // Add sort filter if active
+  if (currentSort) {
+    hasActiveFilters = true;
         const sortText = currentSort === 'price-asc' ? 'Price: Low to High' :
                         currentSort === 'price-desc' ? 'Price: High to Low' :
                         currentSort === 'name-asc' ? 'Name: A to Z' :
                         currentSort === 'name-desc' ? 'Name: Z to A' :
                         'Sort';
         
-        activeFiltersDiv.innerHTML += `
+    activeFiltersDiv.innerHTML += `
             <span class="badge rounded-pill bg-secondary d-flex align-items-center me-2 mb-2" data-filter-type="sort">
                 <i class="fas fa-sort me-1"></i> ${sortText}
                 <button class="btn-close btn-close-white ms-2" aria-label="Remove sort filter" 
-                        onclick="removeFilter('sort')"></button>
-            </span>
-        `;
-    }
-    
+                onclick="removeFilter('sort')"></button>
+      </span>
+    `;
+  }
+  
     // Show/hide the container based on whether there are active filters
-    activeFiltersContainer.style.display = hasActiveFilters ? 'block' : 'none';
+  activeFiltersContainer.style.display = hasActiveFilters ? 'block' : 'none';
     
     // If there are active filters, ensure the container is visible
     if (hasActiveFilters) {
@@ -2730,9 +2813,9 @@ function updateActiveFilters() {
 
 // Remove specific filter
 function removeFilter(filterType) {
-    switch(filterType) {
-        case 'category':
-            currentCategory = '';
+  switch(filterType) {
+    case 'category':
+      currentCategory = '';
             // Reset category filter in search bar if it exists
             const categoryFilter = document.getElementById('category-filter');
             if (categoryFilter) {
@@ -2751,10 +2834,10 @@ function removeFilter(filterType) {
                     parentListItem.classList.remove('active');
                 }
             });
-            break;
+      break;
             
-        case 'search':
-            currentSearchTerm = '';
+    case 'search':
+      currentSearchTerm = '';
             // Clear all search inputs
             ['search-input', 'mobile-search-input', 'products-search-input'].forEach(id => {
                 const input = document.getElementById(id);
@@ -2762,19 +2845,19 @@ function removeFilter(filterType) {
                     input.value = '';
                 }
             });
-            break;
+      break;
             
-        case 'sort':
-            currentSort = '';
+    case 'sort':
+      currentSort = '';
             // Reset sort buttons if they exist
             document.querySelectorAll('.sort-option').forEach(option => {
                 option.classList.remove('active');
             });
-            break;
-    }
-    
+      break;
+  }
+  
     // Reset to first page
-    currentPage = 1;
+  currentPage = 1;
     
     // Remove the filter badge from UI
     const filterBadge = document.querySelector(`[data-filter-type="${filterType}"]`);
@@ -2792,10 +2875,10 @@ function removeFilter(filterType) {
     }
     
     // Reload products with updated filters
-    loadProducts();
+  loadProducts();
     
     // Show feedback toast
-    showToast(`${filterType.charAt(0).toUpperCase() + filterType.slice(1)} filter removed`);
+  showToast(`${filterType.charAt(0).toUpperCase() + filterType.slice(1)} filter removed`);
 }
 
 // Make removeFilter available globally
